@@ -3,5 +3,7 @@
     "material-icon-theme.folders.associations": {
         "smal": "App",
         "codegen": "Template",
+        "c": "Scripts",
+        "diagramming": "Images"
     }
 }

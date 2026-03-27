@@ -1,0 +1,38 @@
+machine: Example
+version: 1.0.0
+description: An example state machine created using SMAL, using inlined YAML syntax.
+states:
+    - {name: IDLE, id: 0, description: The idle state}
+    - {name: MEASURING, id: 1, description: The measuring state}
+    - {name: APPLYING_FILTERS, id: 2, description: The applying filters state}
+events:
+    - {name: START_MEASUREMENT, id: 0}
+    - {name: MEASUREMENT_SUCCEEDED, id: 1}
+    - {name: MEASUREMENT_FAILED, id: 2}
+    - {name: APPLY_FILTERS, id: 3}
+    - {name: FILTERS_APPLIED, id: 4}
+errors:
+    - {name: MEASUREMENT_FAILED, id: 0}
+    - {name: FILTER_APPLICATION_FAILED, id: 1}
+transitions:
+    - {trigger_state: IDLE, trigger_evt: START_MEASUREMENT, action: handler_start_measurement, landing_state: MEASURING, landing_state_entry_evt: null}
+    - {trigger_state: MEASURING, trigger_evt: MEASUREMENT_SUCCEEDED, action: handler_measurement_succeeded, landing_state: APPLYING_FILTERS, landing_state_entry_evt: APPLY_FILTERS}
+    - {trigger_state: APPLYING_FILTERS, trigger_evt: APPLY_FILTERS, action: handler_apply_filters, landing_state: APPLYING_FILTERS, landing_state_entry_evt: null}
+    - {trigger_state: APPLYING_FILTERS, trigger_evt: FILTERS_APPLIED, action: handler_filters_applied, landing_state: IDLE, landing_state_entry_evt: null}
+    - {trigger_state: MEASURING, trigger_evt: MEASUREMENT_FAILED, action: handler_measurement_failed, landing_state: IDLE, landing_state_entry_evt: null}
+debug:
+    lang: c
+    size_bytes: 64
+    enums:
+      - {name: DebugEntryType, values: {0: STATE_TRANSITION, 1: EVENT_RX, 2: EVENT_TX}}
+    layout:
+        - {name: timestamp_ms, type: uint32}
+        - {name: entry_type, type: enum:DebugEntryType}
+        - {name: id, type: uint8}
+        - name: flags
+          type: uint8
+          bitfields:
+            - bit: 0
+              name: error
+            - bit: 1
+              name: reserved

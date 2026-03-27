@@ -1,0 +1,26 @@
+#ifndef {{ header_guard }}
+#define {{ header_guard }}
+
+#include <stdint.h>
+
+// STATES
+typedef enum _{{ machine | lower }}_state_t {
+{% for state in states %}
+    {{ machine | upper }}_STATE_{{ state.name | upper }} = {{ state.id }},
+{% endfor %}
+} {{ machine | lower }}_state_t;
+
+// EVENTS
+typedef enum _{{ machine | lower }}_event_t {
+{% for event in events %}
+    {{ machine | upper }}_EVENT_{{ event.name | upper }} = {{ event.id }},
+{% endfor %}
+} {{ machine | lower }}_event_t;
+
+// COMMANDS
+// TBD
+
+// MESSAGES
+// TBD
+
+#endif // {{ header_guard }}

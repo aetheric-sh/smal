@@ -1,6 +1,7 @@
 from pydantic import field_validator
 import semver
 from typing import ClassVar
+from smal.smal_primitive import SMALPrimitive
 
 class IdentifierValidationMixin:
     IDENTIFIER_FIELDS: ClassVar[tuple[str]] = ("name",)
@@ -21,4 +22,13 @@ class SemverValidationMixin:
             semver.Version.parse(v)
         except (ValueError, TypeError):
             raise
+        return v
+
+class PrimitiveValidationMixin:
+    TYPE_FIELDS: ClassVar[tuple[str]] = ("type",)
+
+    @field_validator(*TYPE_FIELDS, check_fields=False)
+    def validate_primitive_type(cls, v: str) -> str:
+        if not SMALPrimitive.is_smal_primitive(v):
+            raise ValueError(f"Invalid primitive type: '{v}'. Must be one of: {', '.join({sp.value for sp in SMALPrimitive})}")
         return v

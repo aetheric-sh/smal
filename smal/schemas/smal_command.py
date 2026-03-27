@@ -1,16 +1,18 @@
 from pydantic import BaseModel, Field
 from typing import Any, Literal, ClassVar
-from smal.schemas.utilities import IdentifierValidationMixin
+from smal.schemas.utilities import IdentifierValidationMixin, PrimitiveValidationMixin
 
-class SMALCommandParameter(IdentifierValidationMixin, BaseModel):
+class SMALCommandParameter(IdentifierValidationMixin, PrimitiveValidationMixin, BaseModel):
     IDENTIFIER_FIELDS: ClassVar[tuple[str]] = ("name",)
+    TYPE_FIELDS: ClassVar[tuple[str]] = ("type",)
 
     name: str
     type: str
     default_value: Any = Field(default=None, description="The default value of the parameter, if any.")
 
-class SMALCommandPayloadField(IdentifierValidationMixin, BaseModel):
+class SMALCommandPayloadField(IdentifierValidationMixin, PrimitiveValidationMixin, BaseModel):
     IDENTIFIER_FIELDS: ClassVar[tuple[str]] = ("name",)
+    TYPE_FIELDS: ClassVar[tuple[str]] = ("type",)
 
     name: str
     type: str
