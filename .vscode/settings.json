@@ -1,3 +1,7 @@
 {
-    "python-envs.pythonProjects": []
+    "python-envs.pythonProjects": [],
+    "material-icon-theme.folders.associations": {
+        "smal": "App",
+        "codegen": "Template",
+    }
 }
