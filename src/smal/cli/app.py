@@ -3,7 +3,7 @@ from pathlib import Path
 import typer
 
 from smal.cli.commands import generate_code_cmd, generate_diagram_cmd, install_graphviz_app
-from smal.codegen import STANDARD_TEMPLATES
+from smal.codegen.smal_templates import TemplateRegistry
 
 app = typer.Typer(help="SMAL = State Machine Abstraction Language CLI")
 app.add_typer(install_graphviz_app, name="install-graphviz")
@@ -26,8 +26,8 @@ def code_cmd(
         raise typer.BadParameter("You must specify exactly one of --template or --custom.")
 
     # Validate built-in template name
-    if template and template not in STANDARD_TEMPLATES:
-        raise typer.BadParameter(f"Unknown template '{template}'. Valid options: {', '.join(STANDARD_TEMPLATES)}")
+    if template and not TemplateRegistry.has_template(template):
+        raise typer.BadParameter(f"Unknown template '{template}'. Valid options: {', '.join(TemplateRegistry.list_template_names())}")
 
     generate_code_cmd(
         smal_path=smal_path,

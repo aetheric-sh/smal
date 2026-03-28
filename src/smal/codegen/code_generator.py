@@ -1,45 +1,41 @@
-from __future__ import annotations
+from __future__ import annotations  # Until Python 3.14
 
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, PackageLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, PackageLoader, Template, select_autoescape
 
+from smal.codegen.smal_templates import SMALTemplate, TemplateRegistry
 from smal.schemas.smal_file import SMALFile
 
 
 class SMALCodeGenerator:
-    def __init__(self, template_dir: str | Path | None = None) -> None:
-        if template_dir is None:
-            self.env = Environment(loader=PackageLoader("smal", "codegen.templates"), autoescape=select_autoescape([]), trim_blocks=True, lstrip_blocks=True)
-        else:
-            template_dir = Path(template_dir)
-            if not template_dir.exists():
-                raise ValueError(f"Codegen template directory does not exist: {template_dir}")
-            self.env = Environment(loader=FileSystemLoader(template_dir), autoescape=select_autoescape([]), trim_blocks=True, lstrip_blocks=True)
+    def __init__(self) -> None:
+        self.env_builtin = Environment(
+            loader=PackageLoader("smal", "codegen.templates"),
+            autoescape=select_autoescape([]),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
 
-    def render(self, template_name: str, smal: SMALFile, **extra_content: Any) -> str:
-        template = self.env.get_template(template_name)
-        context = {
-            "smal": smal,
-            "machine": smal.machine,
-            "version": smal.version,
-            "states": smal.states,
-            "constants": smal.constants,
-            "enums": smal.enums,
-            "structs": smal.structs,
-            "events": smal.events,
-            "commands": smal.commands,
-            "errors": smal.errors,
-            "transitions": smal.transitions,
-            "debug": smal.debug,
-        }
-        context.update(extra_content)
-        return template.render(**context)
+    def load_builtin_template(self, template_name: str) -> tuple[Template, SMALTemplate]:
+        builtin_tmpl = TemplateRegistry.get(template_name)
+        return self.env_builtin.get_template(builtin_tmpl.filename), builtin_tmpl
 
-    def render_to_file(self, template_name: str, smal: SMALFile, out_path: str | Path, force: bool = False, **extra_content: Any) -> None:
+    def load_external_template(self, template_path: str | Path) -> Template:
+        template_path = Path(template_path)
+        if not template_path.is_file():
+            raise FileNotFoundError(f"Template file does not exist: {template_path}")
+        env_external = Environment(loader=FileSystemLoader(template_path.parent), autoescape=select_autoescape([]), trim_blocks=True, lstrip_blocks=True)
+        return env_external.get_template(template_path.name)
+
+    def render(self, template: Template, smal: SMALFile, **extra_context: Any) -> str:
+        # TODO: Implement formatting while the text is in memory here
+        return template.render(smal=smal, **extra_context)
+
+    def render_to_file(self, template: Template, smal: SMALFile, out_path: str | Path, force: bool = False, **extra_context: Any) -> None:
         out_path = Path(out_path)
-        code = self.render(template_name, smal, **extra_content)
         if not force and out_path.exists():
             raise FileExistsError(f"File already exists and overwrite is not allowed: {out_path}")
+        code = self.render(template, smal, **extra_context)
         out_path.write_text(code, encoding="utf-8")

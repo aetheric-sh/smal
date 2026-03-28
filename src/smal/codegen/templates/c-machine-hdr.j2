@@ -5,26 +5,26 @@
 
 #include <stdint.h>
 
-#define {{ machine | upper}}_VERSION {{ version }}
+#define {{ smal.machine | upper }}_VERSION {{ smal.version }}
 
 // CONSTANTS
-{% for constant_name, constant_value in constants.items() %}
+{% for constant_name, constant_value in smal.constants.items() %}
 #define {{ constant_name | upper }} {{ constant_value }}
 {% endfor %}
 
 // STATES
-typedef enum _{{ machine | lower }}_state_t {
-{% for state in states %}
-    {{ machine | upper }}_STATE_{{ state.name | upper }} = {{ state.id }},
+typedef enum _{{ smal.machine | lower }}_state_t {
+{% for state in smal.states %}
+    {{ smal.machine | upper }}_STATE_{{ state.name | upper }} = {{ state.id }},
 {% endfor %}
-} {{ machine | lower }}_state_t;
+} {{ smal.machine | lower }}_state_t;
 
 // EVENTS
-typedef enum _{{ machine | lower }}_event_t {
-{% for event in events %}
-    {{ machine | upper }}_EVENT_{{ event.name | upper }} = {{ event.id }},
+typedef enum _{{ smal.machine | lower }}_event_t {
+{% for event in smal.events %}
+    {{ smal.machine | upper }}_EVENT_{{ event.name | upper }} = {{ event.id }},
 {% endfor %}
-} {{ machine | lower }}_event_t;
+} {{ smal.machine | lower }}_event_t;
 
 // COMMANDS
 // TBD

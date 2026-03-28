@@ -18,15 +18,16 @@ def generate_code_cmd(
     if not smal_path.is_file():
         raise FileNotFoundError(f"SMAL file not found: {smal_path}")
     smal = SMALFile.from_file(smal_path)
+    generator = SMALCodeGenerator()
     if custom_template and custom_template.is_file():
         with console.status(f"Generating code from {smal_path} using custom template {custom_template}", spinner="dots"):
-            template_dir = custom_template.parent
-            generator = SMALCodeGenerator(template_dir)
-            template_name = custom_template.name
-            generator.render_to_file(template_name, smal, out_dir / template_name, force=force)
+            ctmpl = generator.load_external_template(custom_template)
+            out_filepath = out_dir / (out_filename if out_filename else custom_template.stem)
+            generator.render_to_file(ctmpl, smal, out_filepath, force=force)
     elif template:
         with console.status(f"Generating code from {smal_path} using built-in template '{template}'", spinner="dots"):
-            generator = SMALCodeGenerator()
-            generator.render_to_file(template, smal, out_dir / template, force=force)
+            btmpl, smal_tmpl = generator.load_builtin_template(template)
+            out_filepath = out_dir / (out_filename if out_filename else f"{smal_tmpl.name}{smal_tmpl.output_extension}")
+            generator.render_to_file(btmpl, smal, out_filepath, force=force)
     else:
         raise ValueError("Either a built-in template name or a custom template path must be provided.")
