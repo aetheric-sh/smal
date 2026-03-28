@@ -23,9 +23,12 @@ def generate_state_machine_svg(
     # Parse the SMAL file
     smal = SMALFile.from_file(smal_path)
 
-    default_graph_attr = {"rankdir": "LR", "fontsize": "12", "fontname": "Arial", "dpi": "300", "splines": "ortho", "ranksep": "0.75", "nodesep": "0.5"}.update(graph_attr or {})
-    default_node_attr = {"shape": "rounded", "style": "filled", "fillcolor": "#f8f8f8", "penwidth": "1.5", "margin": "0.2,0.1"}.update(node_attr or {})
-    default_edge_attr = {"arrowhead": "vee", "arrowsize": "0.8", "fontsize": "10", "penwidth": "1.2", "color": "#555555"}.update(edge_attr or {})
+    default_graph_attr = {"rankdir": "LR", "fontname": "Arial", "splines": "polyline", "ranksep": "0.75", "nodesep": "0.75"}
+    default_graph_attr.update(graph_attr or {})
+    default_node_attr = {"shape": "box", "style": "filled", "fillcolor": "#f8f8f8"}
+    default_node_attr.update(node_attr or {})
+    default_edge_attr = {"fontsize": "10", "color": "#555555"}
+    default_edge_attr.update(edge_attr or {})
 
     # Create a graphviz Digraph using the SMAL file
     dot = Digraph(
@@ -38,13 +41,11 @@ def generate_state_machine_svg(
 
     # Add states
     for state in smal.states:
-        dot.node(state.name)
+        dot.node(state.name, shape=state.type.graphviz_shape)
 
     # Add transitions
     for t in smal.transitions:
-        label = f"{t.trigger_evt} / {t.action}"
-        if t.landing_state_entry_evt:
-            label += f" → {t.landing_state_entry_evt}"
+        label = f"on: {t.trigger_evt}\ndo: {t.action}{'entry: ' + t.landing_state_entry_evt if t.landing_state_entry_evt else ''}"
         dot.edge(t.trigger_state, t.landing_state, label=label)
 
     # Render the SVG file

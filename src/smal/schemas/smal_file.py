@@ -1,8 +1,10 @@
+import logging
+from collections import Counter
 from pathlib import Path
 from typing import ClassVar
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import Self
 
 from smal.schemas.smal_command import SMALCommand
@@ -34,8 +36,70 @@ class SMALFile(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
     debug: SMALStruct | None = Field(default=None, description="Debugging structure associated with this state machine, if any.")
     description: str | None = Field(default=None, description="Description of the state machine.")
 
+    @field_validator("states", mode="before")
+    def expand_short_form_states(cls, v: list[dict | str]) -> list[SMALState]:
+        expanded_states = []
+        for item in v:
+            if isinstance(item, str):
+                expanded_states.append(SMALState(name=item))
+            elif isinstance(item, dict):
+                expanded_states.append(SMALState.model_validate(item))
+            else:
+                raise ValueError(f"Invalid state definition: {item}. Must be either a string or a dictionary.")
+        return expanded_states
+
+    @field_validator("events", mode="before")
+    def expand_short_form_events(cls, v: list[dict | str]) -> list[SMALEvent]:
+        expanded_events = []
+        for item in v:
+            if isinstance(item, str):
+                expanded_events.append(SMALEvent(name=item))
+            elif isinstance(item, dict):
+                expanded_events.append(SMALEvent.model_validate(item))
+            else:
+                raise ValueError(f"Invalid event definition: {item}. Must be either a string or a dictionary.")
+        return expanded_events
+
+    @field_validator("errors", mode="before")
+    def expand_short_form_errors(cls, v: list[dict | str]) -> list[SMALError]:
+        expanded_errors = []
+        for item in v:
+            if isinstance(item, str):
+                expanded_errors.append(SMALError(name=item))
+            elif isinstance(item, dict):
+                expanded_errors.append(SMALError.model_validate(item))
+            else:
+                raise ValueError(f"Invalid error definition: {item}. Must be either a string or a dictionary.")
+        return expanded_errors
+
     @model_validator(mode="after")
     def validate_smal_file(self) -> Self:
+        # Ensure all states are uniquely named
+        names = [s.name for s in self.states]
+        duplicate_names = [name for name, count in Counter(names).items() if count > 1]
+        if duplicate_names:
+            raise ValueError(f"Duplicate state names found: {', '.join(duplicate_names)}. All state names must be unique.")
+        # Validate that all states are properly identified
+        state_ids = {s.id for s in self.states}
+        if None in state_ids:
+            logging.warning("Machine<%s>: Some states are missing IDs. Auto-assigning IDs based on order of definition.", self.machine)
+            for s in self.states:
+                s.id = self.states.index(s)
+                logging.debug("Machine<%s>: Auto-assigned ID %s to state '%s'.", self.machine, s.id, s.name)
+        # Validate that all events are properly identified
+        evt_ids = {e.id for e in self.events}
+        if None in evt_ids:
+            logging.warning("Machine<%s>: Some events are missing IDs. Auto-assigning IDs based on order of definition.", self.machine)
+            for e in self.events:
+                e.id = self.events.index(e)
+                logging.debug("Machine<%s>: Auto-assigned ID %s to event '%s'.", self.machine, e.id, e.name)
+        # Validate that all errors are properly identified
+        err_ids = {e.id for e in self.errors}
+        if None in err_ids:
+            logging.warning("Machine<%s>: Some errors are missing IDs. Auto-assigning IDs based on order of definition.", self.machine)
+            for e in self.errors:
+                e.id = self.errors.index(e)
+                logging.debug("Machine<%s>: Auto-assigned ID %s to error '%s'.", self.machine, e.id, e.name)
         # Validate that all SMALTransition objects reference existing states, events, etc.
         state_map: dict[str, SMALState] = {s.name: s for s in self.states}
         evt_map: dict[str, SMALEvent] = {e.name: e for e in self.events}
