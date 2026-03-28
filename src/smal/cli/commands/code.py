@@ -11,6 +11,7 @@ def generate_code_cmd(
     template: str | None = None,
     custom_template: Path | None = None,
     out_dir: Path = Path("./generated"),
+    out_filename: str | None = None,
     force: bool = False,
 ) -> None:
     console = Console()
@@ -25,9 +26,7 @@ def generate_code_cmd(
             generator.render_to_file(template_name, smal, out_dir / template_name, force=force)
     elif template:
         with console.status(f"Generating code from {smal_path} using built-in template '{template}'", spinner="dots"):
-            # TODO: Get provided templates directory using resource management
-            template_dir = Path("./templates") / template
-            generator = SMALCodeGenerator(template_dir)
+            generator = SMALCodeGenerator()
             generator.render_to_file(template, smal, out_dir / template, force=force)
     else:
         raise ValueError("Either a built-in template name or a custom template path must be provided.")
