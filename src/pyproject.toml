@@ -21,4 +21,7 @@ dev = [
 ]
 
 [project.scripts]
-smal = "smal.cli:app"
+smal = "smal.cli.cli:app"
+
+[tool.setuptools]
+packages = ["smal"]
