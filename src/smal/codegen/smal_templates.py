@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 from jinja2 import Environment, FileSystemLoader, meta, select_autoescape
 from pydantic import BaseModel
@@ -49,12 +50,17 @@ def is_valid_smal_template(template_path: str | Path) -> tuple[bool, set[str]]:
     return is_valid, referenced_vars - allowed_vars
 
 
+SMALTemplateContextComputeFn: TypeAlias = Callable[[SMALFile], Any]
+
+
 @dataclass(frozen=True)
 class SMALTemplate:
     name: str
     filename: str
     description: str
     output_extension: str
+    extra_context: dict[str, Any] = field(default_factory=dict)
+    computed_extra_context: dict[str, SMALTemplateContextComputeFn] = field(default_factory=dict)
 
 
 class TemplateRegistry:
@@ -64,6 +70,9 @@ class TemplateRegistry:
             filename="c_machine_hdr.j2",
             description="C header file for the state machine",
             output_extension=".h",
+            computed_extra_context={
+                "header_guard": lambda smal: f"{smal.machine.rstrip('_H')}_H".upper(),
+            },
         ),
         "c-machine-src": SMALTemplate(
             name="c-machine-src",
