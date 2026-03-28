@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="https://raw.githubusercontent.com/jbaileydev/smal/master/assets/smal_header.svg" width="300">
+  <img src="https://raw.githubusercontent.com/jbaileydev/smal/master/src/assets/smal_header.svg" width="300">
 </h1><br>
 
 [![Python Versions](https://img.shields.io/pypi/pyversions/smal.svg)](https://pypi.org/project/smal/)
