@@ -34,7 +34,9 @@ class SMALCodeGenerator:
         context.update(extra_content)
         return template.render(**context)
 
-    def render_to_file(self, template_name: str, smal: SMALFile, out_path: str | Path, **extra_content: Any) -> None:
+    def render_to_file(self, template_name: str, smal: SMALFile, out_path: str | Path, force: bool = False, **extra_content: Any) -> None:
         out_path = Path(out_path)
         code = self.render(template_name, smal, **extra_content)
+        if not force and out_path.exists():
+            raise FileExistsError(f"File already exists and overwrite is not allowed: {out_path}")
         out_path.write_text(code, encoding="utf-8")
