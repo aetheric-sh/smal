@@ -1,12 +1,8 @@
 <h1 align="center">
-<img src="https://raw.githubusercontent.com/smal/smal/master/assets/smal_header.svg" width="300">
+  <img src="https://raw.githubusercontent.com/jbaileydev/smal/banner/assets/smal_header.svg" width="300">
 </h1><br>
 
 [![PyPI Downloads](https://img.shields.io/pypi/dm/smal.svg?label=PyPI%20downloads)](https://pypi.org/project/smal/)
-
----
-
-# 🚀 Overview
 
 **SMAL (State Machine Abstraction Language)** is a compact, human‑readable YAML DSL for defining fully functional state machines that are:
 
@@ -22,8 +18,6 @@ A `.smal` file describes your entire state machine — states, events, transitio
 - **Human-readable reports** for developers and QA
 
 SMAL is built for embedded systems, audio devices, wearables, robotics, and any environment where clarity, determinism, and debuggability matter.
-
----
 
 # ✨ Features
 
@@ -41,8 +35,6 @@ SMAL includes a structured debug layout that maps cleanly to firmware and toolin
 
 ### 🛠️ Extensible  
 Add custom generators, validators, or analysis tools.
-
----
 
 # 📦 Installation
 
