@@ -7,8 +7,12 @@
         "formatting": "Theme",
         "macros": "Rules",
     },
-    "editor.formatOnSave": true,
+    "ruff.enable": true,
     "ruff.lint.enable": true,
-    "ruff.lineLength": 160,
+    "ruff.fixAll": true,
+    "ruff.organizeImports": true,
+    "ruff.lineLength": 180,
+    "editor.formatOnSave": true,
     "editor.defaultFormatter": "charliermarsh.ruff",
+    "python-envs.pythonProjects": []
 }

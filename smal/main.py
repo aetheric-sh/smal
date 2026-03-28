@@ -1,8 +1,9 @@
 from __future__ import annotations
-from smal.codegen.code_generator import SMALCodeGenerator
-from smal.schemas.smal_file import SMALFile
+
 from pathlib import Path
+
 from smal.diagramming.generation import generate_state_machine_svg
+
 if __name__ == "__main__":
     templates_dir = Path(__file__).parent / "codegen" / "c"
     examples_dir = Path(__file__).parent.parent / "examples"
