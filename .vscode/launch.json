@@ -5,11 +5,33 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Module",
+            "name": "SMAL: diagram",
             "type": "debugpy",
             "request": "launch",
-            "module": "smal.main",
-            "cwd": "${workspaceFolder}/src"
-        }
+            "module": "smal.cli.app",
+            "cwd": "${workspaceFolder}/src",
+            "args": [
+                "diagram",
+                "${workspaceFolder}/src/examples/example.smal",
+                "${workspaceFolder}/src/examples",
+                "-f"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "SMAL: code (builtin)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "smal.cli.app",
+            "cwd": "${workspaceFolder}/src",
+            "args": [
+                "code",
+                "${workspaceFolder}/src/examples/example.smal",
+                "-t",
+                "c-machine-hdr",
+                "-f"
+            ],
+            "console": "integratedTerminal"
+        },
     ]
 }

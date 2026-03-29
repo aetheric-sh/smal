@@ -67,18 +67,12 @@ class TemplateRegistry:
     _templates = {
         "c-machine-hdr": SMALTemplate(
             name="c-machine-hdr",
-            filename="c_machine_hdr.j2",
+            filename="c-machine-hdr.j2",
             description="C header file for the state machine",
             output_extension=".h",
             computed_extra_context={
                 "header_guard": lambda smal: f"{smal.machine.rstrip('_H')}_H".upper(),
             },
-        ),
-        "c-machine-src": SMALTemplate(
-            name="c-machine-src",
-            filename="c_machine_src.j2",
-            description="C source file for the state machine",
-            output_extension=".c",
         ),
     }
 

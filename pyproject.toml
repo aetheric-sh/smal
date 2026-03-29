@@ -29,7 +29,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 smal = [
     "codegen/templates/*.j2",
-    "codegen/templates/macros/*.j2",
+    "codegen/templates/**/*.j2",
 ]
 
 [project.scripts]
