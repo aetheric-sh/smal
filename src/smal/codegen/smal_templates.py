@@ -57,6 +57,7 @@ SMALTemplateContextComputeFn: TypeAlias = Callable[[SMALFile], Any]
 class SMALTemplate:
     name: str
     filename: str
+    lang: str
     description: str
     output_extension: str
     extra_context: dict[str, Any] = field(default_factory=dict)
@@ -68,6 +69,7 @@ class TemplateRegistry:
         "c-machine-hdr": SMALTemplate(
             name="c-machine-hdr",
             filename="c-machine-hdr.j2",
+            lang="c",
             description="C header file for the state machine",
             output_extension=".h",
             computed_extra_context={

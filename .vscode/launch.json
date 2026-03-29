@@ -33,5 +33,16 @@
             ],
             "console": "integratedTerminal"
         },
+        {
+            "name": "SMAL: templates",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "smal.cli.app",
+            "cwd": "${workspaceFolder}/src",
+            "args": [
+                "templates",
+            ],
+            "console": "integratedTerminal"
+        },
     ]
 }
