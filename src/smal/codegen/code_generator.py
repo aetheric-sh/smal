@@ -12,7 +12,7 @@ from smal.schemas.smal_file import SMALFile
 class SMALCodeGenerator:
     def __init__(self) -> None:
         self.env_builtin = Environment(
-            loader=PackageLoader("smal", "codegen.templates"),
+            loader=PackageLoader("smal", "codegen/templates"),
             autoescape=select_autoescape([]),
             trim_blocks=True,
             lstrip_blocks=True,

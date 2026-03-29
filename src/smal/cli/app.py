@@ -93,3 +93,7 @@ def diagram_cmd(
         force=force,
         title=title,
     )
+
+
+if __name__ == "__main__":
+    app()
