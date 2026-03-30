@@ -46,12 +46,6 @@ commit_parser = "conventional"
 major_on_zero = false  # TODO: Change this when stable
 allow_zero_version = true  # TODO: Remove this when major_on_zero == true
 tag_format = "v{version}"
-build_command = """
-    python -m pip install -e '.[build]'
-    uv lock --upgrade-package "$PACKAGE_NAME"
-    git add uv.lock
-    uv build
-"""
 
 [tool.semantic_release.branches.main]
 match = "(main|master)"
