@@ -33,7 +33,7 @@ SMAL is built for embedded systems, audio devices, wearables, robotics, and any 
 Define states, events, transitions, actions, etc. in a clean, expressive format.
 
 ### 🔧 Multi-language code generation  
-Generate firmware-ready code in **C**, **C++**, and **Rust**.
+Generate firmware-ready code in **C**. **C++** and **Rust** coming soon!
 
 ### 🖼️ SVG diagram generation  
 Produce a polished, auto‑layout state machine diagram directly from your `.smal` file.
