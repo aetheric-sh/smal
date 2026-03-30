@@ -8,32 +8,22 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
       id-token: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Install dependencies
-        run: pip install python-semantic-release
-
+        run: pip install python-semantic-release==9.21.1 build
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: semantic-release publish
-
-      # Optional: only if you want artifacts uploaded to GitHub Releases
-      - name: Build package
-        run: |
-          pip install build
-          python -m build
