@@ -33,9 +33,6 @@ jobs:
       - name: Build Python distributions
         run: uv build -o dist --clear
 
-      - name: DEBUG | List dist directory
-        run: ls -lR dist
-
       - name: Upload Distribution Artifacts
         if: ${{ steps.version.outputs.released == 'true' }}
         uses: actions/upload-artifact@v6
@@ -86,9 +83,6 @@ jobs:
           name: ${{ needs.build.outputs.distribution-artifacts }}
           path: dist
 
-      - name: DEBUG | List dist directory
-        run: ls -lR dist
-
       - name: Download Lock File Artifact
         uses: actions/download-artifact@v6
         with:
@@ -127,9 +121,6 @@ jobs:
         with:
           name: ${{ needs.build.outputs.distribution-artifacts }}
           path: dist
-
-      - name: DEBUG | List dist directory
-        run: ls -lR dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
