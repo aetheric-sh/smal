@@ -6,7 +6,6 @@ on:
       - master
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     permissions:
@@ -16,38 +15,37 @@ jobs:
       dist_artifacts_dir: dist
       lock_file_artifact: uv.lock
     steps:
-      - name: Setup | Checkout Repository at workflow sha
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0    # Full history needed for semantic-release
+          tags: true        # Fetch tags
 
-      - name: Setup | Force correct release branch on workflow sha
-        run: git checkout -B ${{ github.ref_name }}
-
-      - name: Setup | Install uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Setup | Install Python & Project dependencies
+      - name: Install Python & Project dependencies
         run: uv sync --all-extras --dev
 
-      - name: Build | Build next version artifacts
+      - name: Detect next version
         id: version
         env:
-          GH_TOKEN: "none"
+          GH_TOKEN: "none"  # prevent accidental pushes
         run: uv run semantic-release -v version --no-changelog --no-commit --no-tag
 
-      - name: Upload | Distribution Artifacts
+      - name: Upload Distribution Artifacts
         if: ${{ steps.version.outputs.released == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ env.dist_artifacts_name }}
-          path: ${{ format('{0}/**', env.dist_artifacts_dir) }}
+          path: ${{ env.dist_artifacts_dir }}/**
           if-no-files-found: error
           retention-days: 2
 
-      - name: Upload | Lock File Artifact
+      - name: Upload Lock File Artifact
         if: ${{ steps.version.outputs.released == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ env.lock_file_artifact }}
           path: ${{ env.lock_file_artifact }}
@@ -58,7 +56,6 @@ jobs:
       new-release-detected: ${{ steps.version.outputs.released }}
       new-release-version: ${{ steps.version.outputs.version }}
       new-release-tag: ${{ steps.version.outputs.tag }}
-      new-release-is-prerelease: ${{ steps.version.outputs.is_prerelease }}
       distribution-artifacts: ${{ env.dist_artifacts_name }}
       lock-file-artifact: ${{ env.lock_file_artifact }}
 
@@ -66,48 +63,41 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build
-
     if: ${{ needs.build.outputs.new-release-detected == 'true' }}
-
     concurrency:
       group: ${{ github.workflow }}-release-${{ github.ref_name }}
       cancel-in-progress: false
-
     permissions:
       contents: write
-
     steps:
-      - name: Setup | Checkout Repository on Release Branch
+      - name: Checkout repository with full history
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          tags: true
 
-      - name: Setup | Force release branch to be at workflow sha
-        run: git reset --hard ${{ github.sha }}
-
-      - name: Setup | Install uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Setup | Install Python & Project dependencies
+      - name: Install Python & dependencies
         run: uv sync --extra build
 
-      - name: Setup | Download Build Artifacts
+      - name: Download Distribution Artifacts
         uses: actions/download-artifact@v6
-        id: artifact-download
         with:
           name: ${{ needs.build.outputs.distribution-artifacts }}
           path: dist
 
-      - name: Setup | Download Lock File Artifact
+      - name: Download Lock File Artifact
         uses: actions/download-artifact@v6
         with:
           name: ${{ needs.build.outputs.lock-file-artifact }}
 
-      - name: Setup | Stage Lock File for Version Commit
+      - name: Stage Lock File
         run: git add uv.lock
 
-      - name: Release | Create Release
-        id: release
+      - name: Create Release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -120,31 +110,25 @@ jobs:
       new-release-version: ${{ steps.release.outputs.version }}
       new-release-tag: ${{ steps.release.outputs.tag }}
 
-
   deploy:
-    name: Deploy
+    name: Deploy to PyPI
     runs-on: ubuntu-latest
-    if: ${{ needs.release.outputs.released == 'true' && github.repository == 'python-semantic-release/my-package' }}
     needs:
-      - build
       - release
-
+    if: ${{ needs.release.outputs.released == 'true' && github.repository == 'python-semantic-release/my-package' }}
     environment:
       name: pypi
       url: https://pypi.org/project/my-package/
-
     permissions:
       id-token: write
-
     steps:
-      - name: Setup | Download Build Artifacts
+      - name: Download Distribution Artifacts
         uses: actions/download-artifact@v6
-        id: artifact-download
         with:
           name: ${{ needs.build.outputs.distribution-artifacts }}
           path: dist
 
-      - name: Publish package distributions to PyPI
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
