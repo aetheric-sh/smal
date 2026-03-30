@@ -44,5 +44,17 @@
             ],
             "console": "integratedTerminal"
         },
+        {
+            "name": "SMAL: validate",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "smal.cli.app",
+            "cwd": "${workspaceFolder}/src",
+            "args": [
+                "validate",
+                "${workspaceFolder}/src/smal/codegen/templates/c-machine-hdr.j2",
+            ],
+            "console": "integratedTerminal"
+        },
     ]
 }

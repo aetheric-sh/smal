@@ -5,19 +5,23 @@ description = "State Machine Abstraction Language (SMAL) is a YAML-based descrip
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "graphviz>=0.21",
-    "jinja2>=3.1.6",
-    "pydantic>=2.12.5",
-    "pyyaml>=6.0.3",
-    "semver>=3.0.4",
-    "typer>=0.24.1",
+    "graphviz==0.21",
+    "jinja2==3.1.6",
+    "pydantic==2.12.5",
+    "pyyaml==6.0.3",
+    "semver==3.0.4",
+    "typer==0.24.1",
 ]
+
+[project.scripts]
+smal = "smal.cli.app:app"
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.2",
-    "pytest-cov>=7.1.0",
-    "ruff>=0.15.8",
+    "pytest==9.0.2",
+    "pytest-cov==7.1.0",
+    "python-semantic-release==9.21.1",
+    "ruff==0.15.8",
 ]
 
 [tool.setuptools]
@@ -32,5 +36,10 @@ smal = [
     "codegen/templates/**/*.j2",
 ]
 
-[project.scripts]
-smal = "smal.cli.app:app"
+[tool.semantic_release]
+version_variable = "pyproject.toml:version"
+branch = "master"
+upload_to_pypi = false
+upload_to_release = true
+changelog_file = "CHANGELOG.md"
+commit_parser = "conventional"
