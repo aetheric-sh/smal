@@ -30,7 +30,7 @@ SMAL is built for embedded systems, audio devices, wearables, robotics, and any 
 # ✨ Features
 
 ### 🧩 YAML-based DSL  
-Define states, events, transitions, and actions in a clean, expressive format.
+Define states, events, transitions, actions, etc. in a clean, expressive format.
 
 ### 🔧 Multi-language code generation  
 Generate firmware-ready code in **C**, **C++**, and **Rust**.
