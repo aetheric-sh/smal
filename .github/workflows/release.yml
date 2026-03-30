@@ -11,8 +11,8 @@ jobs:
     permissions:
       contents: read
     env:
-      dist_artifacts_name: dist
-      dist_artifacts_dir: dist
+      dist_artifacts_name: dist         # artifact name
+      dist_artifacts_dir: dist          # folder where Python packages will live
       lock_file_artifact: uv.lock
     steps:
       - name: Checkout repository
@@ -29,12 +29,12 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Build Python distributions
-        run: uv build --out-dir dist
+        run: uv build --out-dir ${{ env.dist_artifacts_dir }}
 
       - name: Detect next version
         id: version
         env:
-          GH_TOKEN: "none"
+          GH_TOKEN: "none"  # Prevent accidental pushes during detection
         run: uv run semantic-release -v version --no-changelog --no-commit --no-tag
 
       - name: Upload Distribution Artifacts
@@ -43,6 +43,15 @@ jobs:
         with:
           name: ${{ env.dist_artifacts_name }}
           path: ${{ env.dist_artifacts_dir }}/**
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Upload Lock File Artifact
+        if: ${{ steps.version.outputs.released == 'true' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ env.lock_file_artifact }}
+          path: ${{ env.lock_file_artifact }}
           if-no-files-found: error
           retention-days: 2
 
@@ -57,6 +66,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: ${{ needs.build.outputs.new-release-detected == 'true' }}
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -64,8 +75,19 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Build artifacts again (optional but ensures they exist)
-        run: uv build --out-dir dist
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ needs.build.outputs.distribution-artifacts }}
+          path: dist
+
+      - name: Download Lock File Artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ needs.build.outputs.lock-file-artifact }}
+
+      - name: Stage Lock File for commit
+        run: git add uv.lock
 
       - name: Create and publish release
         id: release
@@ -84,9 +106,7 @@ jobs:
   deploy:
     name: Deploy to PyPI
     runs-on: ubuntu-latest
-    needs:
-      - build
-      - release
+    needs: release
     if: ${{ needs.release.outputs.released == 'true' }}
     environment:
       name: pypi
@@ -97,7 +117,7 @@ jobs:
       - name: Download Distribution Artifacts
         uses: actions/download-artifact@v6
         with:
-          name: ${{ needs.build.outputs.distribution-artifacts }}  # MUST match build upload
+          name: ${{ needs.build.outputs.distribution-artifacts }}
           path: dist
 
       - name: Publish to PyPI
