@@ -58,7 +58,7 @@ jobs:
           fetch-tags: true
 
       - name: Build artifacts again (optional but ensures they exist)
-        run: uv build
+        run: uv build --out-dir dist
 
       - name: Create and publish release
         id: release
