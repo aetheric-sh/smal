@@ -31,6 +31,9 @@ jobs:
       - name: Build Python distributions
         run: uv build --out-dir ${{ env.dist_artifacts_dir }}
 
+      - name: Debug | List dist directory
+        run: ls -lR dist
+
       - name: Detect next version
         id: version
         env:
@@ -87,6 +90,9 @@ jobs:
           name: ${{ needs.build.outputs.distribution-artifacts }}
           path: dist
 
+      - name: DEBUG | list directory
+        run: ls -lR dist
+
       - name: Download Lock File Artifact
         uses: actions/download-artifact@v6
         with:
@@ -125,6 +131,9 @@ jobs:
         with:
           name: ${{ needs.build.outputs.distribution-artifacts }}
           path: dist
+
+      - name: DEBUG | list directory
+        run: ls -lR dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
