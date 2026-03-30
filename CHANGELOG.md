@@ -1,6 +1,20 @@
 # CHANGELOG
 
 
+## v0.2.3 (2026-03-30)
+
+### Bug Fixes
+
+- Implement substates for SMALState ([#22](https://github.com/aetheric-sh/smal/pull/22),
+  [`5464b56`](https://github.com/aetheric-sh/smal/commit/5464b5652d427d7cb86443d87abef96d376ce843))
+
+* Got substates and diagramming for it working
+
+* update launch.json
+
+* revert uv lock change
+
+
 ## v0.2.2 (2026-03-30)
 
 ### Bug Fixes
