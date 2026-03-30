@@ -101,7 +101,7 @@ jobs:
         run: git add uv.lock
 
       - name: Build artifacts for release
-        run: uv build
+        run: uv build --out-dir dist
 
       - name: Create and publish release
         id: release
