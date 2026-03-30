@@ -11,12 +11,20 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.AETHERIC_RELEASEBOT_APP_ID }}
+          private-key: ${{ secrets.AETHERIC_RELEASEBOT_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
           fetch-tags: true
+          token:  ${{ steps.app-token.outputs.token }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
@@ -65,11 +73,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.AETHERIC_RELEASEBOT_APP_ID }}
+          private-key: ${{ secrets.AETHERIC_RELEASEBOT_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
+          token:  ${{ steps.app-token.outputs.token }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
@@ -106,13 +122,13 @@ jobs:
       new-release-tag: ${{ steps.release.outputs.tag }}
 
   deploy:
-    name: Deploy to PyPI
+    name: Deploy to TestPyPI
     runs-on: ubuntu-latest
     needs: release
     if: ${{ needs.release.outputs.released == 'true' }}
     environment:
       name: pypi
-      url: https://pypi.org/project/smal-lang/
+      url: https://test.pypi.org/project/smal-lang/
     permissions:
       id-token: write
     steps:
@@ -126,5 +142,29 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist
+          repository-url: https://test.pypi.org/legacy
           print-hash: true
           verbose: true
+  # deploy:
+  #   name: Deploy to PyPI
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   if: ${{ needs.release.outputs.released == 'true' }}
+  #   environment:
+  #     name: pypi
+  #     url: https://pypi.org/project/smal-lang/
+  #   permissions:
+  #     id-token: write
+  #   steps:
+  #     - name: Download Distribution Artifacts
+  #       uses: actions/download-artifact@v6
+  #       with:
+  #         name: ${{ needs.build.outputs.distribution-artifacts }}
+  #         path: dist
+
+  #     - name: Publish to PyPI
+  #       uses: pypa/gh-action-pypi-publish@release/v1
+  #       with:
+  #         packages-dir: dist/dist
+  #         print-hash: true
+  #         verbose: true
