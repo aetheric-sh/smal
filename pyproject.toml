@@ -1,5 +1,5 @@
 [project]
-name = "smal"
+name = "smal-lang"
 version = "0.1.0"
 description = "State Machine Abstraction Language (SMAL) is a YAML-based description language for simple, robust and debuggable state machines."
 readme = "README.md"
