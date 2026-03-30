@@ -13,6 +13,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    env:
+      GITHUB_TOKEN: ${{ secrets.SMAL_GH_TOKEN }}
+
     steps:
       # Note: We checkout the repository at the branch that triggered the workflow.
       # Python Semantic Release will automatically convert shallow clones to full clones
