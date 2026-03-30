@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.1.3 (2026-03-30)
+
+### Bug Fixes
+
+- Another workflow update ([#18](https://github.com/smal-lang/smal/pull/18),
+  [`2fdcdaf`](https://github.com/smal-lang/smal/commit/2fdcdaf998c5f75aaaa903e98a18a4f0fbc7a896))
+
+
 ## v0.1.2 (2026-03-30)
 
 ### Bug Fixes
