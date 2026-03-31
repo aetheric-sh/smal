@@ -226,37 +226,36 @@ class JinjaTemplateValidator:
                 )
 
 
-def extract_paths_from_model_schema(model_schema: dict[str, Any], prefix: str = "", root_schema: dict[str, Any] | None = None) -> set[str]:
-    """Extracts variable paths from a Pydantic model schema.
-
-    Args:
-        model_schema (dict[str, Any]): The JSON schema of the model.
-        prefix (str, optional): The prefix for the variable paths. Defaults to "".
-        root_schema (dict[str, Any], optional): The root schema for resolving references. Defaults to None.
-
-    Returns:
-        set[str]: A set of variable paths.
-
-    """
+def extract_paths_from_model_schema(
+    model_schema: dict[str, Any],
+    prefix: str = "",
+    root_schema: dict[str, Any] | None = None,
+    visited_refs: set[str] | None = None,
+) -> set[str]:
     if root_schema is None:
         root_schema = model_schema
+    if visited_refs is None:
+        visited_refs = set()
     paths = set()
-    # $ref resolution
+    # --- $ref resolution with cycle detection ---
     if "$ref" in model_schema:
         ref: str = model_schema["$ref"]
-        # We only expect refs into $defs for Pydantic models
+        # If we've already expanded this ref, stop recursion
+        if ref in visited_refs:
+            if prefix:
+                paths.add(prefix)
+            return paths
+        visited_refs.add(ref)
         if ref.startswith("#/$defs/"):
-            type_name = ref.split("/")[-1]  # "SMALState"
+            type_name = ref.split("/")[-1]
             defs = root_schema.get("$defs") or root_schema.get("definitions") or {}
             subschema = defs.get(type_name)
             if subschema is None:
-                # If we can't resolve it, just treat this as a leaf to avoid KeyError
                 if prefix:
                     paths.add(prefix)
                 return paths
-            return extract_paths_from_model_schema(subschema, prefix, root_schema)
+            return extract_paths_from_model_schema(subschema, prefix, root_schema, visited_refs)
         else:
-            # Unknown ref shape; treat as leaf
             if prefix:
                 paths.add(prefix)
             return paths
@@ -266,7 +265,7 @@ def extract_paths_from_model_schema(model_schema: dict[str, Any], prefix: str = 
         props = model_schema.get("properties", {})
         for name, subschema in props.items():
             new_prefix = f"{prefix}.{name}" if prefix else name
-            paths |= extract_paths_from_model_schema(subschema, new_prefix, root_schema)
+            paths |= extract_paths_from_model_schema(subschema, new_prefix, root_schema, visited_refs)
         return paths
     # Arrays
     if schema_type == "array":
@@ -276,15 +275,16 @@ def extract_paths_from_model_schema(model_schema: dict[str, Any], prefix: str = 
     # anyOf / oneOf
     if "anyOf" in model_schema:
         for option in model_schema["anyOf"]:
-            paths |= extract_paths_from_model_schema(option, prefix, root_schema)
+            paths |= extract_paths_from_model_schema(option, prefix, root_schema, visited_refs)
         return paths
     if "oneOf" in model_schema:
         for option in model_schema["oneOf"]:
-            paths |= extract_paths_from_model_schema(option, prefix, root_schema)
+            paths |= extract_paths_from_model_schema(option, prefix, root_schema, visited_refs)
         return paths
     # Primitives
     if schema_type in {"string", "number", "integer", "boolean", "null"}:
-        paths.add(prefix)
+        if prefix:
+            paths.add(prefix)
         return paths
     # Fallback
     if prefix:
