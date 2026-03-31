@@ -18,25 +18,25 @@ def all_descendant_states(state: State) -> set[str]:
 
 def internal_edges(state: State, smal: SMALFile) -> list[Transition]:
     names = all_descendant_states(state)
-    return [t for t in smal.transitions if t.trigger_state in names and t.landing_state in names]
+    return [t for t in smal.transitions if t.src_state in names and t.tgt_state in names]
 
 
 def external_incoming_edges(state: State, smal: SMALFile) -> list[Transition]:
     names = all_descendant_states(state)
-    return [t for t in smal.transitions if t.landing_state in names and t.trigger_state not in names]
+    return [t for t in smal.transitions if t.tgt_state in names and t.src_state not in names]
 
 
 def external_outgoing_edges(state: State, smal: SMALFile) -> list[Transition]:
     names = all_descendant_states(state)
-    return [t for t in smal.transitions if t.trigger_state in names and t.landing_state not in names]
+    return [t for t in smal.transitions if t.src_state in names and t.tgt_state not in names]
 
 
 def create_edge_label(t: Transition) -> str:
-    label = f"on: {t.trigger_evt}"
-    if t.action:
-        label += f"\ndo: {t.action}"
-    if t.landing_state_entry_evt:
-        label += f"\nentry: {t.landing_state_entry_evt}"
+    label = f"on: {t.evt}"
+    if t.actions:
+        label += f"\ndo: [{', '.join(t.actions)}]"
+    if t.tgt_entry_evt:
+        label += f"\nentry: {t.tgt_entry_evt}"
     return label
 
 
@@ -54,13 +54,13 @@ def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State) -> 
         cluster.node(rss.name, shape=rss.type.graphviz_shape)
     # Internal edges
     for ie in internal_edges(composite_state, smal):
-        cluster.edge(ie.trigger_state, ie.landing_state, label=create_edge_label(ie))
+        cluster.edge(ie.src_state, ie.tgt_state, label=create_edge_label(ie))
     # External incoming edges
     for eie in external_incoming_edges(composite_state, smal):
-        dot.edge(eie.trigger_state, eie.landing_state, label=create_edge_label(eie), lhead=cluster_name)
+        dot.edge(eie.src_state, eie.tgt_state, label=create_edge_label(eie), lhead=cluster_name)
     # External outgoing edges
     for eoe in external_outgoing_edges(composite_state, smal):
-        dot.edge(eoe.trigger_state, eoe.landing_state, label=create_edge_label(eoe), ltail=cluster_name)
+        dot.edge(eoe.src_state, eoe.tgt_state, label=create_edge_label(eoe), ltail=cluster_name)
     # Now recurse over nested substates
     for nss in [ss for ss in composite_state.substates if ss.substates]:
         subtree = build_cluster_tree(smal, cluster, nss)
@@ -105,17 +105,13 @@ def generate_state_machine_svg(
     for rs in root_states:
         dot.node(rs.name, shape=rs.type.graphviz_shape)
         # 2. Add all root-to-root edges (root-to-cluster/cluster-to-root will be added later)
-        incoming_root_edges = [
-            t for t in smal.transitions if t.trigger_state in root_state_names and t.trigger_state != rs.name and t.landing_state == rs.name and t not in added_root_edges
-        ]
-        outgoing_root_edges = [
-            t for t in smal.transitions if t.landing_state in root_state_names and t.landing_state != rs.name and t.trigger_state == rs.name and t not in added_root_edges
-        ]
+        incoming_root_edges = [t for t in smal.transitions if t.src_state in root_state_names and t.src_state != rs.name and t.tgt_state == rs.name and t not in added_root_edges]
+        outgoing_root_edges = [t for t in smal.transitions if t.tgt_state in root_state_names and t.tgt_state != rs.name and t.src_state == rs.name and t not in added_root_edges]
         for ire in incoming_root_edges:
-            dot.edge(ire.trigger_state, ire.landing_state, create_edge_label(ire))
+            dot.edge(ire.src_state, ire.tgt_state, create_edge_label(ire))
             added_root_edges.append(ire)
         for ore in outgoing_root_edges:
-            dot.edge(ore.trigger_state, ore.landing_state, create_edge_label(ore))
+            dot.edge(ore.src_state, ore.tgt_state, create_edge_label(ore))
             added_root_edges.append(ore)
 
     # 2. For each composite state

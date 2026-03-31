@@ -108,16 +108,14 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         state_map = self._flatten_states(self.states)
         evt_map: dict[str, Event] = {e.name: e for e in self.events}
         for transition in self.transitions:
-            if transition.trigger_state not in state_map:
-                raise ValueError(f"Transition {transition} references unknown trigger state '{transition.trigger_state}'. Must be one of: {', '.join(state_map.keys())}")
-            if transition.landing_state not in state_map:
-                raise ValueError(f"Transition {transition} references unknown landing state '{transition.landing_state}'. Must be one of: {', '.join(state_map.keys())}")
-            if transition.trigger_evt not in evt_map:
-                raise ValueError(f"Transition {transition} references unknown trigger event '{transition.trigger_evt}'. Must be one of: {', '.join(evt_map.keys())}")
-            if transition.landing_state_entry_evt and transition.landing_state_entry_evt not in evt_map:
-                raise ValueError(
-                    f"Transition {transition} references unknown landing state entry event '{transition.landing_state_entry_evt}'. Must be one of: {', '.join(evt_map.keys())}"
-                )
+            if transition.src_state not in state_map:
+                raise ValueError(f"Transition {transition} references unknown trigger state '{transition.src_state}'. Must be one of: {', '.join(state_map.keys())}")
+            if transition.tgt_state not in state_map:
+                raise ValueError(f"Transition {transition} references unknown landing state '{transition.tgt_state}'. Must be one of: {', '.join(state_map.keys())}")
+            if transition.evt not in evt_map:
+                raise ValueError(f"Transition {transition} references unknown trigger event '{transition.evt}'. Must be one of: {', '.join(evt_map.keys())}")
+            if transition.tgt_entry_evt and transition.tgt_entry_evt not in evt_map:
+                raise ValueError(f"Transition {transition} references unknown landing state entry event '{transition.tgt_entry_evt}'. Must be one of: {', '.join(evt_map.keys())}")
         return self
 
     @staticmethod

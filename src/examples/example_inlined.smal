@@ -1,6 +1,7 @@
 machine: Example
 version: 1.0.0
 description: An example state machine created using SMAL, using inlined YAML syntax.
+metadata: {header_guard: EXAMPLE_H}
 states:
   - {name: FOO, type: initial}
   - {name: BAR, type: decision}
@@ -11,15 +12,16 @@ events: [A, B, C, D, E, SSE_1, SSE_2, SSE_3]
 errors: [BOO, DOH, GAH]
 constants: {EXAMPLE_CONSTANT_A: 5, EXAMPLE_CONSTANT_B: 10, EXAMPLE_CONSTANT_C: 15}
 transitions:
-  - {trigger_state: FOO, trigger_evt: A, action: handler_A, landing_state: BAR, landing_state_entry_evt: null}
-  - {trigger_state: BAR, trigger_evt: B, action: handler_B, landing_state: BAZ, landing_state_entry_evt: SSE_1}
-  - {trigger_state: BAR, trigger_evt: C, action: handler_C, landing_state: THUD, landing_state_entry_evt: null}
-  - {trigger_state: BAZ, trigger_evt: SSE_1, action: handler_SSE_1, landing_state: BAZ_I, landing_state_entry_evt: null}
-  - {trigger_state: BAZ_I, trigger_evt: SSE_2, action: handler_SSE_2, landing_state: BAZ_S, landing_state_entry_evt: null}
-  - {trigger_state: BAZ_S, trigger_evt: SSE_3, action: handler_SSE_3, landing_state: BAZ_F, landing_state_entry_evt: D}
-  - {trigger_state: BAZ_F, trigger_evt: D, action: handler_D, landing_state: QUX, landing_state_entry_evt: null}
-  - {trigger_state: THUD, trigger_evt: E, action: handler_E, landing_state: QUX, landing_state_entry_evt: null}
+  - {src_state: FOO, evt: A, actions: [handler_A], tgt_state: BAR, tgt_entry_evt: null}
+  - {src_state: BAR, evt: B, actions: [handler_B], tgt_state: BAZ, tgt_entry_evt: SSE_1}
+  - {src_state: BAR, evt: C, actions: [handler_C], tgt_state: THUD, tgt_entry_evt: null}
+  - {src_state: BAZ, evt: SSE_1, actions: [handler_SSE_1], tgt_state: BAZ_I, tgt_entry_evt: null}
+  - {src_state: BAZ_I, evt: SSE_2, actions: [handler_SSE_2], tgt_state: BAZ_S, tgt_entry_evt: null}
+  - {src_state: BAZ_S, evt: SSE_3, actions: [handler_SSE_3], tgt_state: BAZ_F, tgt_entry_evt: D}
+  - {src_state: BAZ_F, evt: D, actions: [handler_D], tgt_state: QUX, tgt_entry_evt: null}
+  - {src_state: THUD, evt: E, actions: [handler_E], tgt_state: QUX, tgt_entry_evt: null}
 debug:
+  name: DebugStruct
   lang: c
   size_bytes: 64
   enums:
@@ -35,4 +37,3 @@ debug:
           name: error
         - bit: 1
           name: reserved
-metadata: {header_guard: EXAMPLE_H}
