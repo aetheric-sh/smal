@@ -16,19 +16,19 @@ def all_descendant_states(state: State) -> set[str]:
     return names
 
 
-def internal_edges(state: State, smal: SMALFile) -> list[Transition]:
+def internal_edges(state: State, smal: SMALFile, added_edges: list[Transition]) -> list[Transition]:
     names = all_descendant_states(state)
-    return [t for t in smal.transitions if t.src_state in names and t.tgt_state in names]
+    return [t for t in smal.get_all_transitions() if t.src_state in names and t.tgt_state in names and t.graphable and t not in added_edges]
 
 
-def external_incoming_edges(state: State, smal: SMALFile) -> list[Transition]:
+def external_incoming_edges(state: State, smal: SMALFile, added_edges: list[Transition]) -> list[Transition]:
     names = all_descendant_states(state)
-    return [t for t in smal.transitions if t.tgt_state in names and t.src_state not in names]
+    return [t for t in smal.get_all_transitions() if t.tgt_state in names and t.src_state not in names and t.graphable and t not in added_edges]
 
 
-def external_outgoing_edges(state: State, smal: SMALFile) -> list[Transition]:
+def external_outgoing_edges(state: State, smal: SMALFile, added_edges: list[Transition]) -> list[Transition]:
     names = all_descendant_states(state)
-    return [t for t in smal.transitions if t.src_state in names and t.tgt_state not in names]
+    return [t for t in smal.get_all_transitions() if t.src_state in names and t.tgt_state not in names and t.graphable and t not in added_edges]
 
 
 def create_edge_label(t: Transition) -> str:
@@ -36,7 +36,7 @@ def create_edge_label(t: Transition) -> str:
     if t.actions:
         label += f"\ndo: [{', '.join(t.actions)}]"
     if t.tgt_entry_evt:
-        label += f"\nentry: {t.tgt_entry_evt}"
+        label += f"\non_entry: {t.tgt_entry_evt}"
     return label
 
 
@@ -49,55 +49,42 @@ def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State) -> 
         color="#dddddd",
         fillcolor="#f8f8f8",
     )
-    # Add all root substates
-    for rss in [ss for ss in composite_state.substates if not ss.substates]:
+    # Inject the ephemeral initial state for the cluster, which is required to exist
+    ephemeral_initial_state = smal.get_ephemeral_state(composite_state.initial_substate)
+    if ephemeral_initial_state is None:
+        raise RuntimeError("Composite states must have an ephemeral initial substate.")
+    cluster.node(ephemeral_initial_state.name, **StateType.INITIAL.default_metadata)
+    # Add the real initial node
+    graphed_type = ephemeral_initial_state.morphed_type or composite_state.type
+    cluster.node(composite_state.initial_substate.name, **graphed_type.default_metadata)
+    # Add the ephemeral transitions into and out of the ephemeral initial state
+    incoming_eph_transitions = smal.get_incoming_ephemeral_transitions(ephemeral_initial_state)
+    if len(incoming_eph_transitions) != 1:
+        raise RuntimeError
+    incoming_eph_t = incoming_eph_transitions[0]
+    dot.edge(incoming_eph_t.src_state, incoming_eph_t.tgt_state)
+    outgoing_eph_transitions = smal.get_outgoing_ephemeral_transitions(ephemeral_initial_state)
+    if len(outgoing_eph_transitions) != 1:
+        raise RuntimeError
+    outgoing_eph_t = outgoing_eph_transitions[0]
+    cluster.edge(outgoing_eph_t.src_state, outgoing_eph_t.tgt_state)
+    # Add all non-initial root substates
+    for rss in [ss for ss in composite_state.substates if not ss.substates and ss.type != StateType.INITIAL]:
         cluster.node(rss.name, **rss.type.default_metadata)
     # Internal edges
-    for ie in internal_edges(composite_state, smal):
+    for ie in internal_edges(composite_state, smal, added_edges=[incoming_eph_t, outgoing_eph_t]):
         cluster.edge(ie.src_state, ie.tgt_state, label=create_edge_label(ie))
     # External incoming edges
-    for eie in external_incoming_edges(composite_state, smal):
+    for eie in external_incoming_edges(composite_state, smal, added_edges=[incoming_eph_t, outgoing_eph_t]):
         dot.edge(eie.src_state, eie.tgt_state, label=create_edge_label(eie), lhead=cluster_name)
     # External outgoing edges
-    for eoe in external_outgoing_edges(composite_state, smal):
+    for eoe in external_outgoing_edges(composite_state, smal, added_edges=[incoming_eph_t, outgoing_eph_t]):
         dot.edge(eoe.src_state, eoe.tgt_state, label=create_edge_label(eoe), ltail=cluster_name)
     # Now recurse over nested substates
     for nss in [ss for ss in composite_state.substates if ss.substates]:
         subtree = build_cluster_tree(smal, cluster, nss)
         cluster.subgraph(subtree)
     return cluster
-
-
-def collect_initial_states(state: State) -> list[State]:
-    found = []
-    if state.type == StateType.INITIAL:
-        found.append(state)
-    for ss in state.substates:
-        found.extend(collect_initial_states(ss))
-    return found
-
-
-def find_parent_state(root_states: list[State], target: State) -> State | None:
-    for s in root_states:
-        if target in s.substates:
-            return s
-        for ss in s.substates:
-            parent = find_parent_state([ss], target)
-            if parent:
-                return parent
-    return None
-
-
-def inject_ephemeral_initial_state(dot: Digraph, state: State, all_states: list[State]) -> None:
-    pseudo_name = f"__initial_{state.name}"
-    dot.node(pseudo_name, **StateType.INITIAL.default_metadata)
-    parent = find_parent_state(all_states, state)
-    if parent:
-        dot.edge(pseudo_name, state.name, lhead=f"cluster_{parent.name}")
-    else:
-        dot.edge(pseudo_name, state.name)
-    # Then, change this state's type to simple so it is rendered correctly
-    state.type = StateType._EPHEMERAL_INITIAL
 
 
 def generate_state_machine_svg(
@@ -130,21 +117,30 @@ def generate_state_machine_svg(
     if title:
         dot.attr(label=smal.name, labelloc="t", fontsize="20", fontname="Arial Bold")
 
-    initial_states = []
-    for s in smal.states:
-        initial_states.extend(collect_initial_states(s))
-    for init in initial_states:
-        inject_ephemeral_initial_state(dot, init, smal.states)
-
     # 1. Add all root states
     root_states = [s for s in smal.states if not s.substates]
     root_state_names = {rs.name for rs in root_states}
     added_root_edges = []
     for rs in root_states:
-        dot.node(rs.name, **rs.type.default_metadata)
+        # 2. Add ephemeral initial state if applicable (should only be 1 at root level)
+        if rs.type == StateType.INITIAL:
+            eph_init = smal.get_ephemeral_state(rs)
+            dot.node(eph_init.name, **StateType.INITIAL.default_metadata)
+            eph_transit = smal.get_outgoing_ephemeral_transitions(eph_init)
+            if len(eph_transit) != 1:
+                raise RuntimeError
+            dot.edge(eph_init.name, rs.name)
+            graphed_type = eph_init.morphed_type or rs.type
+            dot.node(rs.name, **graphed_type.default_metadata)
+        else:
+            dot.node(rs.name, **rs.type.default_metadata)
         # 2. Add all root-to-root edges (root-to-cluster/cluster-to-root will be added later)
-        incoming_root_edges = [t for t in smal.transitions if t.src_state in root_state_names and t.src_state != rs.name and t.tgt_state == rs.name and t not in added_root_edges]
-        outgoing_root_edges = [t for t in smal.transitions if t.tgt_state in root_state_names and t.tgt_state != rs.name and t.src_state == rs.name and t not in added_root_edges]
+        incoming_root_edges = [
+            t for t in smal.transitions if t.src_state in root_state_names and t.src_state != rs.name and t.tgt_state == rs.name and t not in added_root_edges and t.graphable
+        ]
+        outgoing_root_edges = [
+            t for t in smal.transitions if t.tgt_state in root_state_names and t.tgt_state != rs.name and t.src_state == rs.name and t not in added_root_edges and t.graphable
+        ]
         for ire in incoming_root_edges:
             dot.edge(ire.src_state, ire.tgt_state, create_edge_label(ire))
             added_root_edges.append(ire)
@@ -152,15 +148,30 @@ def generate_state_machine_svg(
             dot.edge(ore.src_state, ore.tgt_state, create_edge_label(ore))
             added_root_edges.append(ore)
 
-    # 2. For each composite state
+    # 3. For each composite state
     composite_states = [s for s in smal.states if s.substates]
     for cs in composite_states:
         # Build the cluster tree, adding edges as we go
         cluster = build_cluster_tree(smal, dot, cs)
+        # # Inject the ephemeral initial state for the cluster, which is required to exist
+        # ephemeral_initial_state = smal.get_ephemeral_state(cs.initial_substate)
+        # if ephemeral_initial_state is None:
+        #     raise RuntimeError("Composite states must have an ephemeral initial substate.")
+        # cluster.node(ephemeral_initial_state.name, **StateType.INITIAL.default_metadata)
+        # incoming_eph_transitions = smal.get_incoming_ephemeral_transitions(ephemeral_initial_state)
+        # if len(incoming_eph_transitions) != 1:
+        #     raise RuntimeError
+        # incoming_eph_t = incoming_eph_transitions[0]
+        # dot.edge(incoming_eph_t.src_state, incoming_eph_t.tgt_state)
+        # outgoing_eph_transitions = smal.get_outgoing_ephemeral_transitions(ephemeral_initial_state)
+        # if len(outgoing_eph_transitions) != 1:
+        #     raise RuntimeError
+        # outgoing_eph_t = outgoing_eph_transitions[0]
+        # cluster.edge(outgoing_eph_t.src_state, outgoing_eph_t.tgt_state)
         # Add the cluster to the root graph
         dot.subgraph(cluster)
 
-    # 3. Save output
+    # 4. Save output
     try:
         out_path = dot.render(
             filename=f"{smal.name.lower()}_state_machine_diagram",

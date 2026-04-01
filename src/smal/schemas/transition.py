@@ -1,6 +1,8 @@
 from __future__ import annotations  # Until Python 3.14
 
-from pydantic import BaseModel, Field
+from typing import TypeAlias
+
+from pydantic import BaseModel, Field, PrivateAttr
 
 
 class Transition(BaseModel):
@@ -11,12 +13,23 @@ class Transition(BaseModel):
     actions: list[str] = Field(..., description="The sequence of functions to invoke when evt is received while in src_state.")
     tgt_state: str = Field(..., description="The state to transition into after executing actions in response to receiving evt while in src_state.")
     tgt_entry_evt: str | None = Field(default=None, description="Event to trigger upon entering tgt_state, if any.")
+    _graphable: bool = PrivateAttr(default=True)
 
     def __repr__(self) -> str:
         return f"({self.src_state}, {self.evt}, [{', '.join(self.actions)}], {self.tgt_state}, {self.tgt_entry_evt})"
 
     def __str__(self) -> str:
         return self.__repr__()
+
+    def set_graphable(self, graphable: bool) -> None:
+        self._graphable = graphable
+
+    @property
+    def graphable(self) -> bool:
+        return self._graphable
+
+
+EphemeralTransition: TypeAlias = Transition
 
 
 class IllegalTransitionError(ValueError):

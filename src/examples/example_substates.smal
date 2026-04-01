@@ -1,4 +1,4 @@
-machine: Example
+machine: ExampleSubstates
 version: 1.0.0
 description: An example state machine created using SMAL, using inlined YAML syntax.
 metadata: {header_guard: EXAMPLE_H}
@@ -8,18 +8,17 @@ states:
   - {name: BAZ, substates: [{name: BAZ_I, type: initial}, BAZ_S, BAZ_F]}
   - {name: THUD}
   - {name: QUX, type: final}
-events: [A, B, C, D, E, SSE_1, SSE_2, SSE_3]
+events: [A, B, C, D, E, F, G]
 errors: [BOO, DOH, GAH]
 constants: {EXAMPLE_CONSTANT_A: 5, EXAMPLE_CONSTANT_B: 10, EXAMPLE_CONSTANT_C: 15}
 transitions:
   - {src_state: FOO, evt: A, actions: [handler_A], tgt_state: BAR, tgt_entry_evt: null}
-  - {src_state: BAR, evt: B, actions: [handler_B], tgt_state: BAZ, tgt_entry_evt: SSE_1}
-  - {src_state: BAR, evt: C, actions: [handler_C], tgt_state: THUD, tgt_entry_evt: null}
-  - {src_state: BAZ, evt: SSE_1, actions: [handler_SSE_1], tgt_state: BAZ_I, tgt_entry_evt: null}
-  - {src_state: BAZ_I, evt: SSE_2, actions: [handler_SSE_2], tgt_state: BAZ_S, tgt_entry_evt: null}
-  - {src_state: BAZ_S, evt: SSE_3, actions: [handler_SSE_3], tgt_state: BAZ_F, tgt_entry_evt: D}
-  - {src_state: BAZ_F, evt: D, actions: [handler_D], tgt_state: QUX, tgt_entry_evt: null}
-  - {src_state: THUD, evt: E, actions: [handler_E], tgt_state: QUX, tgt_entry_evt: null}
+  - {src_state: BAR, evt: B, actions: [handler_B], tgt_state: BAZ, tgt_entry_evt: C}
+  - {src_state: BAR, evt: D, actions: [handler_D], tgt_state: THUD, tgt_entry_evt: null}
+  - {src_state: BAZ_I, evt: C, actions: [handler_C], tgt_state: BAZ_S, tgt_entry_evt: null}
+  - {src_state: BAZ_S, evt: E, actions: [handler_E], tgt_state: BAZ_F, tgt_entry_evt: F}
+  - {src_state: BAZ_F, evt: F, actions: [handler_F], tgt_state: QUX, tgt_entry_evt: null}
+  - {src_state: THUD, evt: G, actions: [handler_G], tgt_state: QUX, tgt_entry_evt: null}
 debug:
   name: DebugStruct
   lang: c

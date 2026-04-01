@@ -12,7 +12,7 @@
             "cwd": "${workspaceFolder}/src",
             "args": [
                 "diagram",
-                "${workspaceFolder}/src/examples/example_inlined.smal",
+                "${workspaceFolder}/src/examples/example_substates.smal",
                 "${workspaceFolder}/src/examples",
                 "-f",
             ],
@@ -27,7 +27,7 @@
             "args": [
                 "code",
                 "generate",
-                "${workspaceFolder}/src/examples/example.smal",
+                "${workspaceFolder}/src/examples/example_substates.smal",
                 "-t",
                 "c_machine_hdr",
                 "-f"
@@ -65,7 +65,7 @@
             "cwd": "${workspaceFolder}/src",
             "args": [
                 "validate",
-                "${workspaceFolder}/src/smal/codegen/templates/c-machine-hdr.j2",
+                "${workspaceFolder}/src/smal/codegen/templates/c_machine_hdr.j2",
             ],
             "console": "integratedTerminal"
         },

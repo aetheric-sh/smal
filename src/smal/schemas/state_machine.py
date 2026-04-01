@@ -7,18 +7,19 @@ from pathlib import Path
 from typing import Any, ClassVar, TypeAlias
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 from typing_extensions import Self
 
 from smal.schemas.command import Command
 from smal.schemas.enumeration import Enumeration
 from smal.schemas.error import Error
 from smal.schemas.event import Event
-from smal.schemas.state import State
+from smal.schemas.state import EphemeralState, State, StateType
 from smal.schemas.struct import Struct
-from smal.schemas.transition import Transition
+from smal.schemas.transition import EphemeralTransition, Transition
 from smal.schemas.utilities import IdentifierValidationMixin, SemverValidationMixin
 from smal.utilities import constants as SMALConstants
+from smal.utilities.corrections import ALL_CORRECTIONS
 from smal.utilities.rules import ALL_RULES
 
 
@@ -45,13 +46,24 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
     debug: Struct | None = Field(default=None, description="Debugging structure associated with this state machine, if any.")
     description: str | None = Field(default=None, description="Description of the state machine.")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Any arbitrary metadata you want to make available to code generation templates.")
+    _ephemeral_states: list[EphemeralState] = PrivateAttr(default_factory=list)
+    _ephemeral_transitions: list[EphemeralTransition] = PrivateAttr(default_factory=list)
 
     def model_post_init(self, _context: Any) -> None:
+        # Apply all corrections before validating
+        for correction in ALL_CORRECTIONS:
+            logging.info("Applying correction: %s", correction.name)
+            correction.pre_application(self)
+            correction.apply(self)
+            logging.info("Correction '%s' applied", correction.name)
+            correction.post_application(self)
         # Build adjacency lists
         self._adj: dict[str, list[str]] = defaultdict(list)
         self._adj_rev: dict[str, list[str]] = defaultdict(list)
         for t in self.transitions:
             self._adj[t.src_state].append(t.tgt_state)
+        for et in self.ephemeral_transitions:
+            self._adj[et.src_state].append(et.tgt_state)
         # Add implicit composite state entry edges
         # for cs in [s for s in self.states if s.type == StateType.COMPOSITE]:
         #     pass
@@ -60,7 +72,7 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         # Precompute least common ancestors
         # Precompute allowed transitions
         # Precompute default entry paths
-        # Run all evaluation rules
+        # Evaluate all rules to validate
         for rule in ALL_RULES:
             logging.info("Evaluating rule: %s", rule.name)
             rule.pre_evaluation(self)
@@ -81,8 +93,26 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         model = cls.model_validate(model_data)
         return model
 
+    def add_ephemeral_state(self, estate: EphemeralState) -> None:
+        self._ephemeral_states.append(estate)
+
+    def add_ephemeral_transition(self, etransit: EphemeralTransition) -> None:
+        self._ephemeral_transitions.append(etransit)
+
     def get_adjacency_list(self, reversed: bool = False) -> dict[str, list[str]]:
         return self._adj_rev if reversed else self._adj
+
+    def get_all_transitions(self) -> list[Transition | EphemeralTransition]:
+        return [*self.transitions, *self.ephemeral_transitions]
+
+    def get_ephemeral_state(self, spawned_from: State) -> EphemeralState | None:
+        return next((es for es in self.ephemeral_states if es.spawned_from.name == spawned_from.name), None)
+
+    def get_incoming_ephemeral_transitions(self, estate: EphemeralState) -> list[EphemeralTransition]:
+        return [et for et in self.ephemeral_transitions if et.tgt_state == estate.name]
+
+    def get_outgoing_ephemeral_transitions(self, estate: EphemeralState) -> list[EphemeralTransition]:
+        return [et for et in self.ephemeral_transitions if et.src_state == estate.name]
 
     def get_ordered_flat_global_state_list(self) -> list[State]:
         # Recursive helper to flatten the states
@@ -117,7 +147,7 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         return [t for t in self.transitions if t.src_state == state.name]
 
     def get_root(self) -> State:
-        roots = [s for s in self.states if len(self.get_incoming_transitions(s)) == 0]
+        roots = [s for s in self.states if not s.is_composite and len(self.get_incoming_transitions(s)) == 0]
         if not roots:
             raise ValueError("State machine is empty.")
         if len(roots) > 1:
@@ -158,6 +188,26 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
                         raise ValueError(f"Duplicate state name '{s.name}' found in nested states.")
                     flat[name] = obj
         return flat
+
+    @property
+    def composite_states(self) -> list[State]:
+        return [s for s in self.states if s.is_composite]
+
+    @property
+    def ephemeral_states(self) -> list[EphemeralState]:
+        return self._ephemeral_states
+
+    @property
+    def ephemeral_transitions(self) -> list[EphemeralTransition]:
+        return self._ephemeral_transitions
+
+    @property
+    def root_initial_states(self) -> list[State]:
+        return [s for s in self.states if s.type == StateType.INITIAL and not s.is_substate]
+
+    @property
+    def composite_initial_substates(self) -> list[State]:
+        return [s for s in self.states if s.type == StateType.INITIAL and s.is_substate]
 
     @field_validator("states", mode="before")
     def expand_short_form_states(cls, v: list[dict | str]) -> list[State]:

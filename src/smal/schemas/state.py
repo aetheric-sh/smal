@@ -1,6 +1,7 @@
 from __future__ import annotations  # Until Python 3.14
 
 import logging
+from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
 from typing import Any, ClassVar
@@ -26,8 +27,6 @@ class StateType(str, Enum):
     FORK = "fork"
     JUNCTION = "junction"
     FINAL = "final"
-    # For internal use only
-    _EPHEMERAL_INITIAL = "ephemeral_initial"
 
     @cached_property
     def is_behavioral_state(self) -> bool:
@@ -56,7 +55,6 @@ class StateType(str, Enum):
             StateType.FORK: {"shape": "rect", "width": "0.1", "height": "1.2", "style": "filled", "color": "black", "fillcolor": "black"},
             StateType.JUNCTION: {"shape": "point"},
             StateType.FINAL: {"shape": "doublecircle"},
-            StateType._EPHEMERAL_INITIAL: {"shape": "circle"},
         }.get(self, {})
 
     @cached_property
@@ -112,12 +110,13 @@ class State(IdentifierValidationMixin, BaseModel):
         if self.substates:
             if self.type.is_pseudo_state:
                 raise ValueError(f"State<{self.name}> is a pseudostate (type: {self.type.value}) and cannot have substates.")
-            if not self.type == StateType.COMPOSITE:
+            if self.type != StateType.COMPOSITE:
                 if self.type != State.model_fields["type"].default:
                     raise ValueError(
                         f"State<{self.name}> defines substates but is marked as a {self.type.value} instead of a composite state. Found '{self.type.value}'. Remove substates or redefine as composite to resolve.",
                     )
-                logging.warning("State '%s' was not designated as a Composite even though it has substates. Automatically correcting...", self.name)
+                logging.warning("CORRECTION: State '%s' was not designated as a Composite even though it has substates. Automatically correcting...", self.name)
+                self.type = StateType.COMPOSITE
             # Ensure all substates are assigned a parent name
             for ss in self.substates:
                 ss.set_parent(self)
@@ -169,7 +168,20 @@ class State(IdentifierValidationMixin, BaseModel):
             bool: True if this state is composite, False otherwise.
 
         """
-        return self.type == StateType.COMPOSITE
+        return self.type == StateType.COMPOSITE and self.substates
+
+    @property
+    def initial_substate(self) -> State:
+        if not self.is_composite:
+            raise ValueError(f"State<{self.name}> is not a composite state and thus has no initial substate.")
+        return next(ss for ss in self.substates if ss.type == StateType.INITIAL)
+
+
+@dataclass(frozen=True)
+class EphemeralState:
+    name: str
+    spawned_from: State
+    morphed_type: StateType | None = None
 
 
 class IllegalStateError(ValueError):
