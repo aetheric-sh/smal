@@ -61,11 +61,11 @@ def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State) -> 
     added_edges = []
     incoming_eph_transitions = smal.get_incoming_ephemeral_transitions(ephemeral_initial_state)
     for iet in incoming_eph_transitions:
-        dot.edge(iet.src_state, iet.tgt_state)
+        dot.edge(iet.src_state, iet.tgt_state, create_edge_label(iet))
         added_edges.append(iet)
     outgoing_eph_transitions = smal.get_outgoing_ephemeral_transitions(ephemeral_initial_state)
     for oet in outgoing_eph_transitions:
-        cluster.edge(oet.src_state, oet.tgt_state)
+        cluster.edge(oet.src_state, oet.tgt_state, create_edge_label(oet))
         added_edges.append(oet)
     # Add all non-initial root substates
     for rss in [ss for ss in composite_state.substates if not ss.substates and ss.type != StateType.INITIAL]:
@@ -128,12 +128,12 @@ def generate_state_machine_svg(
             eph_transit = smal.get_outgoing_ephemeral_transitions(eph_init)
             if len(eph_transit) != 1:
                 raise RuntimeError("Root-level initial states can only have 1 ephemeral incoming transition. This should never happen.")
-            dot.edge(eph_init.name, rs.name)
+            dot.edge(eph_init.name, rs.name)  # NOTE: Purposefully no label here
             graphed_type = eph_init.morphed_type or rs.type
             dot.node(rs.name, **graphed_type.default_metadata)
         else:
             dot.node(rs.name, **rs.type.default_metadata)
-        # 2. Add all root-to-root edges (root-to-cluster/cluster-to-root will be added later)
+        # 3. Add all root-to-root edges (root-to-cluster/cluster-to-root will be added later)
         incoming_root_edges = [
             t for t in smal.transitions if t.src_state in root_state_names and t.src_state != rs.name and t.tgt_state == rs.name and t not in added_root_edges and t.graphable
         ]
@@ -147,7 +147,7 @@ def generate_state_machine_svg(
             dot.edge(ore.src_state, ore.tgt_state, create_edge_label(ore))
             added_root_edges.append(ore)
 
-    # 3. For each composite state
+    # 4. For each composite state
     composite_states = [s for s in smal.states if s.substates]
     for cs in composite_states:
         # Build the cluster tree, adding edges as we go
@@ -155,7 +155,7 @@ def generate_state_machine_svg(
         # Add the cluster to the root graph
         dot.subgraph(cluster)
 
-    # 4. Save output
+    # 5. Save output
     try:
         out_path = dot.render(
             filename=f"{smal.name.lower()}_state_machine_diagram",

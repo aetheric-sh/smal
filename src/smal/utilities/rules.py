@@ -276,6 +276,7 @@ class NoTransitionIntoSimpleInitial(Rule):
     """Rule enforcing that transitions into simple initial pseudostates are illegal."""
 
     description: str = "Transitions cannot be made into a non-composite initial pseudostate."
+    enabled: bool = False  # TODO: Enable this later
 
     def evaluate(self, machine: StateMachine) -> None:
         """Evalute this rule.
