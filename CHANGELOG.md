@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.3.1 (2026-04-01)
+
+### Bug Fixes
+
+- Get uv.lock in step with pyproject.toml
+  ([`1842f0f`](https://github.com/aetheric-sh/smal/commit/1842f0fb57ddddb8c1bf49c9c6cc46dd814bd51e))
+
+
 ## v0.3.0 (2026-04-01)
 
 ### Features
