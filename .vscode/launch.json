@@ -26,10 +26,23 @@
             "cwd": "${workspaceFolder}/src",
             "args": [
                 "code",
+                "generate",
                 "${workspaceFolder}/src/examples/example.smal",
                 "-t",
-                "c-machine-hdr",
+                "c_machine_hdr",
                 "-f"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "SMAL: code macros",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "smal.cli.app",
+            "cwd": "${workspaceFolder}/src",
+            "args": [
+                "code",
+                "macros"
             ],
             "console": "integratedTerminal"
         },

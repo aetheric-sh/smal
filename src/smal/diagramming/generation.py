@@ -88,7 +88,7 @@ def generate_state_machine_svg(
     default_edge_attr = {"fontsize": "10", "color": "#555555"}
     default_edge_attr.update(edge_attr or {})
     dot = Digraph(
-        name=smal.machine,
+        name=smal.name,
         format="svg",
         graph_attr=default_graph_attr,
         node_attr=default_node_attr,
@@ -96,7 +96,7 @@ def generate_state_machine_svg(
     )
     # Optionally, add a title
     if title:
-        dot.attr(label=smal.machine, labelloc="t", fontsize="20", fontname="Arial Bold")
+        dot.attr(label=smal.name, labelloc="t", fontsize="20", fontname="Arial Bold")
 
     # 1. Add all root states
     root_states = [s for s in smal.states if not s.substates]
@@ -125,7 +125,7 @@ def generate_state_machine_svg(
     # 3. Save output
     try:
         out_path = dot.render(
-            filename=f"{smal.machine.lower()}_state_machine_diagram",
+            filename=f"{smal.name.lower()}_state_machine_diagram",
             directory=svg_output_dir,
             cleanup=True,
             raise_if_result_exists=not force,

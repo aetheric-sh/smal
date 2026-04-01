@@ -22,14 +22,14 @@ class SMALTemplate:
 
 class TemplateRegistry:
     _templates = {
-        "c-machine-hdr": SMALTemplate(
-            name="c-machine-hdr",
-            filename="c-machine-hdr.j2",
+        "c_machine_hdr": SMALTemplate(
+            name="c_machine_hdr",
+            filename="c_machine_hdr.j2",
             lang="c",
             description="C header file for the state machine",
             output_extension=".h",
             computed_extra_context={
-                "header_guard": lambda smal: f"{smal.machine.rstrip('_H')}_H".upper(),
+                "header_guard": lambda smal: f"{smal.name.rstrip('_H')}_H".upper(),
             },
         ),
     }

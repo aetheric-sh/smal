@@ -7,11 +7,33 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any, ClassVar
 
+import typer
 from jinja2 import TemplateNotFound, nodes
 from pydantic import BaseModel
+from rich.console import Console
 
 from smal.codegen.code_generator import SMALCodeGenerator
 from smal.schemas import SMALFile
+from smal.utilities import constants as SMALConstants
+
+validate_app = typer.Typer(help="Validate .smal files and external Jinja2 templates for compliance/compatibility with SMAL.")
+
+
+@validate_app.callback(invoke_without_command=True)
+def validate_root(
+    filepath: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=False, readable=True, help="Path to the .smal or .j2 file to validate."),
+) -> None:
+    console = Console()
+    if filepath.suffix in SMALConstants.SupportedFileExtensions.all():
+        with console.status(" SMAL file detected. Validating", spinner="dots"):
+            pass
+    elif filepath.suffix in JinjaTemplateValidator.VALID_EXTENSIONS:
+        with console.status(" Jinja2 codegen template detected. Validating", spinner="dots"):
+            validator = JinjaTemplateValidator(filepath)
+            validation_result = validator.validate()
+            validation_result.echo_report(filepath)
+    else:
+        typer.BadParameter(f"Invalid filetype detected: {filepath.suffix}")
 
 
 @dataclass(frozen=True)
@@ -97,7 +119,7 @@ class JinjaTemplateValidator:
         else:
             if template.suffix.lower() not in self.VALID_EXTENSIONS:
                 raise ValueError(
-                    f"Template file '{template}' does not have a typical Jinja2 template extension: {template.suffix}. Must be one of {', '.join(self.VALID_EXTENSIONS)}"
+                    f"Template file '{template}' does not have a typical Jinja2 template extension: {template.suffix}. Must be one of {', '.join(self.VALID_EXTENSIONS)}",
                 )
             self.env, self.template = self._generator.load_external_template(template)
             self.builtin = False
@@ -252,7 +274,7 @@ def extract_paths_from_model_schema(
         visited_refs.add(ref)
 
         if ref.startswith("#/$defs/"):
-            type_name = ref.split("/")[-1]
+            type_name = ref.rsplit("/", maxsplit=1)[-1]
             defs = root_schema.get("$defs") or root_schema.get("definitions") or {}
             subschema = defs.get(type_name)
             if subschema is None:
@@ -260,10 +282,9 @@ def extract_paths_from_model_schema(
                     paths.add(prefix)
                 return paths
             return extract_paths_from_model_schema(subschema, prefix, root_schema, visited_refs)
-        else:
-            if prefix:
-                paths.add(prefix)
-            return paths
+        if prefix:
+            paths.add(prefix)
+        return paths
 
     schema_type = model_schema.get("type")
 

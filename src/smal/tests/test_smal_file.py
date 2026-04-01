@@ -11,5 +11,5 @@ def test_serde(tmp_path: Path) -> None:
         path = (tmp_path / "test_machine").with_suffix(supported_ext)
         smal.to_file(path)
         loaded = SMALFile.from_file(path)
-        assert loaded.machine == "TestStateMachine"
+        assert loaded.name == "TestStateMachine"
         assert loaded.version == "1.0.0"

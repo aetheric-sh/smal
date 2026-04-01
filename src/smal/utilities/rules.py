@@ -120,7 +120,7 @@ class StateNamesMustBeUnique(Rule):
         if any(v > 1 for v in name_counts.values()):
             counted_strs = [f"{symbol} ({symbol_count})" for symbol, symbol_count in name_counts.items()]
             multiname_str = ", ".join(counted_strs)
-            raise ValueError(f"StateMachine<{machine.machine}> does not have unique state/substate names. The following names are defined multiple times: {multiname_str}")
+            raise ValueError(f"StateMachine<{machine.name}> does not have unique state/substate names. The following names are defined multiple times: {multiname_str}")
 
 
 @dataclass(frozen=True)
@@ -143,7 +143,7 @@ class EventNamesMustBeUnique(Rule):
         if any(v > 1 for v in name_counts.values()):
             counted_strs = [f"{symbol} ({symbol_count})" for symbol, symbol_count in name_counts.items()]
             multiname_str = ", ".join(counted_strs)
-            raise ValueError(f"StateMachine<{machine.machine}> does not have unique event names. The following names are defined multiple times: {multiname_str}")
+            raise ValueError(f"StateMachine<{machine.name}> does not have unique event names. The following names are defined multiple times: {multiname_str}")
 
 
 @dataclass(frozen=True)
@@ -166,7 +166,7 @@ class ErrorNamesMustBeUnique(Rule):
         if any(v > 1 for v in name_counts.values()):
             counted_strs = [f"{symbol} ({symbol_count})" for symbol, symbol_count in name_counts.items()]
             multiname_str = ", ".join(counted_strs)
-            raise ValueError(f"StateMachine<{machine.machine}> does not have unique error names. The following names are defined multiple times: {multiname_str}")
+            raise ValueError(f"StateMachine<{machine.name}> does not have unique error names. The following names are defined multiple times: {multiname_str}")
 
 
 @dataclass(frozen=True)
@@ -191,16 +191,16 @@ class StateIDSMustBeMonotonic(Rule):
         if None in ids:
             logging.debug(
                 "StateMachine<%s>: Some states are missing IDs. Assigning fresh monotonic IDs based on definition order.",
-                machine.machine,
+                machine.name,
             )
             for idx, s in enumerate(machine.states):
                 s.id = idx
-                logging.debug("StateMachine<%s>: Auto-assigned ID %s to state '%s'.", machine.machine, s.id, s.name)
+                logging.debug("StateMachine<%s>: Auto-assigned ID %s to state '%s'.", machine.name, s.id, s.name)
         # Case 2: All IDs present → validate monotonicity
         sorted_ids = sorted([s.id for s in machine.states])
         expected = list(range(len(ids)))
         if sorted_ids != expected:
-            raise ValueError(f"StateMachine<{machine.machine}>: State IDs must be monotonic and contiguous starting at 0. Found {ids}, expected {expected}.")
+            raise ValueError(f"StateMachine<{machine.name}>: State IDs must be monotonic and contiguous starting at 0. Found {ids}, expected {expected}.")
 
 
 @dataclass(frozen=True)
@@ -225,16 +225,16 @@ class EventIDSMustBeMonotonic(Rule):
         if None in ids:
             logging.debug(
                 "StateMachine<%s>: Some events are missing IDs. Assigning fresh monotonic IDs based on definition order.",
-                machine.machine,
+                machine.name,
             )
             for idx, e in enumerate(machine.events):
                 e.id = idx
-                logging.debug("StateMachine<%s>: Auto-assigned ID %s to event '%s'.", machine.machine, e.id, e.name)
+                logging.debug("StateMachine<%s>: Auto-assigned ID %s to event '%s'.", machine.name, e.id, e.name)
         # Case 2: All IDs present → validate monotonicity
         sorted_ids = sorted([e.id for e in machine.events])
         expected = list(range(len(ids)))
         if sorted_ids != expected:
-            raise ValueError(f"StateMachine<{machine.machine}>: Event IDs must be monotonic and contiguous starting at 0. Found {ids}, expected {expected}.")
+            raise ValueError(f"StateMachine<{machine.name}>: Event IDs must be monotonic and contiguous starting at 0. Found {ids}, expected {expected}.")
 
 
 @dataclass(frozen=True)
@@ -259,16 +259,16 @@ class ErrorIDSMustBeMonotonic(Rule):
         if None in ids:
             logging.debug(
                 "StateMachine<%s>: Some errors are missing IDs. Assigning fresh monotonic IDs based on definition order.",
-                machine.machine,
+                machine.name,
             )
             for idx, e in enumerate(machine.errors):
                 e.id = idx
-                logging.debug("StateMachine<%s>: Auto-assigned ID %s to error '%s'.", machine.machine, e.id, e.name)
+                logging.debug("StateMachine<%s>: Auto-assigned ID %s to error '%s'.", machine.name, e.id, e.name)
         # Case 2: All IDs present → validate monotonicity
         sorted_ids = sorted([e.id for e in machine.errors])
         expected = list(range(len(ids)))
         if sorted_ids != expected:
-            raise ValueError(f"StateMachine<{machine.machine}>: Error IDs must be monotonic and contiguous starting at 0. Found {ids}, expected {expected}.")
+            raise ValueError(f"StateMachine<{machine.name}>: Error IDs must be monotonic and contiguous starting at 0. Found {ids}, expected {expected}.")
 
 
 @dataclass(frozen=True)
@@ -290,7 +290,7 @@ class NoTransitionIntoSimpleInitial(Rule):
         for t in machine.transitions:
             tgt = machine.get_state(t.tgt_state)
             if tgt.type == StateType.INITIAL and not tgt.is_substate:
-                raise IllegalTransitionError(self.description, t, machine.machine)
+                raise IllegalTransitionError(self.description, t, machine.name)
 
 
 @dataclass(frozen=True)
@@ -348,7 +348,7 @@ class NoTransitionOutOfFinalOrTerminal(Rule):
         for t in machine.transitions:
             src = machine.get_state(t.src_state)
             if src.type in {StateType.FINAL, StateType.TERMINAL}:
-                raise IllegalTransitionError("Cannot transition out of a Final or Terminal pseudostate.", t, machine.machine)
+                raise IllegalTransitionError("Cannot transition out of a Final or Terminal pseudostate.", t, machine.name)
 
 
 @dataclass(frozen=True)
@@ -370,7 +370,7 @@ class EntryExitStatesRequireParent(Rule):
         flattened = machine.get_flattened_states()
         for s in flattened.values():
             if s.type in {StateType.ENTRY, StateType.EXIT} and not s.is_substate:
-                raise IllegalStateError("Entry / Exit pseudostates must be children of composite states.", s, machine.machine)
+                raise IllegalStateError("Entry / Exit pseudostates must be children of composite states.", s, machine.name)
 
 
 @dataclass(frozen=True)
@@ -392,7 +392,7 @@ class DecisionsJunctionsRequireMultiOut(Rule):
         flattened = machine.get_flattened_states()
         for s in flattened.values():
             if s.type in {StateType.DECISION, StateType.JUNCTION} and len(machine.get_outgoing_transitions(s)) < 2:
-                raise IllegalStateError("Decision / Junction pseudostates must have >=2 outgoing transitions.", s, machine.machine)
+                raise IllegalStateError("Decision / Junction pseudostates must have >=2 outgoing transitions.", s, machine.name)
 
 
 @dataclass(frozen=True)
@@ -415,9 +415,9 @@ class JoinsRequireMultiInSingleOut(Rule):
         for s in flattened.values():
             if s.type == StateType.JOIN:
                 if len(machine.get_incoming_transitions(s)) < 2:
-                    raise IllegalStateError("Join pseudostates must have >= 2 incoming transitions.", s, machine.machine)
+                    raise IllegalStateError("Join pseudostates must have >= 2 incoming transitions.", s, machine.name)
                 if len(machine.get_outgoing_transitions(s)) != 1:
-                    raise IllegalStateError("Join pseudostates must have exactly 1 outgoing transition.", s, machine.machine)
+                    raise IllegalStateError("Join pseudostates must have exactly 1 outgoing transition.", s, machine.name)
 
 
 @dataclass(frozen=True)
@@ -440,9 +440,9 @@ class ForksRequireSingleInMultiOut(Rule):
         for s in flattened.values():
             if s.type == StateType.FORK:
                 if len(machine.get_incoming_transitions(s)) != 1:
-                    raise IllegalStateError("Fork pseudostates must have exactly 1 incoming transition.", s, machine.machine)
+                    raise IllegalStateError("Fork pseudostates must have exactly 1 incoming transition.", s, machine.name)
                 if len(machine.get_outgoing_transitions(s)) != 1:
-                    raise IllegalStateError("Fork pseudostates must have >= 2 outgoing transitions.", s, machine.machine)
+                    raise IllegalStateError("Fork pseudostates must have >= 2 outgoing transitions.", s, machine.name)
 
 
 @dataclass(frozen=True)

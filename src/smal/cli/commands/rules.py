@@ -14,10 +14,10 @@ rules_app = typer.Typer(help="Inspect and manage SMAL validation rules.")
 @rules_app.callback(invoke_without_command=True)
 def rules_root(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None:
-        list_rules_cmd()
+        ctx.invoke(list_rules_cmd)
 
 
-@rules_app.command("list", help="List all rules that SMAL can evaulate against state machines (Running `smal rules` invokes this as well).")
+@rules_app.command("list", help="List all rules that SMAL can evaulate against state machines. Invoking `smal rules` invokes this as well.")
 def list_rules_cmd() -> None:
     echo_table("SMAL Ruleset", ["Name", "Enabled", "Description"], [[rule.name, str(rule.enabled), rule.description] for rule in ALL_RULES])
 

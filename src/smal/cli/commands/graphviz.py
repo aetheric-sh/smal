@@ -1,3 +1,5 @@
+from __future__ import annotations  # Until Python 3.14
+
 import platform
 import shutil
 import subprocess
@@ -9,12 +11,11 @@ from .helpers import echo_list
 
 console = Console()
 
-install_graphviz_app = typer.Typer(help="Install or guide installation of the Graphviz system package.", invoke_without_command=True)
+graphviz_app = typer.Typer(help="Install or guide installation of the Graphviz system package.", invoke_without_command=True)
 
 
-@install_graphviz_app.callback()
-def install_graphviz_callback() -> None:
-    """Helper command to guide users through installing Graphviz."""
+@graphviz_app.callback()
+def graphviz_root() -> None:
     console.print("🔍 [bold]Checking for Graphviz (`dot`)...[/bold]")
     dot_path = shutil.which("dot")
     if dot_path:
