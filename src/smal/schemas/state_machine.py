@@ -60,10 +60,8 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         # Build adjacency lists
         self._adj: dict[str, list[str]] = defaultdict(list)
         self._adj_rev: dict[str, list[str]] = defaultdict(list)
-        for t in self.transitions:
+        for t in self.get_all_transitions():
             self._adj[t.src_state].append(t.tgt_state)
-        for et in self.ephemeral_transitions:
-            self._adj[et.src_state].append(et.tgt_state)
         # Add implicit composite state entry edges
         # for cs in [s for s in self.states if s.type == StateType.COMPOSITE]:
         #     pass
@@ -102,17 +100,20 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
     def get_adjacency_list(self, reversed: bool = False) -> dict[str, list[str]]:
         return self._adj_rev if reversed else self._adj
 
+    def get_all_states(self) -> list[State, EphemeralState]:
+        return [*self.states, *self.ephemeral_states]
+
     def get_all_transitions(self) -> list[Transition | EphemeralTransition]:
         return [*self.transitions, *self.ephemeral_transitions]
 
     def get_ephemeral_state(self, spawned_from: State) -> EphemeralState | None:
         return next((es for es in self.ephemeral_states if es.spawned_from.name == spawned_from.name), None)
 
-    def get_incoming_ephemeral_transitions(self, estate: EphemeralState) -> list[EphemeralTransition]:
-        return [et for et in self.ephemeral_transitions if et.tgt_state == estate.name]
+    def get_incoming_ephemeral_transitions(self, state: State | EphemeralState) -> list[EphemeralTransition]:
+        return [et for et in self.ephemeral_transitions if et.tgt_state == state.name]
 
-    def get_outgoing_ephemeral_transitions(self, estate: EphemeralState) -> list[EphemeralTransition]:
-        return [et for et in self.ephemeral_transitions if et.src_state == estate.name]
+    def get_outgoing_ephemeral_transitions(self, state: State | EphemeralState) -> list[EphemeralTransition]:
+        return [et for et in self.ephemeral_transitions if et.src_state == state.name]
 
     def get_ordered_flat_global_state_list(self) -> list[State]:
         # Recursive helper to flatten the states
@@ -140,6 +141,9 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
     def get_flattened_states(self) -> dict[str, State]:
         return self._flatten_states(self.states)
 
+    def get_all_incoming_transitions(self, state: State | EphemeralState) -> list[Transition]:
+        return [*self.get_incoming_transitions(state), *self.get_incoming_ephemeral_transitions(state)]
+
     def get_incoming_transitions(self, state: State) -> list[Transition]:
         return [t for t in self.transitions if t.tgt_state == state.name]
 
@@ -147,7 +151,12 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         return [t for t in self.transitions if t.src_state == state.name]
 
     def get_root(self) -> State:
-        roots = [s for s in self.states if not s.is_composite and len(self.get_incoming_transitions(s)) == 0]
+        roots = [
+            s
+            for s in self.get_all_states()
+            if (isinstance(s, State) and not s.is_composite and len(self.get_all_incoming_transitions(s)) == 0)
+            or (isinstance(s, EphemeralState) and not s.spawned_from.is_composite and len(self.get_all_incoming_transitions(s)) == 0)
+        ]
         if not roots:
             raise ValueError("State machine is empty.")
         if len(roots) > 1:
