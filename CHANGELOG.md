@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.3.4 (2026-04-01)
+
+### Bug Fixes
+
+- Minor diagramming fixes ([#26](https://github.com/aetheric-sh/smal/pull/26),
+  [`adfb65f`](https://github.com/aetheric-sh/smal/commit/adfb65fefafc35bd5afab01084deed17db91403f))
+
+* update example diagram
+
+- Minor diagramming fixes ([#26](https://github.com/aetheric-sh/smal/pull/26),
+  [`adfb65f`](https://github.com/aetheric-sh/smal/commit/adfb65fefafc35bd5afab01084deed17db91403f))
+
+
 ## v0.3.3 (2026-04-01)
 
 ### Bug Fixes
