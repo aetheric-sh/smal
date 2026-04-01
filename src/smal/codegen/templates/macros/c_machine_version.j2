@@ -1,0 +1,3 @@
+{% macro c_machine_version(smal) %}
+#define {{ smal.name|upper }}_VERSION {{ smal.version }}
+{% endmacro %}

@@ -1,41 +1,37 @@
 {% from "macros/c_autogen_banner.j2" import c_autogen_banner %}
+{% from "macros/c_machine_constants.j2" import c_machine_constants %}
+{% from "macros/c_machine_errors.j2" import c_machine_errors %}
+{% from "macros/c_machine_events.j2" import c_machine_events %}
+{% from "macros/c_machine_state_table_entry.j2" import c_machine_state_table_entry %}
+{% from "macros/c_machine_states.j2" import c_machine_states %}
+{% from "macros/c_machine_struct.j2" import c_machine_struct %}
+{% from "macros/c_machine_version.j2" import c_machine_version %}
+{% from "macros/c_machine_state_transition_table.j2" import c_machine_state_transition_table %}
 {{ c_autogen_banner(smal) }}
 #ifndef {{ smal.metadata.header_guard }}
 #define {{ smal.metadata.header_guard }}
 
 #include <stdint.h>
 
-#define {{ smal.name | upper }}_VERSION {{ smal.version }}
+{{ c_machine_version(smal) }}
 
 // CONSTANTS
-{% for constant_name, constant_value in smal.constants.items() %}
-#define {{ constant_name | upper }} {{ constant_value }}
-{% endfor %}
+{{ c_machine_constants(smal) }}
 
 // STATES
-typedef enum _{{ smal.name | lower }}_state_t {
-{% for state in smal.states %}
-    {{ smal.name | upper }}_STATE_{{ state.name | upper }} = {{ state.id }},
-{% endfor %}
-} {{ smal.name | lower }}_state_t;
+{{ c_machine_states(smal) }}
 
 // EVENTS
-typedef enum _{{ smal.name | lower }}_event_t {
-{% for event in smal.events %}
-    {{ smal.name | upper }}_EVENT_{{ event.name | upper }} = {{ event.id }},
-{% endfor %}
-} {{ smal.name | lower }}_event_t;
+{{ c_machine_events(smal) }}
 
-// COMMANDS
-// TBD
+// ERRORS
+{{ c_machine_errors(smal) }}
 
-// MESSAGES
-// TBD
+{{ c_machine_struct(smal) }}
 
-// ENUMS
-//TBD
+{{ c_machine_state_table_entry(smal, 3) }}
 
-// STRUCTS
-//TBD
+// STATE TABLE
+{{ c_machine_state_transition_table(smal) }}
 
 #endif // {{ smal.metadata.header_guard }}

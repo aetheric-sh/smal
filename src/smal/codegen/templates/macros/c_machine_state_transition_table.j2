@@ -1,0 +1,20 @@
+{% macro c_machine_state_transition_table(smal) %}
+static const {{ smal.name | lower }}_state_table_entry_t {{ smal.name | lower }}_state_table[] =
+{
+{% for t in smal.transitions %}
+{{ (
+    "{" ~
+    (smal.name | upper) ~ "_STATE_" ~ (t.src_state | upper) ~ ", " ~
+    (smal.name | upper) ~ "_EVENT_" ~ (t.evt | upper) ~ ", " ~
+    "[" ~ (t.actions | join(', ')) ~ "], " ~
+    (smal.name | upper) ~ "_STATE_" ~ (t.tgt_state | upper) ~ ", " ~
+    (
+        (smal.name | upper) ~ "_EVENT_" ~ (t.tgt_entry_evt | upper)
+        if t.tgt_entry_evt
+        else (smal.name | upper) ~ "_EVENT_NULL"
+    ) ~
+    "},"
+) | indent(4, true) }}
+{% endfor %}
+};
+{% endmacro %}

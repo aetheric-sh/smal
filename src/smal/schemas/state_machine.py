@@ -2,6 +2,7 @@ from __future__ import annotations  # Until Python 3.14
 
 import logging
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar, TypeAlias
 
@@ -82,6 +83,29 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
 
     def get_adjacency_list(self, reversed: bool = False) -> dict[str, list[str]]:
         return self._adj_rev if reversed else self._adj
+
+    def get_ordered_flat_global_state_list(self) -> list[State]:
+        # Recursive helper to flatten the states
+        def helper() -> list[State]:
+            ordered: list[State] = []
+
+            def walk(state: State):
+                ordered.append(state)
+                for sub in sorted(state.substates, key=lambda s: s.id or 0):
+                    walk(sub)
+
+            # Walk all top-level states in sorted order
+            for state in sorted(self.states, key=lambda s: s.id or 0):
+                walk(state)
+            return ordered
+
+        # Deepcopy so we don't alter the originals
+        states = deepcopy(helper())
+        # Ensure all states are now monotonically increasing id
+        for i, state in enumerate(states):
+            state.id = i
+        # Done
+        return states
 
     def get_flattened_states(self) -> dict[str, State]:
         return self._flatten_states(self.states)

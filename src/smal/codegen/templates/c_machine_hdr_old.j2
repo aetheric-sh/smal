@@ -1,0 +1,41 @@
+{% from "macros/c_autogen_banner.j2" import c_autogen_banner %}
+{{ c_autogen_banner(smal) }}
+#ifndef {{ smal.metadata.header_guard }}
+#define {{ smal.metadata.header_guard }}
+
+#include <stdint.h>
+
+#define {{ smal.name | upper }}_VERSION {{ smal.version }}
+
+// CONSTANTS
+{% for constant_name, constant_value in smal.constants.items() %}
+#define {{ constant_name | upper }} {{ constant_value }}
+{% endfor %}
+
+// STATES
+typedef enum _{{ smal.name | lower }}_state_t {
+{% for state in smal.states %}
+    {{ smal.name | upper }}_STATE_{{ state.name | upper }} = {{ state.id }},
+{% endfor %}
+} {{ smal.name | lower }}_state_t;
+
+// EVENTS
+typedef enum _{{ smal.name | lower }}_event_t {
+{% for event in smal.events %}
+    {{ smal.name | upper }}_EVENT_{{ event.name | upper }} = {{ event.id }},
+{% endfor %}
+} {{ smal.name | lower }}_event_t;
+
+// COMMANDS
+// TBD
+
+// MESSAGES
+// TBD
+
+// ENUMS
+//TBD
+
+// STRUCTS
+//TBD
+
+#endif // {{ smal.metadata.header_guard }}

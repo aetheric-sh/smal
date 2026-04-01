@@ -1,0 +1,11 @@
+{% macro c_machine_events(smal) %}
+typedef enum _{{ smal.name | lower }}_event_t {
+{% for event in smal.events %}
+    {{ smal.name | upper }}_EVENT_{{ event.name | upper }} = {{ event.id }},
+{% endfor %}
+    /* End of event table. */
+    {{ smal.name | upper }}_EVENT_NUM_EVENTS,
+    /* Null event for utility purposes. */
+    {{ smal.name | upper }}_EVENT_NULL,
+} {{ smal.name | lower }}_event_t;
+{% endmacro %}

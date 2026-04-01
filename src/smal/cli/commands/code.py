@@ -91,8 +91,8 @@ def generate_cmd(
 def macros_cmd() -> None:
     echo_table(
         "Builtin SMAL Macros",
-        ["Name", "Import Path", "Signature", "Description"],
-        [[macro.name, macro.import_path, macro.signature, macro.description] for macro in MacroRegistry.list_macros()],
+        ["Name", "Lang", "Import Path", "Signature", "Description"],
+        [[macro.name, macro.lang, macro.import_path, macro.signature, macro.description] for macro in MacroRegistry.list_macros()],
     )
 
 

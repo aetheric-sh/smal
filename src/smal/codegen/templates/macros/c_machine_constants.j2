@@ -1,0 +1,5 @@
+{% macro c_machine_constants(smal) %}
+{% for constant_name, constant_value in smal.constants.items() %}
+#define {{ constant_name | upper }} {{ constant_value }}
+{% endfor %}
+{% endmacro %}
