@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.3.6 (2026-04-01)
+
+### Bug Fixes
+
+- Fix bug with detecting machine root when it is ephemeral
+  ([#28](https://github.com/aetheric-sh/smal/pull/28),
+  [`6aeb256`](https://github.com/aetheric-sh/smal/commit/6aeb25636039858b04c08b2be4c942af9c9148d0))
+
+
 ## v0.3.5 (2026-04-01)
 
 ### Bug Fixes
