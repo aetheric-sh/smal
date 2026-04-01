@@ -5,7 +5,7 @@ metadata: {header_guard: EXAMPLE_H}
 states:
   - {name: FOO, type: initial}
   - {name: BAR, type: decision}
-  - {name: BAZ, substates: [{name: BAZ_I, type: initial}, BAZ_S, {name: BAZ_F, type: final}]}
+  - {name: BAZ, substates: [{name: BAZ_I, type: initial}, BAZ_S, BAZ_F]}
   - {name: THUD}
   - {name: QUX, type: final}
 events: [A, B, C, D, E, SSE_1, SSE_2, SSE_3]

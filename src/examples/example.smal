@@ -12,7 +12,7 @@ states:
     substates:
       - {name: BAZ_I, type: initial}
       - {name: BAZ_S}
-      - {name: BAZ_F, type: final}
+      - {name: BAZ_F}
   - name: THUD
   - name: QUX
     type: final

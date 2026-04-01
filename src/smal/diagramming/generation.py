@@ -51,7 +51,7 @@ def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State) -> 
     )
     # Add all root substates
     for rss in [ss for ss in composite_state.substates if not ss.substates]:
-        cluster.node(rss.name, shape=rss.type.graphviz_shape)
+        cluster.node(rss.name, **rss.type.default_metadata)
     # Internal edges
     for ie in internal_edges(composite_state, smal):
         cluster.edge(ie.src_state, ie.tgt_state, label=create_edge_label(ie))
@@ -103,7 +103,7 @@ def generate_state_machine_svg(
     root_state_names = {rs.name for rs in root_states}
     added_root_edges = []
     for rs in root_states:
-        dot.node(rs.name, shape=rs.type.graphviz_shape)
+        dot.node(rs.name, **rs.type.default_metadata)
         # 2. Add all root-to-root edges (root-to-cluster/cluster-to-root will be added later)
         incoming_root_edges = [t for t in smal.transitions if t.src_state in root_state_names and t.src_state != rs.name and t.tgt_state == rs.name and t not in added_root_edges]
         outgoing_root_edges = [t for t in smal.transitions if t.tgt_state in root_state_names and t.tgt_state != rs.name and t.src_state == rs.name and t not in added_root_edges]

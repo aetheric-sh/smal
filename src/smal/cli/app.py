@@ -7,14 +7,15 @@ from typing import Literal
 import typer
 from rich.console import Console
 
-from smal.cli.commands import generate_code_cmd_builtin, generate_diagram_cmd, install_graphviz_app
+from smal.cli.commands import generate_code_cmd_builtin, generate_diagram_cmd, install_graphviz_app, rules_app
 from smal.cli.commands.code import generate_code_cmd_custom
 from smal.cli.commands.helpers import echo_table
 from smal.cli.commands.validate import JinjaTemplateValidator
 from smal.codegen.smal_templates import TemplateRegistry
 
 app = typer.Typer(help="SMAL = State Machine Abstraction Language CLI")
-app.add_typer(install_graphviz_app, name="install-graphviz")
+app.add_typer(install_graphviz_app, name="graphviz")
+app.add_typer(rules_app, name="rules")
 console = Console()
 
 
@@ -27,13 +28,25 @@ def templates_cmd() -> None:
 def code_cmd(
     smal_path: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=False, readable=True, help="Path to the input SMAL file."),
     template: str = typer.Option(
-        None, "--template", "-t", help="Name of the builtin SMAL template to generate, or the filepath to a custom, SMAL-compliant Jinja2 template to generate."
+        None,
+        "--template",
+        "-t",
+        help="Name of the builtin SMAL template to generate, or the filepath to a custom, SMAL-compliant Jinja2 template to generate.",
     ),
     out_dir: Path = typer.Option(
-        Path("./generated"), "--out", "-o", file_okay=False, dir_okay=True, writable=True, help="Directory where generated code will be written (default: ./generated)."
+        Path("./generated"),
+        "--out",
+        "-o",
+        file_okay=False,
+        dir_okay=True,
+        writable=True,
+        help="Directory where generated code will be written (default: ./generated).",
     ),
     out_filename: str = typer.Option(
-        None, "--filename", "-n", help="Optional filename for the generated code. If not provided, a default name based on the template will be used."
+        None,
+        "--filename",
+        "-n",
+        help="Optional filename for the generated code. If not provided, a default name based on the template will be used.",
     ),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing files if they already exist."),
 ) -> None:
@@ -78,7 +91,7 @@ def code_cmd(
                 force=force,
             )
         console.print(
-            f"[green]Code successfully generated from custom template [bold yellow]{custom_template_path.name}[/bold yellow]: [bold cyan]{generated_filepath}[/bold cyan][/green]"
+            f"[green]Code successfully generated from custom template [bold yellow]{custom_template_path.name}[/bold yellow]: [bold cyan]{generated_filepath}[/bold cyan][/green]",
         )
 
 

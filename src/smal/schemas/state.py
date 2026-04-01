@@ -1,7 +1,6 @@
 from __future__ import annotations  # Until Python 3.14
 
 import logging
-from collections import Counter
 from enum import Enum
 from functools import cached_property
 from typing import Any, ClassVar
@@ -22,7 +21,7 @@ class StateType(str, Enum):
     ENTRY = "entry"
     EXIT = "exit"
     ERROR = "error"
-    CHOICE = "choice"
+    DECISION = "decision"
     JOIN = "join"
     FORK = "fork"
     JUNCTION = "junction"
@@ -43,19 +42,23 @@ class StateType(str, Enum):
     @cached_property
     def default_metadata(self) -> dict[str, Any]:
         return {
-            StateType.SIMPLE: {"shape": "rounded"},
+            StateType.SIMPLE: {"shape": "box", "style": "rounded"},
             StateType.COMPOSITE: {"shape": "box", "style": "rounded"},
             StateType.INITIAL: {"shape": "point"},
             StateType.TERMINAL: {"shape": "none", "label": "✕", "fontsize": "24"},
             StateType.ENTRY: {"shape": "circle", "color": "green"},
             StateType.EXIT: {"shape": "circle", "color": "red"},
             StateType.ERROR: {"shape": "hexagon"},
-            StateType.CHOICE: {"shape": "diamond"},
+            StateType.DECISION: {"shape": "diamond"},
             StateType.JOIN: {"shape": "rect", "width": "1.2", "height": "0.1", "style": "filled", "color": "black", "fillcolor": "black"},
             StateType.FORK: {"shape": "rect", "width": "0.1", "height": "1.2", "style": "filled", "color": "black", "fillcolor": "black"},
             StateType.JUNCTION: {"shape": "point"},
             StateType.FINAL: {"shape": "doublecircle"},
         }.get(self, {})
+
+    @cached_property
+    def shape(self) -> str:
+        return self.default_metadata.get("shape", "")
 
     def get_metadata(self, **overrides: Any) -> dict[str, Any]:
         default_metadata = self.default_metadata.copy()
@@ -101,24 +104,17 @@ class State(IdentifierValidationMixin, BaseModel):
                 raise ValueError(f"Invalid state definition: {item}. Must be either a string or a dictionary.")
         return expanded_substates
 
-    @field_validator("substates", mode="after")
-    def validate_substate_name_uniqueness(self, v: list[State]) -> list[State]:
-        name_counts = Counter(v)
-        if any(v > 1 for v in name_counts.values()):
-            counted_strs = [f"{symbol} ({symbol_count})" for symbol, symbol_count in name_counts.items()]
-            multiname_str = ", ".join(counted_strs)
-            raise ValueError(f"State<{self.name}> does not have unique substate names. The following names are defined multiple times: {multiname_str}")
-        return v
-
     @model_validator(mode="after")
     def validate_compositeness(self) -> Self:
         if self.substates:
             if self.type.is_pseudo_state:
                 raise ValueError(f"State<{self.name}> is a pseudostate (type: {self.type.value}) and cannot have substates.")
             if not self.type == StateType.COMPOSITE:
-                raise ValueError(
-                    f"State<{self.name}> defines substates but is not marked as a composite state. Found '{self.type.value}'. Remove substates or redefine as composite to resolve."
-                )
+                if self.type != State.model_fields["type"].default:
+                    raise ValueError(
+                        f"State<{self.name}> defines substates but is marked as a {self.type.value} instead of a composite state. Found '{self.type.value}'. Remove substates or redefine as composite to resolve.",
+                    )
+                logging.warning("State '%s' was not designated as a Composite even though it has substates. Automatically correcting...", self.name)
             # Ensure all substates are assigned a parent name
             for ss in self.substates:
                 ss.set_parent(self)
