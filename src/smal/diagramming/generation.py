@@ -6,7 +6,7 @@ from typing import Any
 from graphviz import Digraph, ExecutableNotFound
 from graphviz import FileExistsError as GraphvizFileExistsError
 
-from smal.schemas import SMALFile, State, Transition
+from smal.schemas import SMALFile, State, StateType, Transition
 
 
 def all_descendant_states(state: State) -> set[str]:
@@ -68,6 +68,38 @@ def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State) -> 
     return cluster
 
 
+def collect_initial_states(state: State) -> list[State]:
+    found = []
+    if state.type == StateType.INITIAL:
+        found.append(state)
+    for ss in state.substates:
+        found.extend(collect_initial_states(ss))
+    return found
+
+
+def find_parent_state(root_states: list[State], target: State) -> State | None:
+    for s in root_states:
+        if target in s.substates:
+            return s
+        for ss in s.substates:
+            parent = find_parent_state([ss], target)
+            if parent:
+                return parent
+    return None
+
+
+def inject_ephemeral_initial_state(dot: Digraph, state: State, all_states: list[State]) -> None:
+    pseudo_name = f"__initial_{state.name}"
+    dot.node(pseudo_name, **StateType.INITIAL.default_metadata)
+    parent = find_parent_state(all_states, state)
+    if parent:
+        dot.edge(pseudo_name, state.name, lhead=f"cluster_{parent.name}")
+    else:
+        dot.edge(pseudo_name, state.name)
+    # Then, change this state's type to simple so it is rendered correctly
+    state.type = StateType._EPHEMERAL_INITIAL
+
+
 def generate_state_machine_svg(
     smal_path: str | Path,
     svg_output_dir: str | Path,
@@ -97,6 +129,12 @@ def generate_state_machine_svg(
     # Optionally, add a title
     if title:
         dot.attr(label=smal.name, labelloc="t", fontsize="20", fontname="Arial Bold")
+
+    initial_states = []
+    for s in smal.states:
+        initial_states.extend(collect_initial_states(s))
+    for init in initial_states:
+        inject_ephemeral_initial_state(dot, init, smal.states)
 
     # 1. Add all root states
     root_states = [s for s in smal.states if not s.substates]

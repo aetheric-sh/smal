@@ -26,6 +26,8 @@ class StateType(str, Enum):
     FORK = "fork"
     JUNCTION = "junction"
     FINAL = "final"
+    # For internal use only
+    _EPHEMERAL_INITIAL = "ephemeral_initial"
 
     @cached_property
     def is_behavioral_state(self) -> bool:
@@ -54,6 +56,7 @@ class StateType(str, Enum):
             StateType.FORK: {"shape": "rect", "width": "0.1", "height": "1.2", "style": "filled", "color": "black", "fillcolor": "black"},
             StateType.JUNCTION: {"shape": "point"},
             StateType.FINAL: {"shape": "doublecircle"},
+            StateType._EPHEMERAL_INITIAL: {"shape": "circle"},
         }.get(self, {})
 
     @cached_property
