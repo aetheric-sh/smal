@@ -35,9 +35,6 @@ def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State) -> 
         dot (Digraph): The Graphviz Digraph object to which the cluster will be added.
         composite_state (State): The composite state for which the cluster is being built.
 
-    Raises:
-        RuntimeError: If the composite state does not have an ephemeral initial substate.
-
     Returns:
         Digraph: The Graphviz Digraph object representing the cluster.
 
