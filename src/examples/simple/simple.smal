@@ -1,7 +1,7 @@
 machine: Simple
 version: 1.0.0
 description: A simple example of a state machine written using SMAL standard notation.
-metadata: {}
+metadata: {header_guard: SIMPLE}
 constants: {}
 errors: []
 states:

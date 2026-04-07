@@ -1,7 +1,7 @@
 machine: SimpleShorthand
 version: 1.0.0
 description: A simple example of a state machine written using SMAL shorthand notation.
-metadata: {}
+metadata: {header_guard: SIMPLE_SHORTHAND}
 constants: {}
 errors: []
 states: [idle_i, working]

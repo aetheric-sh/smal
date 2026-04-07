@@ -1,7 +1,7 @@
 machine: Complex
 version: 1.0.0
 description: A complex example of a SMAL state machine.
-metadata: {}
+metadata: {header_guard: COMPLEX}
 constants: {}
 errors: []
 states: []

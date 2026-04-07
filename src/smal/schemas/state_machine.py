@@ -4,6 +4,7 @@ from __future__ import annotations  # Until Python 3.14
 
 import logging
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar, TypeAlias
 
@@ -17,7 +18,7 @@ from smal.schemas.error import Error
 from smal.schemas.event import Event
 from smal.schemas.state import State, StateType
 from smal.schemas.struct import Struct  # noqa: TC001 - Move application import to TYPE_CHECKING block
-from smal.schemas.transition import Transition, TransitionMapShorthand  # noqa: TC001 - Move application import to TYPE_CHECKING block
+from smal.schemas.transition import Transition, TransitionMapShorthand
 from smal.schemas.utilities import IdentifierValidationMixin, SemverValidationMixin
 from smal.utilities import constants as SMALConstants
 from smal.utilities.corrections import ALL_CORRECTIONS
@@ -443,6 +444,38 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         """
         state_name = state if isinstance(state, str) else state.name
         return [t for t in self.transitions if t.src == state_name]
+
+    def get_ordered_flat_global_state_list(self) -> list[State]:
+        """Get an ordered, flattened list of all states and substates.
+
+        NOTE: Substates are defined after their respective superstates, and inherit the resulting ordinal ID.
+
+        Returns:
+            list[State]: The ordered, flattened list of all states and substates.
+
+        """
+
+        # Recursive helper to flatten the states
+        def helper() -> list[State]:
+            ordered: list[State] = []
+
+            def walk(state: State) -> None:
+                ordered.append(state)
+                for sub in sorted(state.substates, key=lambda s: s.id or 0):
+                    walk(sub)
+
+            # Walk all top-level states in sorted order
+            for state in sorted(self.states, key=lambda s: s.id or 0):
+                walk(state)
+            return ordered
+
+        # Deepcopy so we don't alter the originals
+        states = deepcopy(helper())
+        # Ensure all states are now monotonically increasing id
+        for i, state in enumerate(states):
+            state.id = i
+        # Done
+        return states
 
     def to_file(
         self,
