@@ -17,7 +17,7 @@ from smal.schemas.error import Error
 from smal.schemas.event import Event
 from smal.schemas.state import State, StateType
 from smal.schemas.struct import Struct  # noqa: TC001 - Move application import to TYPE_CHECKING block
-from smal.schemas.transition import Transition  # noqa: TC001 - Move application import to TYPE_CHECKING block
+from smal.schemas.transition import Transition, TransitionMapShorthand  # noqa: TC001 - Move application import to TYPE_CHECKING block
 from smal.schemas.utilities import IdentifierValidationMixin, SemverValidationMixin
 from smal.utilities import constants as SMALConstants
 from smal.utilities.corrections import ALL_CORRECTIONS
@@ -114,12 +114,25 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         if not isinstance(v, dict):
             return v
         # First, we need to normalize shorthand transitions
+        raw_transitions = v.get("transitions")
+        if raw_transitions is None:
+            return v
+        # Normalize transition map -> list[Transition]
+        if isinstance(raw_transitions, dict):
+            normalized_transitions = TransitionMapShorthand(transitions=raw_transitions).to_transitions()
+            v["transitions"] = normalized_transitions
+        else:
+            normalized_transitions = raw_transitions
         # Infer events from transitions if not explicitly defined
-        transitions = v.get("transitions", [])
         events = v.get("events", [])
-        if not events and transitions:
-            inferred_events = {t["evt"] for t in transitions if "evt" in t and t["evt"] is not None}
-            v["events"] = list(inferred_events)
+        if not events:
+            inferred_evt_names: list[str] = []
+            for t in normalized_transitions:
+                if isinstance(t, Transition):
+                    inferred_evt_names.append(t.evt)
+                elif isinstance(t, dict) and "evt" in t:
+                    inferred_evt_names.append(t["evt"])
+            v["events"] = list(dict.fromkeys(inferred_evt_names))  # Remove duplicates while preserving order
         # Done
         return v
 

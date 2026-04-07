@@ -2,7 +2,58 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from pydantic import BaseModel, Field, PrivateAttr
+from typing import Any, ClassVar
+
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+
+
+class TransitionSpecShorthand(BaseModel):
+    """Model defining the shorthand syntax for specifying transitions in a state machine. This allows users to define transitions in a more concise way."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        populate_by_name=True,  # So class can be instantiated with real variable names OR aliases
+    )
+    tgt: str = Field(..., alias="target", description="The state to transition into after executing actions in response to receiving evt while in src.")
+    actions: list[str] = Field(default_factory=list, description="The sequence of functions to invoke when evt is received while in src.")
+    tgt_entry_evt: str | None = Field(default=None, alias="on_entry", description="Event to trigger upon entering tgt, if any.")
+
+
+class TransitionMapShorthand(BaseModel):
+    """Model defining the shorthand syntax for specifying a map of transitions in a state machine. This allows users to define transitions in a more concise way."""
+
+    transitions: dict[str, dict[str, str | TransitionSpecShorthand]]
+
+    def to_transitions(self) -> list[Transition]:
+        """Convert this TransitionMapShorthand into a list of full Transition objects.
+
+        Returns:
+            list[Transition]: The list of Transition objects represented by this TransitionMapShorthand.
+
+        """
+        out: list[Transition] = []
+        for src, evt_map in self.transitions.items():
+            for evt, spec in evt_map.items():
+                if isinstance(spec, str):
+                    out.append(
+                        Transition(
+                            src=src,
+                            evt=evt,
+                            actions=[],
+                            tgt=spec,
+                            tgt_entry_evt=None,
+                        ),
+                    )
+                else:
+                    out.append(
+                        Transition(
+                            src=src,
+                            evt=evt,
+                            actions=spec.actions,
+                            tgt=spec.tgt,
+                            tgt_entry_evt=spec.tgt_entry_evt,
+                        ),
+                    )
+        return out
 
 
 class Transition(BaseModel):
@@ -71,6 +122,10 @@ class Transition(BaseModel):
 
         """
         self._original_tgt = original_tgt
+
+    @classmethod
+    def from_shorthand(cls, data: Any) -> Transition:
+        pass
 
 
 class IllegalTransitionError(ValueError):

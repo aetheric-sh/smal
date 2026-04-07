@@ -264,12 +264,16 @@ class State(BaseModel, IdentifierValidationMixin):
         name = v.get("name", "")
         if not name:
             raise ValueError("State definition missing required field 'name'.")
-        shorthanded_types = {st for st in StateType if name.lower().endswith(st.value.lower())}
+        shorthanded_types = {st for st in StateType if name.lower().endswith(st.shorthand_suffix.lower())}
         match len(shorthanded_types):
             case 0:
                 pass  # No recognized type suffixes, leave type as default
             case 1:
-                v["type"] = next(iter(shorthanded_types)).name  # Set type based on the single recognized suffix
+                shorthanded_type = next(iter(shorthanded_types))
+                v["type"] = shorthanded_type.value  # Set type based on the single recognized suffix
+                v["name"] = name[: -len(shorthanded_type.shorthand_suffix)]  # Strip the suffix from the name
+                if not v["name"]:
+                    raise ValueError(f"State name '{name}' cannot consist only of a shorthand suffix.")
             case _:
                 raise ValueError(f"State name '{name}' ends with multiple recognized type suffixes. Cannot unambiguously derive type from name.")
         return v
