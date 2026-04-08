@@ -1,3 +1,4 @@
+from .clean import clean_app  # noqa: F401 - Import unused
 from .code import code_app  # noqa: F401 - Import unused
 from .graphviz import graphviz_app  # noqa: F401 - Import unused
 from .rules import rules_app  # noqa: F401 - Import unused

@@ -8,12 +8,13 @@ from typing import Literal
 import typer
 from rich.console import Console
 
-from smal.cli.commands import code_app, graphviz_app, rules_app, validate_app
+from smal.cli.commands import clean_app, code_app, graphviz_app, rules_app, validate_app
 from smal.diagramming.generation import generate_state_machine_svg
 
 app = typer.Typer(help="SMAL = State Machine Abstraction Language CLI")
-# TODO: clean cmd
+app.add_typer(clean_app, name="clean")
 app.add_typer(code_app, name="code")
+# TODO: corrections cmd
 # TODO: debug cmd
 # TODO: explain cmd
 app.add_typer(graphviz_app, name="graphviz")
