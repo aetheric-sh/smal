@@ -1,8 +1,160 @@
 machine: Complex
 version: 1.0.0
 description: A complex example of a SMAL state machine.
-metadata: {header_guard: COMPLEX}
-constants: {}
-errors: []
-states: []
-transitions: []
+metadata: {}
+constants:
+    MAX_CHUNK_SIZE: 512
+    MAX_RETRIES: 3
+    TRANSFER_TIMEOUT_MS: 30000
+    CRC32_POLY: 0xEDB88320
+states:
+    - idle_i
+    - {name: transfer, substates: [transfer_init_i, awaiting_chunk, chunk_received]}
+    - {name: verify, substates: [verify_init_i, crc_check, image_validation]}
+    - installing
+    - complete
+    - aborted
+    - {name: error, type: error}
+    - {name: abort_decision, type: decision}
+errors:
+    - name: err_timeout
+      description: Transfer timed out waiting for the next chunk.
+    - name: err_crc_mismatch
+      description: CRC32 verification of the received image failed.
+    - name: err_invalid_image
+      description: Image header validation failed (bad magic or version).
+    - name: err_flash_write
+      description: Flash write operation returned a hardware error.
+    - name: err_connection_lost
+      description: BLE connection dropped unexpectedly during transfer.
+events:
+    - evt_install_start
+    - evt_chunk_received
+    - evt_transfer_complete
+    - evt_crc_pass
+    - evt_crc_fail
+    - evt_image_valid
+    - evt_image_invalid
+    - evt_install_done
+    - evt_install_failed
+    - evt_abort
+    - evt_retry
+    - evt_connection_lost
+    - evt_timeout
+enums:
+    - name: InstallStatus
+      values:
+          0: IDLE
+          1: TRANSFERRING
+          2: VERIFYING
+          3: INSTALLING
+          4: COMPLETE
+          5: ABORTED
+          6: ERROR
+    - name: ImageType
+      values:
+          0: APPLICATION
+          1: BOOTLOADER
+          2: SOFTDEVICE
+          3: COMBINED
+commands:
+    - name: cmd_begin_install
+      direction: host_to_device
+      transport: ble
+      parameters:
+          - name: image_type
+            type: uint8
+            default_value: 0
+          - name: image_size_bytes
+            type: uint32
+      payload:
+          fields:
+              - name: firmware_version
+                type: uint32
+              - name: hardware_revision
+                type: uint16
+    - name: cmd_send_chunk
+      direction: host_to_device
+      transport: ble
+      parameters:
+          - name: chunk_index
+            type: uint16
+          - name: chunk_size
+            type: uint16
+    - name: cmd_abort_install
+      direction: host_to_device
+      transport: ble
+    - name: cmd_install_status_notify
+      direction: device_to_host
+      transport: ble
+      payload:
+          fields:
+              - name: status
+                type: uint8
+              - name: bytes_received
+                type: uint32
+              - name: last_error
+                type: uint8
+transitions:
+    idle:
+        evt_install_start:
+            target: transfer_init
+            on_entry: evt_chunk_received
+    transfer_init:
+        evt_chunk_received: awaiting_chunk
+    awaiting_chunk:
+        evt_chunk_received:
+            target: chunk_received
+            actions: [action_accumulate_crc, action_store_chunk]
+        evt_timeout:
+            target: abort_decision
+        evt_connection_lost:
+            target: error
+        evt_abort:
+            target: abort_decision
+    chunk_received:
+        evt_transfer_complete:
+            target: verify_init
+            on_entry: evt_crc_pass
+        evt_chunk_received:
+            target: awaiting_chunk
+    verify_init:
+        evt_crc_pass: crc_check
+        evt_crc_fail: error
+    crc_check:
+        evt_crc_pass:
+            target: image_validation
+            actions: [action_validate_image_header]
+        evt_crc_fail:
+            target: error
+            actions: [action_set_error_crc]
+    image_validation:
+        evt_image_valid:
+            target: installing
+            actions: [action_begin_flash_write]
+        evt_image_invalid:
+            target: error
+            actions: [action_set_error_invalid_image]
+    installing:
+        evt_install_done:
+            target: complete
+            actions: [action_notify_host, action_schedule_reboot]
+        evt_install_failed:
+            target: error
+            actions: [action_set_error_flash_write]
+        evt_abort:
+            target: abort_decision
+    abort_decision:
+        evt_retry:
+            target: transfer_init
+            actions: [action_reset_transfer_state]
+        evt_abort: aborted
+    complete:
+        evt_install_start: idle
+    aborted:
+        evt_install_start: idle
+    error:
+        evt_retry:
+            target: idle
+            actions: [action_clear_error]
+        evt_abort: aborted

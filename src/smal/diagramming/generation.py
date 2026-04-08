@@ -31,13 +31,14 @@ def all_descendant_states(state: State) -> set[str]:
     return names
 
 
-def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State) -> Digraph:
+def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State, added_edges: list[Transition] | None = None) -> Digraph:
     """Recursively build a tree of nodes to comprise a cluster.
 
     Args:
         smal (SMALFile): The SMAL file containing the state machine definition.
         dot (Digraph): The Graphviz Digraph object to which the cluster will be added.
         composite_state (State): The composite state for which the cluster is being built.
+        added_edges (list[Transition] | None): Shared list of already-added edges to avoid duplicates across clusters. Defaults to None.
 
     Returns:
         Digraph: The Graphviz Digraph object representing the cluster.
@@ -55,21 +56,37 @@ def build_cluster_tree(smal: SMALFile, dot: Digraph, composite_state: State) -> 
     initial_substate = composite_state.initial_substate
     cluster.node(initial_substate.name, **initial_substate.type.default_metadata)
     # Add all non-initial root substates
-    added_edges = []
+    if added_edges is None:
+        added_edges = []
     for rss in [ss for ss in composite_state.substates if not ss.substates and ss.type != StateType.INITIAL]:
         cluster.node(rss.name, **rss.type.default_metadata)
     # Internal edges
     for ie in internal_edges(composite_state, smal, added_edges=added_edges):
         cluster.edge(ie.src, ie.tgt, label=create_edge_label(ie))
+        added_edges.append(ie)
     # External incoming edges
     for eie in external_incoming_edges(composite_state, smal, added_edges=added_edges):
-        dot.edge(eie.src, eie.tgt, label=create_edge_label(eie), lhead=cluster_name)
+        # Only use lhead (arrow stops at cluster boundary) when the transition targets the
+        # composite state itself by name. When targeting an explicit substate, let the arrow
+        # enter the cluster and point directly at the substate node.
+        if eie.tgt == composite_state.name:
+            dot.edge(eie.src, eie.tgt, label=create_edge_label(eie), lhead=cluster_name)
+        else:
+            dot.edge(eie.src, eie.tgt, label=create_edge_label(eie))
+        added_edges.append(eie)
     # External outgoing edges
     for eoe in external_outgoing_edges(composite_state, smal, added_edges=added_edges):
-        dot.edge(eoe.src, eoe.tgt, label=create_edge_label(eoe), ltail=cluster_name)
+        # Only use ltail (arrow originates from cluster boundary) when the transition source is
+        # the composite state itself by name. When originating from an explicit substate, let
+        # the arrow leave from the substate node directly.
+        if eoe.src == composite_state.name:
+            dot.edge(eoe.src, eoe.tgt, label=create_edge_label(eoe), ltail=cluster_name)
+        else:
+            dot.edge(eoe.src, eoe.tgt, label=create_edge_label(eoe))
+        added_edges.append(eoe)
     # Now recurse over nested substates
     for nss in [ss for ss in composite_state.substates if ss.substates]:
-        subtree = build_cluster_tree(smal, cluster, nss)
+        subtree = build_cluster_tree(smal, cluster, nss, added_edges=added_edges)
         cluster.subgraph(subtree)
     return cluster
 
@@ -192,9 +209,10 @@ def generate_state_machine_svg(
 
     # 3. For each composite state
     composite_states = [s for s in smal.states if s.substates]
+    added_cluster_edges: list[Transition] = []
     for cs in composite_states:
-        # Build the cluster tree, adding edges as we go
-        cluster = build_cluster_tree(smal, dot, cs)
+        # Build the cluster tree, passing a shared edge list to avoid inter-cluster duplicates
+        cluster = build_cluster_tree(smal, dot, cs, added_edges=added_cluster_edges)
         # Add the cluster to the root graph
         dot.subgraph(cluster)
 

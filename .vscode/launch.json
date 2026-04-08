@@ -58,6 +58,28 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "SMAL: rules",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "smal.cli.app",
+            "cwd": "${workspaceFolder}/src",
+            "args": [
+                "rules",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "SMAL: corrections",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "smal.cli.app",
+            "cwd": "${workspaceFolder}/src",
+            "args": [
+                "corrections",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "SMAL: validate",
             "type": "debugpy",
             "request": "launch",
