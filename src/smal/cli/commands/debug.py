@@ -9,6 +9,7 @@ from typing import Any, Protocol
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 
 from smal.cli.commands.helpers import echo_table, prefer_inner_rich_statuses
 from smal.schemas.debug import SMALDebugEntry, SMALDebugEntryType
@@ -22,12 +23,12 @@ class HarvestFunc(Protocol):
         """Harvest debug data for the given machine name."""
         ...
 
-
 def _format_payload_details(entry: SMALDebugEntry, sm: StateMachine) -> str:
     payload = entry.payload
     if not hasattr(payload, "display"):
         raise RuntimeError(f"Payload for entry type {entry.entry_type} does not have a display method. This is a programming error.")
-    return payload.display(sm)
+    # Escape Rich markup so literal brackets in transition displays (e.g. [event]) are preserved.
+    return escape(payload.display(sm))
 
 
 def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
@@ -41,7 +42,7 @@ def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
     row_data = [
         [
             str(idx),
-            f"{entry.timestamp_ms:>12d}",
+            f"{entry.timestamp_ms}",
             SMALDebugEntryType.formatted_display(entry.entry_type),
             _format_payload_details(entry, sm),
         ]
