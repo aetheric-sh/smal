@@ -80,6 +80,19 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "SMAL: debug",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "smal.cli.app",
+            "cwd": "${workspaceFolder}/src",
+            "args": [
+                "debug",
+                "${workspaceFolder}/src/examples/simple/simple.smal",
+                "${workspaceFolder}/src/smal/schemas/bit_field.py",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "SMAL: validate",
             "type": "debugpy",
             "request": "launch",
