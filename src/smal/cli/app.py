@@ -11,7 +11,7 @@ from rich.console import Console
 from smal.cli.commands.clean import clean_app
 from smal.cli.commands.code import code_app
 from smal.cli.commands.corrections import corrections_app
-from smal.cli.commands.debug import debug_app
+from smal.cli.commands.debug import debug_cmd
 from smal.cli.commands.graphviz import graphviz_app
 from smal.cli.commands.rules import rules_app
 from smal.cli.commands.validate import validate_app
@@ -21,12 +21,14 @@ app = typer.Typer(help="SMAL = State Machine Abstraction Language CLI")
 app.add_typer(clean_app, name="clean")
 app.add_typer(code_app, name="code")
 app.add_typer(corrections_app, name="corrections")
-app.add_typer(debug_app, name="debug")
 # TODO: explain cmd
 app.add_typer(graphviz_app, name="graphviz")
 app.add_typer(rules_app, name="rules")
 # TODO: simulate cmd
 app.add_typer(validate_app, name="validate")
+
+
+app.command("debug", help="Debug a SMAL state machine using custom debug data.")(debug_cmd)
 
 
 @app.command("diagram", help="Generate a state machine diagram of your .smal file in .svg format.")

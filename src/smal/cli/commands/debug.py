@@ -9,6 +9,7 @@ from typing import Any, Protocol
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 
 from smal.cli.commands.helpers import echo_table, prefer_inner_rich_statuses
 from smal.schemas.debug import SMALDebugEntry, SMALDebugEntryType
@@ -22,308 +23,12 @@ class HarvestFunc(Protocol):
         """Harvest debug data for the given machine name."""
         ...
 
-
-debug_app = typer.Typer(help="Debug a SMAL state machine using custom debug data.")
-
-debug_data = bytearray(
-    [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        0,
-        15,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        0,
-        16,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        0,
-        2,
-        0,
-        0,
-        0,
-        64,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        207,
-        192,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        64,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        208,
-        192,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        5,
-        0,
-        12,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        5,
-        0,
-        5,
-        0,
-        23,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        5,
-        0,
-        5,
-        0,
-        24,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        5,
-        0,
-        6,
-        0,
-        27,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        6,
-        0,
-        6,
-        0,
-        29,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        6,
-        0,
-        2,
-        0,
-        3,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        2,
-        0,
-        2,
-        0,
-        18,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        2,
-        0,
-        4,
-        0,
-        12,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        4,
-        0,
-        4,
-        0,
-        19,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        4,
-        0,
-        11,
-        0,
-        17,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        11,
-        0,
-        10,
-        0,
-        22,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        10,
-        0,
-        0,
-        0,
-        11,
-        0,
-        0,
-        0,
-    ]
-)
-
-
 def _format_payload_details(entry: SMALDebugEntry, sm: StateMachine) -> str:
     payload = entry.payload
     if not hasattr(payload, "display"):
         raise RuntimeError(f"Payload for entry type {entry.entry_type} does not have a display method. This is a programming error.")
-    return payload.display(sm)
+    # Escape Rich markup so literal brackets in transition displays (e.g. [event]) are preserved.
+    return escape(payload.display(sm))
 
 
 def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
@@ -337,7 +42,7 @@ def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
     row_data = [
         [
             str(idx),
-            f"{entry.timestamp_ms:>12d}",
+            f"{entry.timestamp_ms}",
             SMALDebugEntryType.formatted_display(entry.entry_type),
             _format_payload_details(entry, sm),
         ]
@@ -356,9 +61,7 @@ def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
     )
 
 
-@debug_app.callback(invoke_without_command=True, context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def debug_root(
-    ctx: typer.Context,
+def debug_cmd(
     smal_path: Path = typer.Argument(  # noqa: B008
         ...,
         exists=True,
@@ -375,6 +78,12 @@ def debug_root(
         readable=True,
         help="Path to the Python script containing the harvest_smal_dbg_data function.",
     ),
+    hvst_kwarg: list[str] = typer.Option(  # noqa: B008
+        [],
+        "--hvst-kwarg",
+        "-H",
+        help="Additional key=value pairs to pass as kwargs to the harvest function. Can be used multiple times for multiple kwargs.",
+    ),
 ) -> None:
     """Debug a SMAL state machine using a custom debug data function.
 
@@ -387,9 +96,9 @@ def debug_root(
         same Python environment that SMAL is running in. Install them separately before running this command.
 
     Args:
-        ctx: Typer context, used to capture arbitrary extra keyword arguments passed to harvest.
         smal_path: The path to the SMAL file to debug.
         script_path: The path to the Python script containing the harvest_smal_dbg_data function.
+        hvst_kwarg: Additional key=value pairs to pass as kwargs to the harvest function defined by script_path.
 
     Raises:
         typer.Exit: If the SMAL file cannot be loaded, script cannot be imported,
@@ -399,11 +108,24 @@ def debug_root(
     # For rich console output
     console = Console()
     # Parse extra CLI args (--key value pairs) into kwargs for harvest_func
-    extra_kwargs: dict[str, str] = {}
-    args = ctx.args
-    for i in range(0, len(args) - 1, 2):
-        key = args[i].lstrip("-")
-        extra_kwargs[key] = args[i + 1]
+    extra_kwargs: dict[str, Any] = {}
+    for hkwarg in hvst_kwarg:
+        if "=" not in hkwarg:
+            console.print(f"[red]Invalid --hvst-kwarg value: '{hkwarg}'. Expected format: key=value[/red]")
+            raise typer.Exit(code=2)
+        key, value = hkwarg.split("=", 1)
+        key = key.strip().lstrip("-")
+        value = value.strip()
+        extra_kwargs[key] = value
+        if not key:
+            console.print(f"[red]Invalid --hvst-kwarg key in: '{hkwarg}'. Key cannot be empty.[/red]")
+            raise typer.Exit(code=2)
+        if value.lower() in {"true", "false"}:
+            extra_kwargs[key] = value.lower() == "true"
+        elif value.isdigit():
+            extra_kwargs[key] = int(value)
+        else:
+            extra_kwargs[key] = value  # Keep as string if not bool or int
     # Load the SMAL file to get the state machine
     with console.status(f"Loading SMAL file: [bold cyan]{smal_path}[/bold cyan]", spinner="dots"):
         try:
@@ -467,9 +189,9 @@ def debug_root(
             console.print(f"[red]Harvest function returned {type(raw_data).__name__}, expected bytearray[/red]")
             raise typer.Exit(code=1)
     # Deserialize the debug data into SMALDebugEntry objects
-    with console.status(f"Deserializing debug entries: [bold cyan]{len(debug_data)} bytes[/bold cyan]", spinner="dots"):
+    with console.status(f"Deserializing debug entries: [bold cyan]{len(raw_data)} bytes[/bold cyan]", spinner="dots"):
         try:
-            entries = SMALDebugEntry.deserialize_entries_from_bytes(debug_data)
+            entries = SMALDebugEntry.deserialize_entries_from_bytes(raw_data)
         except ValueError as e:
             console.print(f"[red]Failed to deserialize debug data: {e}[/red]")
             raise typer.Exit(code=1) from e

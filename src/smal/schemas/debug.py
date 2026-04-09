@@ -122,7 +122,7 @@ class SMALDebugTransitionPayload(BaseModel):
         tgt_name = resolve_state_name(self.tgt_state)
         evt_name = resolve_event_name(self.evt)
         error_name = resolve_error_name(self.status) if self.status != 0 else "OK"
-        return f"{src_name}({self.src_state}) -[{evt_name}({self.evt})]-> {tgt_name}({self.tgt_state}) · {error_name}({self.status:+d})"
+        return f"{src_name}({self.src_state}) --[{evt_name}({self.evt})]--> {tgt_name}({self.tgt_state}) · {error_name}({self.status})"
 
 
 class SMALDebugMessagePayload(BaseModel):
