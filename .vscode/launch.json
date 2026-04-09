@@ -85,6 +85,7 @@
             "request": "launch",
             "module": "smal.cli.app",
             "cwd": "${workspaceFolder}/src",
+            "justMyCode": false,
             "args": [
                 "debug",
                 "${workspaceFolder}/src/examples/simple/simple.smal",
