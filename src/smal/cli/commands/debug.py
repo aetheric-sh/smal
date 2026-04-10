@@ -23,6 +23,7 @@ class HarvestFunc(Protocol):
         """Harvest debug data for the given machine name."""
         ...
 
+
 def _format_payload_details(entry: SMALDebugEntry, sm: StateMachine) -> str:
     payload = entry.payload
     if not hasattr(payload, "display"):
@@ -39,10 +40,14 @@ def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
         sm: Optional state machine context used for ID-to-name resolution.
 
     """
+    start_timestamp = entries[0].timestamp_ms if entries else 0
     row_data = [
         [
             str(idx),
-            f"{entry.timestamp_ms}",
+            (
+                f"{entry.timestamp_ms}"
+                f" (from_start=+{entry.timestamp_ms - start_timestamp}ms, from_prev=+{entry.timestamp_ms - entries[idx - 2].timestamp_ms if idx > 1 else 'null'}ms)"
+            ),
             SMALDebugEntryType.formatted_display(entry.entry_type),
             _format_payload_details(entry, sm),
         ]
