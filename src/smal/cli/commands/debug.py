@@ -46,7 +46,7 @@ def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
             str(idx),
             (
                 f"{entry.timestamp_ms}"
-                f" (from_start=+{entry.timestamp_ms - start_timestamp}ms, from_prev=+{entry.timestamp_ms - entries[idx - 2].timestamp_ms if idx > 1 else 'null'}ms)"
+                f" (from_start=+{entry.timestamp_ms - start_timestamp}ms, from_prev=+{(entry.timestamp_ms - entries[idx - 2].timestamp_ms) + 'ms' if idx > 1 else 'null'})"
             ),
             SMALDebugEntryType.formatted_display(entry.entry_type),
             _format_payload_details(entry, sm),
