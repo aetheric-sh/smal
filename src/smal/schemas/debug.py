@@ -503,7 +503,7 @@ class SMALDebugEntry(BaseModel):
             payload_bytes = chunk[header_size_bytes : header_size_bytes + payload_size_bytes]
             # Determine payload type based on entry_type bitmask and parse accordingly
             payload_dict: dict = {"entry_type": _get_payload_type(entry_type)}
-            if entry_type & SMALDebugEntryType.STATE_TRANSITION:
+            if entry_type & SMALDebugEntryType.ENTRY_TYPE_STATE_TRANSITION:
                 # Unpack payload: src_state (u16) | tgt_state (u16) | evt (u16) | status (i16)
                 src_state, tgt_state, evt, status = struct.unpack(transition_fmt, payload_bytes[0:payload_size_bytes])
                 payload_dict.update(
@@ -514,10 +514,12 @@ class SMALDebugEntry(BaseModel):
                         "status": status,
                     },
                 )
-            elif entry_type & SMALDebugEntryType.ERROR:
+            elif entry_type & SMALDebugEntryType.ENTRY_TYPE_ERROR:
                 error_code, detail = struct.unpack(error_fmt, payload_bytes[0:payload_size_bytes])
                 payload_dict.update({"error_code": error_code, "detail": detail})
-            elif entry_type & (SMALDebugEntryType.EVENT_RX | SMALDebugEntryType.EVENT_TX | SMALDebugEntryType.CMD_RX | SMALDebugEntryType.CMD_TX):
+            elif entry_type & (
+                SMALDebugEntryType.ENTRY_TYPE_EVENT_RX | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX | SMALDebugEntryType.ENTRY_TYPE_CMD_RX | SMALDebugEntryType.ENTRY_TYPE_CMD_TX
+            ):
                 identifier, data_len, value = struct.unpack(message_fmt, payload_bytes[0:payload_size_bytes])
                 payload_dict.update(
                     {
@@ -526,7 +528,7 @@ class SMALDebugEntry(BaseModel):
                         "value": value,
                     },
                 )
-            elif entry_type & (SMALDebugEntryType.DATA_READ | SMALDebugEntryType.DATA_WRITE):
+            elif entry_type & (SMALDebugEntryType.ENTRY_TYPE_DATA_READ | SMALDebugEntryType.ENTRY_TYPE_DATA_WRITE):
                 address, data_len = struct.unpack(data_fmt, payload_bytes[0:payload_size_bytes])
                 payload_dict.update({"address": address, "data_len": data_len})
             else:
@@ -648,13 +650,13 @@ def _get_payload_type(entry_type: int) -> str:
         The discriminator string for the payload type.
 
     """
-    if entry_type & SMALDebugEntryType.STATE_TRANSITION:
+    if entry_type & SMALDebugEntryType.ENTRY_TYPE_STATE_TRANSITION:
         return "transition"
-    if entry_type & SMALDebugEntryType.ERROR:
+    if entry_type & SMALDebugEntryType.ENTRY_TYPE_ERROR:
         return "error"
-    if entry_type & (SMALDebugEntryType.EVENT_RX | SMALDebugEntryType.EVENT_TX | SMALDebugEntryType.CMD_RX | SMALDebugEntryType.CMD_TX):
+    if entry_type & (SMALDebugEntryType.ENTRY_TYPE_EVENT_RX | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX | SMALDebugEntryType.ENTRY_TYPE_CMD_RX | SMALDebugEntryType.ENTRY_TYPE_CMD_TX):
         return "message"
-    if entry_type & (SMALDebugEntryType.DATA_READ | SMALDebugEntryType.DATA_WRITE):
+    if entry_type & (SMALDebugEntryType.ENTRY_TYPE_DATA_READ | SMALDebugEntryType.ENTRY_TYPE_DATA_WRITE):
         return "data"
     return "transition"
 
