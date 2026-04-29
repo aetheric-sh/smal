@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v0.4.5 (2026-04-29)
+
+### Bug Fixes
+
+- Add debug boilerplate codegen for C ([#34](https://github.com/aetheric-sh/smal/pull/34),
+  [`895cb41`](https://github.com/aetheric-sh/smal/commit/895cb413a13d1830d2f59834298765d3e8838a0b))
+
+* Add debug boilerplate codegen for C
+
+* generate boilerplate based on pydantic schemas
+
+* Fix typo
+
+* More typos
+
+
 ## v0.4.4 (2026-04-10)
 
 ### Bug Fixes
