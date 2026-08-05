@@ -967,7 +967,7 @@ wheels = [
 [[package]]
 name = "smal-lang"
 version = "0.4.6"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "cmd2" },
     { name = "graphviz" },

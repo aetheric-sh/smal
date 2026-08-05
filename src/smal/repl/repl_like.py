@@ -51,3 +51,11 @@ class REPLLike(Protocol):
     def get_active_machine(self) -> StateMachine | None:
         """Get the active machine for the REPL."""
         ...
+
+    def get_cached_machines(self) -> dict[str, StateMachine]:
+        """Get the cached machines for the REPL."""
+        ...
+
+    def get_machine_path(self, name: str) -> Path | None:
+        """Get the path for the given machine name."""
+        ...
