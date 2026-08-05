@@ -5,17 +5,19 @@ description = "State Machine Abstraction Language (SMAL) is a YAML-based descrip
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "cmd2>=3.4.0",
     "graphviz==0.21",
     "jinja2==3.1.6",
     "platformdirs>=4.9.4",
     "pydantic==2.12.5",
     "pyyaml>=6.0.1",
+    "rich>=14.3.3",
     "semver==3.0.4",
     "typer==0.24.1",
 ]
 
 [project.scripts]
-smal = "smal.cli.app:app"
+smal = "smal.repl.repl_main:main"
 
 [dependency-groups]
 build = [
@@ -96,6 +98,8 @@ ignore = [
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`
 
     "B011", # Do not `assert False` (`python -O` removes these calls), raise `AssertionError()`
+
+    "CPY001", # Missing copyright notice at top of file
 
     "FBT001", # Boolean-typed positional argument in function definition
     "FBT002", # Boolean default positional argument in function definition
