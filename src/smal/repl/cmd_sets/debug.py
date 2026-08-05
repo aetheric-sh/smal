@@ -17,6 +17,7 @@ from smal.schemas.state_machine import SMALFile
 if TYPE_CHECKING:
     import argparse
 
+    from smal.repl.connection import ConnectedDevice
     from smal.schemas.state_machine import StateMachine
 
 
@@ -45,7 +46,7 @@ gen_boilerplate_parser.add_argument(
 class HarvestFn(Protocol):
     """Protocol for the harvest function, which accepts a machine name and arbitrary default params."""
 
-    def __call__(self, name: str, **kwargs: Any) -> bytearray:
+    def __call__(self, name: str, connected_device: ConnectedDevice, **kwargs: Any) -> bytearray:
         """Harvest debug data for the given machine name."""
         ...
 
@@ -84,7 +85,7 @@ class DebugCmdSet(cmd2.CommandSet):
         console.print(f"[bold blue] Harvesting data from machine '{active_machine.name}'...[/bold blue]")
         extra_kwargs: dict[str, Any] = parse_params(args.param)
         try:
-            raw_data = harvest_fn(active_machine.name, **extra_kwargs)
+            raw_data = harvest_fn(active_machine.name, active_connection.device, **extra_kwargs)
         except Exception as e:  # noqa: BLE001 - Catching all exceptions to provide user feedback in the REPL.
             console.print(f"[bold red]Error during harvest function execution: {e}[/bold red]")
             return

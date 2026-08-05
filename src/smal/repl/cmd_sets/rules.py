@@ -12,22 +12,22 @@ from smal.utilities.rules import ALL_RULES
 if TYPE_CHECKING:
     import argparse
 
-rules_parser = cmd2.Cmd2ArgumentParser()
-rules_parser.add_subparsers(title="subcommand", help="subcommand help")
+_rules_parser = cmd2.Cmd2ArgumentParser()
+_rules_parser.add_subparsers(title="subcommand", help="subcommand help")
 
-list_parser = cmd2.Cmd2ArgumentParser()
+_list_parser = cmd2.Cmd2ArgumentParser()
 
-enable_parser = cmd2.Cmd2ArgumentParser()
-enable_parser.add_argument("name", type=str, help="The name of the rule to enable, or 'all' to enable all.")
+_enable_parser = cmd2.Cmd2ArgumentParser()
+_enable_parser.add_argument("name", type=str, help="The name of the rule to enable, or 'all' to enable all.")
 
-disable_parser = cmd2.Cmd2ArgumentParser()
-disable_parser.add_argument("name", type=str, help="The name of the rule to disable, or 'all' to disable all.")
+_disable_parser = cmd2.Cmd2ArgumentParser()
+_disable_parser.add_argument("name", type=str, help="The name of the rule to disable, or 'all' to disable all.")
 
 
 class RulesCmdSet(cmd2.CommandSet):
     """Command set for handling rules in the SMAL REPL."""
 
-    @cmd2.with_argparser(rules_parser)
+    @cmd2.with_argparser(_rules_parser)
     def do_rules(self, args: argparse.Namespace) -> None:
         """Manage SMAL state machine rules.
 
@@ -42,7 +42,7 @@ class RulesCmdSet(cmd2.CommandSet):
             self._cmd.poutput("No subcommand given.")
             self._cmd.do_help("rules")
 
-    @cmd2.as_subcommand_to("rules", "enable", enable_parser, help="Enable 1 or more rules to be evaluated.")
+    @cmd2.as_subcommand_to("rules", "enable", _enable_parser, help="Enable 1 or more rules to be evaluated.")
     def rules_enable(self, args: argparse.Namespace) -> None:
         """Enable 1 or more rules to be evaluated against the active SMAL machine.
 
@@ -72,7 +72,7 @@ class RulesCmdSet(cmd2.CommandSet):
             console.print(f"[green]Rule '{rule.name}' has been enabled.[/green]")
         persistence.save()
 
-    @cmd2.as_subcommand_to("rules", "disable", disable_parser, help="Disable 1 or more rules from being evaluated.")
+    @cmd2.as_subcommand_to("rules", "disable", _disable_parser, help="Disable 1 or more rules from being evaluated.")
     def rules_disable(self, args: argparse.Namespace) -> None:
         """Disable 1 or more rules to be evaluated against the active SMAL machine.
 
@@ -102,7 +102,7 @@ class RulesCmdSet(cmd2.CommandSet):
             console.print(f"[green]Rule '{rule.name}' has been disabled.[/green]")
         persistence.save()
 
-    @cmd2.as_subcommand_to("rules", "list", list_parser, help="List all rules that SMAL can evaluate against state machines. Invoking `smal rules` invokes this as well.")
+    @cmd2.as_subcommand_to("rules", "list", _list_parser, help="List all rules that SMAL can evaluate against state machines. Invoking `smal rules` invokes this as well.")
     def rules_list(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
         """List all available rules in the SMAL ruleset and their statuses.
 

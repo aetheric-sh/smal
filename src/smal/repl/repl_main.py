@@ -21,9 +21,9 @@ if TYPE_CHECKING:
 
     from smal.schemas.state_machine import StateMachine
 
-connect_parser = cmd2.Cmd2ArgumentParser()
-connect_parser.add_argument("module", type=Path, completer=cmd2.Cmd.path_complete, help="The path to the module containing the connect function for your device.")
-connect_parser.add_argument(
+_connect_parser = cmd2.Cmd2ArgumentParser()
+_connect_parser.add_argument("module", type=Path, completer=cmd2.Cmd.path_complete, help="The path to the module containing the connect function for your device.")
+_connect_parser.add_argument(
     "-p",
     "--param",
     action="append",
@@ -31,8 +31,8 @@ connect_parser.add_argument(
     help="Repeatable key=value pair (e.g., -p key1=value1 -p key2=value2) to pass additional parameters to the connect function.",
 )
 
-disconnect_parser = cmd2.Cmd2ArgumentParser()
-disconnect_parser.add_argument(
+_disconnect_parser = cmd2.Cmd2ArgumentParser()
+_disconnect_parser.add_argument(
     "-p",
     "--param",
     action="append",
@@ -85,7 +85,7 @@ class SMALREPL(cmd2.Cmd):
         self._update_prompt()
         return super().postcmd(stop, statement)
 
-    @cmd2.with_argparser(connect_parser)
+    @cmd2.with_argparser(_connect_parser)
     def do_connect(self, args: argparse.Namespace) -> None:
         """Connect to an arbitrary device.
 
@@ -112,7 +112,7 @@ class SMALREPL(cmd2.Cmd):
             self.console.print(f"[bold red]Failed to connect using module {args.module}: {e}[/bold red]")
             return
 
-    @cmd2.with_argparser(disconnect_parser)
+    @cmd2.with_argparser(_disconnect_parser)
     def do_disconnect(self, args: argparse.Namespace) -> None:
         """Disconnect from the active device connection, if there is one.
 
