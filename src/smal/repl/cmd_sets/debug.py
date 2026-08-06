@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import cmd2
+from pydantic import BaseModel
 from rich.markup import escape
 
 from smal.codegen.code_generator import SMALCodeGenerator
@@ -21,9 +22,9 @@ if TYPE_CHECKING:
     from smal.schemas.state_machine import StateMachine
 
 
-run_parser = cmd2.Cmd2ArgumentParser()
-run_parser.add_argument("-f", "--file", type=str, help="Path to the external Python file containing the harvest function.", required=True)
-run_parser.add_argument(
+_run_parser = cmd2.Cmd2ArgumentParser()
+_run_parser.add_argument("-f", "--file", type=Path, completer=cmd2.Cmd.path_complete, help="Path to the external Python file containing the harvest function.", required=True)
+_run_parser.add_argument(
     "-p",
     "--param",
     action="append",
@@ -31,15 +32,32 @@ run_parser.add_argument(
     help="Repeatable key=value pair (e.g., -p key1=value1 -p key2=value2) to pass additional parameters to the harvest function.",
 )
 
-gen_boilerplate_parser = cmd2.Cmd2ArgumentParser()
-gen_boilerplate_parser.add_argument("-o", "--output-dir", type=str, help="Directory to output the generated boilerplate code.", required=True)
-gen_boilerplate_parser.add_argument("-l", "--lang", type=str, choices=["c"], help="Programming language for the boilerplate code.", required=True)
-gen_boilerplate_parser.add_argument("-f", "--filename", type=str, help="Optional filename for the generated boilerplate code. If not provided, a default name will be used.")
-gen_boilerplate_parser.add_argument(
+
+class RunArgs(BaseModel):
+    """Model describing the arguments to the run command."""
+
+    file: Path
+    param: list[tuple[str, Any]] | None = None
+
+
+_gen_boilerplate_parser = cmd2.Cmd2ArgumentParser()
+_gen_boilerplate_parser.add_argument("output_dir", type=Path, completer=cmd2.Cmd.path_complete, help="Directory to output the generated boilerplate code.")
+_gen_boilerplate_parser.add_argument("-l", "--lang", type=str, default="c", choices=["c"], help="Programming language for the boilerplate code.")
+_gen_boilerplate_parser.add_argument("-f", "--filename", type=str, help="Optional filename for the generated boilerplate code. If not provided, a default name will be used.")
+_gen_boilerplate_parser.add_argument(
     "--force",
     action="store_true",
     help="Force overwrite of existing files in the output directory. If not set, existing files will not be overwritten.",
 )
+
+
+class GenBoilerplateArgs(BaseModel):
+    """Model describing the arguments to the gen_boilerplate command."""
+
+    output_dir: Path
+    lang: str = "c"
+    filename: str | None = None
+    force: bool = False
 
 
 @runtime_checkable
@@ -54,7 +72,7 @@ class HarvestFn(Protocol):
 class DebugCmdSet(cmd2.CommandSet):
     """Command set for debugging in the SMAL REPL."""
 
-    @cmd2.with_argparser(run_parser)
+    @cmd2.with_argparser(_run_parser)
     def do_run(self, args: argparse.Namespace) -> None:
         """Run the SMAL debug data harvesting tool to harvest curated debug data from a connected device.
 
@@ -66,6 +84,7 @@ class DebugCmdSet(cmd2.CommandSet):
             TypeError: If the harvest function does not match the expected signature.
 
         """
+        parsed_args = RunArgs.model_validate(vars(args))
         try:
             parent_app = get_parent_app(self)
         except Exception as e:
@@ -73,33 +92,34 @@ class DebugCmdSet(cmd2.CommandSet):
         console = parent_app.get_console()
         active_connection = parent_app.get_active_connection()
         if active_connection is None:
-            console.print("[bold red]Error: No active connection found. Please connect to a device first.[/bold red]")
+            parent_app.print_error("No active connection found. Please connect to a device first with the `connect` command.")
             return
         active_machine = parent_app.get_active_machine()
         if active_machine is None:
-            console.print("[bold red]Error: No active machine found. Please load a machine definition first.[/bold red]")
+            parent_app.print_error("No active machine found. Please load a machine definition first with the `machine load` command.")
             return
-        harvest_fn = import_external_fn_from_file(args.file, "harvest_module", "harvest")
+        harvest_fn = import_external_fn_from_file(parsed_args.file, "harvest_module", "harvest")
         if not isinstance(harvest_fn, HarvestFn):
-            raise TypeError(f"The 'harvest' function in {args.file} does not match the expected signature.")
+            parent_app.print_error(f"The 'harvest' function in {parsed_args.file} does not match the expected signature.")
+            return
         console.print(f"[bold blue] Harvesting data from machine '{active_machine.name}'...[/bold blue]")
-        extra_kwargs: dict[str, Any] = parse_params(args.param)
+        extra_kwargs: dict[str, Any] = parse_params(parsed_args.param or [])
         try:
             raw_data = harvest_fn(active_machine.name, active_connection.device, **extra_kwargs)
         except Exception as e:  # noqa: BLE001 - Catching all exceptions to provide user feedback in the REPL.
-            console.print(f"[bold red]Error during harvest function execution: {e}[/bold red]")
+            parent_app.print_error(f"Error during harvest function execution: {e}")
             return
         with console.status(f"Deserializing debug entries: [bold cyan]{len(raw_data)} bytes[/bold cyan]"):
             try:
                 entries = SMALDebugEntry.deserialize_entries_from_bytes(raw_data)
             except ValueError:
-                console.print("[bold red]Error: Failed to deserialize debug entries from the harvested data.[/bold red]")
+                parent_app.print_error("Failed to deserialize debug entries from the harvested data.")
                 return
-        console.print(f"[bold green]Successfully harvested and deserialized {len(entries)} debug entries.[/bold green]")
+        parent_app.print_success(f"Successfully harvested and deserialized {len(entries)} debug entries.")
         console.print()
         _display_entries(entries, active_machine)
 
-    @cmd2.with_argparser(gen_boilerplate_parser)
+    @cmd2.with_argparser(_gen_boilerplate_parser)
     def do_gen_boilerplate(self, args: argparse.Namespace) -> None:
         """Generate boilerplate debugging code for a new project utilizing SMAL.
 
@@ -110,24 +130,26 @@ class DebugCmdSet(cmd2.CommandSet):
             RuntimeError: If the parent REPL application cannot be accessed or is not of the expected type.
 
         """
+        parsed_args = GenBoilerplateArgs.model_validate(vars(args))
         try:
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
         console = parent_app.get_console()
         # Validate output directory existence and writability
-        if not args.output_dir.exists():
-            args.output_dir.mkdir(parents=True, exist_ok=True)
-        elif not args.output_dir.is_dir():
-            console.print(f"[bold red]Error: Output path exists but is not a directory: {args.output_dir}[/bold red]")
+        if not parsed_args.output_dir.exists():
+            parsed_args.output_dir.mkdir(parents=True, exist_ok=True)
+        elif not parsed_args.output_dir.is_dir():
+            parent_app.print_error(f"Output path exists but is not a directory: {parsed_args.output_dir}")
+            return
         generator = SMALCodeGenerator()
         smal = SMALFile.blank()
         boilerplate_templates = TemplateRegistry.get_dbg_boilerplate_templates(args.lang)
         if not boilerplate_templates:
-            console.print(f"[red]No debug boilerplate templates found for language: {args.lang}[/red]")
+            parent_app.print_error(f"No debug boilerplate templates found for language: {args.lang}")
             return
         for tmpl in boilerplate_templates:
-            console.print(f"[green]Generating debug boilerplate code for [cyan]{args.lang}[/cyan] using template: [bold cyan]{tmpl.name}[/bold cyan][/green]")
+            console.print(f"Generating debug boilerplate code for [cyan]{args.lang}[/cyan] using template: [bold cyan]{tmpl.name}[/bold cyan]")
             _env, btmpl, smal_tmpl = generator.load_builtin_template(tmpl.name)
             sanitized_fn = Path(args.filename).stem if args.filename else None
             fn = f"{sanitized_fn}{tmpl.output_extension}" if sanitized_fn else f"{smal_tmpl.name}{smal_tmpl.output_extension}"
@@ -137,9 +159,9 @@ class DebugCmdSet(cmd2.CommandSet):
                 extra_context[ctx_key] = compute_fn(smal)
             try:
                 generator.render_to_file(btmpl, smal, out_filepath, force=args.force, **extra_context)
-                console.print(f"[green]Successfully generated debug boilerplate code: [bold cyan]{out_filepath}[/bold cyan][/green]")
+                parent_app.print_success(f"Successfully generated debug boilerplate code: [bold cyan]{out_filepath}[/bold cyan]")
             except ValueError:
-                console.print(f"[red]Failed to render template {tmpl.name}.[/red]")
+                parent_app.print_error(f"Failed to render template {tmpl.name}.")
                 raise
 
 

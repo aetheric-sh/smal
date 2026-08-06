@@ -5,6 +5,7 @@ from __future__ import annotations  # Until Python 3.14
 from typing import TYPE_CHECKING
 
 import cmd2
+from pydantic import BaseModel
 
 from smal.repl.helpers import echo_table, get_parent_app, get_persistence
 from smal.utilities.rules import ALL_RULES
@@ -20,8 +21,21 @@ _list_parser = cmd2.Cmd2ArgumentParser()
 _enable_parser = cmd2.Cmd2ArgumentParser()
 _enable_parser.add_argument("name", type=str, help="The name of the rule to enable, or 'all' to enable all.")
 
+
+class EnableArgs(BaseModel):
+    """Model describing the arguments to the enable command."""
+
+    name: str
+
+
 _disable_parser = cmd2.Cmd2ArgumentParser()
 _disable_parser.add_argument("name", type=str, help="The name of the rule to disable, or 'all' to disable all.")
+
+
+class DisableArgs(BaseModel):
+    """Model describing the arguments to the disable command."""
+
+    name: str
 
 
 class RulesCmdSet(cmd2.CommandSet):
@@ -53,23 +67,23 @@ class RulesCmdSet(cmd2.CommandSet):
             RuntimeError: If the `RulesCmdSet` is not registered with a parent cmd2 application.
 
         """
+        parsed_args = EnableArgs.model_validate(vars(args))
         try:
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
-        console = parent_app.get_console()
         persistence = get_persistence()
-        if args.name.lower() == "all":
+        if parsed_args.name.lower() == "all":
             for r in ALL_RULES:
                 persistence.enable_rule(r.name, True, write_to_file=False)
-            console.print("[green]All rules have been enabled.[/green]")
+            parent_app.print_success("All rules have been enabled.")
         else:
-            rule = next((r for r in ALL_RULES if r.name == args.name), None)
+            rule = next((r for r in ALL_RULES if r.name == parsed_args.name), None)
             if rule is None:
-                console.print(f"[bold red]Error: Unknown rule '{args.name}'. Run the `smal rules` command for list of valid rules.[/bold red]")
+                parent_app.print_error(f"Unknown rule '{parsed_args.name}'. Run the `rules list` command for list of valid rules.")
                 return
             persistence.enable_rule(rule.name, True, write_to_file=False)
-            console.print(f"[green]Rule '{rule.name}' has been enabled.[/green]")
+            parent_app.print_success(f"Rule '{rule.name}' has been enabled.")
         persistence.save()
 
     @cmd2.as_subcommand_to("rules", "disable", _disable_parser, help="Disable 1 or more rules from being evaluated.")
@@ -83,23 +97,23 @@ class RulesCmdSet(cmd2.CommandSet):
             RuntimeError: If the `RulesCmdSet` is not registered with a parent cmd2 application.
 
         """
+        parsed_args = DisableArgs.model_validate(vars(args))
         try:
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
-        console = parent_app.get_console()
         persistence = get_persistence()
-        if args.name.lower() == "all":
+        if parsed_args.name.lower() == "all":
             for r in ALL_RULES:
                 persistence.enable_rule(r.name, False, write_to_file=False)
-            console.print("[green]All rules have been disabled.[/green]")
+            parent_app.print_success("All rules have been disabled.")
         else:
-            rule = next((r for r in ALL_RULES if r.name == args.name), None)
+            rule = next((r for r in ALL_RULES if r.name == parsed_args.name), None)
             if rule is None:
-                console.print(f"[bold red]Error: Unknown rule '{args.name}'. Run the `smal rules` command for list of valid rules.[/bold red]")
+                parent_app.print_error(f"Unknown rule '{parsed_args.name}'. Run the `rules list` command for list of valid rules.")
                 return
             persistence.enable_rule(rule.name, False, write_to_file=False)
-            console.print(f"[green]Rule '{rule.name}' has been disabled.[/green]")
+            parent_app.print_success(f"Rule '{rule.name}' has been disabled.")
         persistence.save()
 
     @cmd2.as_subcommand_to("rules", "list", _list_parser, help="List all rules that SMAL can evaluate against state machines. Invoking `smal rules` invokes this as well.")

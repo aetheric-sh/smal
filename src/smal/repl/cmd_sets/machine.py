@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import cmd2
+from pydantic import BaseModel
 
 from smal.repl.helpers import echo_table, get_parent_app
 from smal.schemas.state_machine import SMALFile
@@ -21,10 +22,23 @@ _load_parser.add_argument("file", type=Path, completer=cmd2.Cmd.path_complete, h
 _load_parser.add_argument("-o", "--overwrite", action="store_true", help="Overwrite the existing machine if it already exists in the cache.")
 
 
+class LoadArgs(BaseModel):
+    """Model describing the arguments to the load command."""
+
+    file: Path
+    overwrite: bool = False
+
+
 _list_parser = cmd2.Cmd2ArgumentParser()
 
 _switch_parser = cmd2.Cmd2ArgumentParser()
 _switch_parser.add_argument("name", type=str, help="The name of the machine to switch to.")
+
+
+class SwitchArgs(BaseModel):
+    """Model describing the arguments to the switch command."""
+
+    name: str
 
 
 class MachineCmdSet(cmd2.CommandSet):
@@ -57,27 +71,28 @@ class MachineCmdSet(cmd2.CommandSet):
             TypeError: If the parent application is not of type `REPLLike`.
 
         """
+        parsed_args = LoadArgs.model_validate(vars(args))
         try:
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
         console = parent_app.get_console()
-        machine = parent_app.get_machine_by_path(args.file)
-        if machine and not args.overwrite:
+        machine = parent_app.get_machine_by_path(parsed_args.file)
+        if machine and not parsed_args.overwrite:
             parent_app.set_active_machine(machine)
-            console.print(f"[bold green]Successfully loaded '{machine.name}' machine definition from cache.[/bold green]")
+            parent_app.print_success(f"Successfully loaded '{machine.name}' machine definition from cache.")
             return
-        with console.status(f"[bold blue]Loading machine definition from file {args.file}...[/bold blue]"):
+        with console.status(f"[bold blue]Loading machine definition from file {parsed_args.file}...[/bold blue]"):
             try:
-                smal = SMALFile.from_file(args.file)
+                smal = SMALFile.from_file(parsed_args.file)
                 parent_app.set_active_machine(smal)
-                parent_app.cache_machine(args.file, smal)
-                console.print(f"[bold green]Successfully loaded machine definition from {args.file}.[/bold green]")
+                parent_app.cache_machine(parsed_args.file, smal)
+                parent_app.print_success(f"Successfully loaded machine definition from file: {parsed_args.file}.")
             except FileNotFoundError:
-                console.print(f"[bold red]Error: File not found: {args.file}[/bold red]")
+                parent_app.print_error(f"File not found: {parsed_args.file}")
                 return
             except ValueError as e:
-                console.print(f"[bold red]Error: Invalid machine definition file: {args.file}: {e}[/bold red]")
+                parent_app.print_error(f"Invalid machine definition file: {parsed_args.file}: {e}")
                 return
 
     @cmd2.as_subcommand_to("machine", "list", _list_parser, help="List all loaded SMAL state machines")
@@ -95,10 +110,9 @@ class MachineCmdSet(cmd2.CommandSet):
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
-        console = parent_app.get_console()
         machines = list(parent_app.get_cached_machines())
         if not machines:
-            console.print("[bold yellow]No loaded machines found.[/bold yellow]")
+            parent_app.print_warning("No loaded machines found.")
             return
         machine_data = [(machine_name, str(parent_app.get_machine_path(machine_name))) for machine_name in machines]
         echo_table("Loaded SMAL Machines", ["Name", "Path"], machine_data)
@@ -114,14 +128,14 @@ class MachineCmdSet(cmd2.CommandSet):
             RuntimeError: If the `MachineCmdSet` is not registered with a parent cmd2 application.
 
         """
+        parsed_args = SwitchArgs.model_validate(vars(args))
         try:
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
-        console = parent_app.get_console()
-        machine = parent_app.get_machine_by_name(args.name)
+        machine = parent_app.get_machine_by_name(parsed_args.name)
         if not machine:
-            console.print(f"[bold red]Error: No loaded machine found with name '{args.name}'.[/bold red]")
+            parent_app.print_error(f"No loaded machine found with name '{parsed_args.name}'.")
             return
         parent_app.set_active_machine(machine)
-        console.print(f"[bold green]Switched to machine '{machine.name}'.[/bold green]")
+        parent_app.print_success(f"Switched to machine '{machine.name}'.")

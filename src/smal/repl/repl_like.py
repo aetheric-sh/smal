@@ -59,3 +59,19 @@ class REPLLike(Protocol):
     def get_machine_path(self, name: str) -> Path | None:
         """Get the path for the given machine name."""
         ...
+
+    def print_msg(self, message: str) -> None:
+        """Print a message to the console."""
+        ...
+
+    def print_success(self, message: str, prefix: str | None = None) -> None:
+        """Print a success message to the console."""
+        ...
+
+    def print_error(self, message: str, prefix: str | None = None) -> None:
+        """Print an error message to the console."""
+        ...
+
+    def print_warning(self, message: str, prefix: str | None = None) -> None:
+        """Print a warning message to the console."""
+        ...
