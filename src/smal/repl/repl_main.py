@@ -12,7 +12,7 @@ import cmd2
 from pydantic import BaseModel
 from rich.console import Console
 
-from smal.repl.cmd_sets import CodeCmdSet, CorrectionsCmdSet, DebugCmdSet, DiagramCmdSet, MachineCmdSet, ModuleCmdSet, RulesCmdSet, ValidateCmdSet
+from smal.repl.cmd_sets import CodeCmdSet, CorrectionsCmdSet, DebugCmdSet, DiagramCmdSet, MachineCmdSet, ModuleCmdSet, MsgCmdSet, RulesCmdSet, ValidateCmdSet
 from smal.repl.connection import ConnectFn, DeviceConnection
 from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params
 from smal.repl.target_module import TargetModule
@@ -82,6 +82,7 @@ class SMALREPL(cmd2.Cmd):
         self.register_command_set(DiagramCmdSet())
         self.register_command_set(MachineCmdSet())
         self.register_command_set(ModuleCmdSet())
+        self.register_command_set(MsgCmdSet())
         self.register_command_set(RulesCmdSet())
         self.register_command_set(ValidateCmdSet())
         self._update_prompt()
