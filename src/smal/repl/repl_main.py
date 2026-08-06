@@ -135,7 +135,7 @@ class SMALREPL(cmd2.Cmd):
             self.console.print("[bold red]No active device connection.[/bold red]")
             return
         self.console.print(f"[bold green]Active device connection:[/bold green] {self._active_connection.name}")
-        self.console.print("[bold green]Connection details:[/bold green]}")
+        self.console.print("[bold magenta]Connection details:[/bold magenta]")
         self.console.print(self._active_connection.connection_details_str or "[bold yellow]No connection details available.[/bold yellow]")
 
     @cmd2.with_argparser(_disconnect_parser)

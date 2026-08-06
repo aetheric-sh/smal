@@ -129,7 +129,7 @@ class DeviceConnection:
         connection_details = self.device.get_connection_details()
         if connection_details is None:
             return cmd2.stylize("no details", "bold yellow")
-        return ",\n".join(f"{k}:{v}" for k, v in connection_details.items())
+        return ",\n".join(f"{k}: {v}" for k, v in connection_details.items())
 
     @property
     def is_connected(self) -> bool:
