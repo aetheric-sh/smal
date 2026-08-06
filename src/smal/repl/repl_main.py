@@ -38,7 +38,7 @@ class ConnectArgs(BaseModel):
     """Model describing the arguments to the connect command."""
 
     module: Path
-    param: list[tuple[str, str]] | None = None
+    param: list[tuple[str, Any]] | None = None
 
 
 _disconnect_parser = cmd2.Cmd2ArgumentParser()
@@ -54,7 +54,7 @@ _disconnect_parser.add_argument(
 class DisconnectArgs(BaseModel):
     """Model describing the arguments to the disconnect command."""
 
-    param: list[tuple[str, str]] | None = None
+    param: list[tuple[str, Any]] | None = None
 
 
 class SMALREPL(cmd2.Cmd):
