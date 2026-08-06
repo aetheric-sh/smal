@@ -80,7 +80,10 @@ class DeviceConnection:
                 raise RuntimeError(f"Failed to set active module to {fn_module_path}.")
             connect_fn = target_module.connect_fn
         else:
-            raise ValueError("Either target_module or fn_module_path must be provided.")
+            raise ValueError(
+                "Cannot create device connection without target module. "
+                "Either set one using `module load` or provide a path to a module containing the `connect` function using `connect -m <PATH>`.",
+            )
         try:
             connected_device = connect_fn(**kwargs)
         except Exception as e:
