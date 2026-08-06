@@ -114,12 +114,22 @@ class DeviceConnection:
         """
         if self.device is None:
             return cmd2.stylize("disconnected", "bold red")
-        connected_str = cmd2.stylize(f"connected::{self.device.get_name()}", "bold green")
+        return cmd2.stylize(f"connected::{self.device.get_name()}", "bold green")
+
+    @property
+    def connection_details_str(self) -> str | None:
+        """Get the string representing the connection details of the active device connection, if any.
+
+        Returns:
+            str | None: The string representing the connection details of the active device connection, if any.
+
+        """
+        if self.device is None:
+            return None
         connection_details = self.device.get_connection_details()
         if connection_details is None:
-            return connected_str
-        connection_details_str = ",".join(f"{k}:{v}" for k, v in connection_details.items())
-        return f"{connected_str}({connection_details_str})"
+            return cmd2.stylize("no details", "bold yellow")
+        return ",\n".join(f"{k}:{v}" for k, v in connection_details.items())
 
     @property
     def is_connected(self) -> bool:

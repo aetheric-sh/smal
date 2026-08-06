@@ -41,6 +41,8 @@ class ConnectArgs(BaseModel):
     param: list[tuple[str, Any]] | None = None
 
 
+_cinfo_parser = cmd2.Cmd2ArgumentParser()
+
 _disconnect_parser = cmd2.Cmd2ArgumentParser()
 _disconnect_parser.add_argument(
     "-p",
@@ -120,6 +122,21 @@ class SMALREPL(cmd2.Cmd):
                 self.print_error(f"Connection failed using module {args.module}. No device returned.")
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
             self.print_error(f"Failed to connect using module {args.module}: {e}")
+
+    @cmd2.with_argparser(_cinfo_parser)
+    def do_cinfo(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
+        """Display information about the current device connection.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments (not used in this command).
+
+        """
+        if self._active_connection is None or not self._active_connection.is_connected:
+            self.console.print("[bold red]No active device connection.[/bold red]")
+            return
+        self.console.print(f"[bold green]Active device connection:[/bold green] {self._active_connection.name}")
+        self.console.print("[bold green]Connection details:[/bold green]}")
+        self.console.print(self._active_connection.connection_details_str or "[bold yellow]No connection details available.[/bold yellow]")
 
     @cmd2.with_argparser(_disconnect_parser)
     def do_disconnect(self, args: argparse.Namespace) -> None:
