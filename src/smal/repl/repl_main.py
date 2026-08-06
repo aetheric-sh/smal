@@ -2,6 +2,7 @@
 
 from __future__ import annotations  # Until Python 3.14
 
+import contextlib
 import platform
 import shutil
 import subprocess
@@ -15,7 +16,7 @@ from rich.console import Console
 from smal.repl.cmd_sets import CodeCmdSet, CorrectionsCmdSet, DebugCmdSet, DiagramCmdSet, MachineCmdSet, ModuleCmdSet, MsgCmdSet, RulesCmdSet, ValidateCmdSet
 from smal.repl.connection import ConnectFn, DeviceConnection
 from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params
-from smal.repl.target_module import TargetModule
+from smal.repl.target_module import SendMsgFn, TargetModule
 from smal.utilities import constants as SMALConstants
 from smal.utilities.persistence import SMALPersistence
 
@@ -414,7 +415,11 @@ class SMALREPL(cmd2.Cmd):
         self._active_module = module_file
         connect_fn: ConnectFn = import_external_fn_from_file(module_file, "smal_connect_module", "connect")
         harvest_fn: HarvestFn = import_external_fn_from_file(module_file, "smal_harvest_module", "harvest")
-        self._active_module = TargetModule(filepath=module_file, connect_fn=connect_fn, harvest_fn=harvest_fn)
+        send_msg_fn: SendMsgFn | None = None
+        # send_msg is an optional function, so we can ignore if it's not present
+        with contextlib.suppress(AttributeError):
+            send_msg_fn = import_external_fn_from_file(module_file, "smal_send_msg_module", "send_msg")
+        self._active_module = TargetModule(filepath=module_file, connect_fn=connect_fn, harvest_fn=harvest_fn, send_msg_fn=send_msg_fn)
         self.print_success(f"Active module set to: {module_file}", omit_heading=True)
 
     def get_active_module(self) -> TargetModule | None:
