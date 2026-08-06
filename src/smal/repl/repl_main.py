@@ -241,6 +241,7 @@ class SMALREPL(cmd2.Cmd):
             bool: True if the REPL should exit, False otherwise.
 
         """
+        self.console.print("\n[bold blue] EOF (Ctrl+D) detected, exiting SMAL REPL...[/bold blue]")
         self._disconnect_from_device()
         return True
 
