@@ -116,7 +116,12 @@ class RulesCmdSet(cmd2.CommandSet):
             parent_app.print_success(f"Rule '{rule.name}' has been disabled.")
         persistence.save()
 
-    @cmd2.as_subcommand_to("rules", "list", _list_parser, help="List all rules that SMAL can evaluate against state machines. Invoking `smal rules` invokes this as well.")
+    @cmd2.as_subcommand_to(
+        "rules",
+        "list",
+        _list_parser,
+        help="List all rules that SMAL can evaluate against state machines. Invoking `smal rules` invokes this as well.",
+    )
     def rules_list(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
         """List all available rules in the SMAL ruleset and their statuses.
 

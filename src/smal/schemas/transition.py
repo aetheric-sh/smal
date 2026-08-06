@@ -19,7 +19,10 @@ class TransitionSpecShorthand(BaseModel):
 
 
 class TransitionMapShorthand(BaseModel):
-    """Model defining the shorthand syntax for specifying a map of transitions in a state machine. This allows users to define transitions in a more concise way."""
+    """Model defining the shorthand syntax for specifying a map of transitions in a state machine.
+
+    This allows users to define transitions in a more concise way.
+    """
 
     transitions: dict[str, dict[str, str | TransitionSpecShorthand]]
 
@@ -125,7 +128,15 @@ class Transition(BaseModel):
 
     @classmethod
     def from_shorthand(cls, data: Any) -> Transition:
-        pass
+        """Construct a Transition from a shorthand representation.
+
+        Args:
+            data (Any): The arbitrary data representing a transition in shorthand form, which can be a string or a dictionary.
+
+        Returns:
+            Transition: The constructed Transition object based on the provided shorthand representation.
+
+        """
 
 
 class IllegalTransitionError(ValueError):

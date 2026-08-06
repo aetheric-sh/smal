@@ -11,7 +11,7 @@
     "ruff.lint.enable": true,
     "ruff.fixAll": true,
     "ruff.organizeImports": true,
-    "ruff.lineLength": 180,
+    "ruff.lineLength": 160,
     "editor.formatOnSave": true,
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff"

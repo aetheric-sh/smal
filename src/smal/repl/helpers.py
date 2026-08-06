@@ -90,7 +90,8 @@ def echo_table(title: str, columns: list[str], rows: list[list[str]], col_metada
         title (str): The title of the table.
         columns (list[str]): The column headers of the table.
         rows (list[list[str]]): The rows of the table, where each row is a list of cell values.
-        col_metadata (dict[str, dict[str, Any]], optional): Optional metadata for columns, where keys are column names and values are dictionaries of keyword arguments to pass to Table.add_column(). Defaults to None.
+        col_metadata (dict[str, dict[str, Any]], optional): Optional metadata for columns, \
+            where keys are column names and values are dictionaries of keyword arguments to pass to Table.add_column(). Defaults to None.
 
     """
     table = Table(title=title)

@@ -76,7 +76,9 @@ class MsgCmdSet(cmd2.CommandSet):
             parent_app.set_active_module(parsed_args.module)
         active_module = parent_app.get_active_module()
         if active_module is None:
-            parent_app.print_error("No active module found. Please load a module first using the `module load` command or provide one to this command with the `-m` option.")
+            parent_app.print_error(
+                "No active module found. Please load a module first using the `module load` command or provide one to this command with the `-m` option.",
+            )
             return
         send_msg_fn = active_module.send_msg_fn
         if send_msg_fn is None:

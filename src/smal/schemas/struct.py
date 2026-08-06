@@ -1,3 +1,5 @@
+"""Module defining the schema for a structure in SMAL, including its fields, substructures, and enumerations."""
+
 from __future__ import annotations  # Until Python 3.14
 
 from typing import ClassVar, Literal
@@ -6,32 +8,52 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import Self
 
 from smal.codegen.target_primitive import get_target_primitive
-from smal.schemas.bit_field import BitField
-from smal.schemas.enumeration import Enumeration
+from smal.schemas.bit_field import BitField  # noqa: TC001 - Pydantic requires this at runtime for type validation
+from smal.schemas.enumeration import Enumeration  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.utilities import IdentifierValidationMixin, PrimitiveValidationMixin
 from smal.utilities import constants as SMALConstants
 from smal.utilities.smal_primitive import SMALPrimitive
 
 
 class StructField(IdentifierValidationMixin, PrimitiveValidationMixin, BaseModel):
+    """Model describing a field within a struct."""
+
     IDENTIFIER_FIELDS: ClassVar[tuple[str]] = ("name",)
     TYPE_FIELDS: ClassVar[tuple[str]] = ("type",)
 
     name: str = Field(..., description="The name of the debugging field.")
     type: str = Field(..., description="The type of the debugging field's data, e.g. uint8, uint16, enum:state, struct:Foo, etc.")
-    offset_bytes: int | None = Field(default=None, description="The offset of this debugging field within its parent structure in bytes. If None, automatically calculated.")
+    offset_bytes: int | None = Field(
+        default=None,
+        description="The offset of this debugging field within its parent structure in bytes. If None, automatically calculated.",
+    )
     length_elements: int | None = Field(default=None, description="Length of the field in elements, if it is an array.")
     bitfields: list[BitField] | None = Field(default=None, description="Bit fields associated with this debug field, if this debug field is a bitfield.")
     endianness: Literal["big", "little"] = Field(default="little", description="Endianness of this debug field.")
 
     @field_validator("offset_bytes")
+    @classmethod
     def validate_offset_bytes(cls, v: int | None) -> int | None:
+        """Validate the offset bytes field.
+
+        Args:
+            v (int | None): The value of the offset_bytes field to validate.
+
+        Raises:
+            ValueError: If the offset_bytes value is negative.
+
+        Returns:
+            int | None: The validated offset_bytes value.
+
+        """
         if v is not None and v < 0:
             raise ValueError("offset_bytes must be >= 0")
         return v
 
 
 class Struct(IdentifierValidationMixin, BaseModel):
+    """Model describing a structure in SMAL."""
+
     IDENTIFIER_FIELDS: ClassVar[tuple[str]] = ("name",)
     name: str = Field(..., description="The name of the structure.")
     lang: str = Field(..., description="The language this struct will be defined in, e.g., c, cpp, rust, etc.")
@@ -41,13 +63,41 @@ class Struct(IdentifierValidationMixin, BaseModel):
     enums: list[Enumeration] = Field(default_factory=list, description="Enumerations defined for fields of the structure, if any.")
 
     @field_validator("lang")
+    @classmethod
     def validate_lang(cls, v: str) -> str:
+        """Validate that the given language is a supported language.
+
+        Args:
+            v (str): The language to validate.
+
+        Raises:
+            ValueError: If the language is not supported.
+
+        Returns:
+            str: The validated language.
+
+        """
         if not SMALConstants.SupportedCodeLangs.is_supported_lang(v):
             raise ValueError(f"Language is not supported: '{v}'. Supported languages are: {', '.join(SMALConstants.SupportedCodeLangs.all())}")
         return v
 
     @model_validator(mode="after")
     def validate_layout(self) -> Self:
+        """Validate the overall layout of the structure.
+
+        Raises:
+            ValueError: If the size_bytes is not greater than 0.
+            ValueError: If a field's type is an enum but the enum is not defined in debug.enums.
+            ValueError: If a field's type is a struct but the struct is not defined in debug.substructs.
+            ValueError: If a field's length_elements is not greater than 0.
+            ValueError: If a field's range exceeds the structure's size_bytes.
+            ValueError: If a field overlaps with another field.
+            ValueError: If a bitfield's bit index exceeds the capacity of its base type.
+
+        Returns:
+            Self: The validated structure instance.
+
+        """
         if self.size_bytes <= 0:
             raise ValueError("debug.size_bytes must be > 0")
         struct_map: dict[str, Struct] = {s.name: s for s in self.substructs}

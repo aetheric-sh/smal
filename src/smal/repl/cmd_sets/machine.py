@@ -9,7 +9,7 @@ import cmd2
 from pydantic import BaseModel
 
 from smal.repl.helpers import echo_table, get_parent_app
-from smal.repl.repl_like import REPLLike
+from smal.repl.repl_like import REPLLike  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.state_machine import SMALFile
 from smal.utilities import constants as SMALConstants
 

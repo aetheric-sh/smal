@@ -1,3 +1,5 @@
+"""Module defining the SMALPrimitive enumeration, which represents the primitive types defined in the SMAL standard."""
+
 from __future__ import annotations  # Until Python 3.14
 
 from enum import Enum
@@ -65,5 +67,4 @@ class SMALPrimitive(str, Enum):
         if "struct:" in s:
             base = s.split(":", 1)[1]
             return SMALPrimitive.STRUCT, base
-        else:
-            return SMALPrimitive(s), None
+        return SMALPrimitive(s), None

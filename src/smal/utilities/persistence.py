@@ -10,6 +10,7 @@ from typing import ClassVar
 from platformdirs import user_data_dir
 from pydantic import BaseModel, Field
 
+from smal.schemas.smal_script import SMALScript  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.utilities.corrections import ALL_CORRECTIONS, Correction
 from smal.utilities.rules import ALL_RULES, Rule
 
@@ -26,6 +27,10 @@ class SMALPersistence(BaseModel):
     corrections: dict[str, bool] = Field(
         default_factory=lambda: dict.fromkeys([c.name for c in ALL_CORRECTIONS], False),
         description="A dictionary mapping correction names to their enabled/disabled status.",
+    )
+    scripts: dict[str, SMALScript] = Field(
+        default_factory=dict,
+        description="A dictionary mapping script names to their corresponding SMALScript objects.",
     )
 
     @staticmethod
@@ -83,6 +88,41 @@ class SMALPersistence(BaseModel):
         logging.debug("Rule '%s' set to %s.", rule_name, enabled)
         if write_to_file:
             self.save()
+
+    def add_script(self, script: SMALScript, overwrite: bool = False, save: bool = False) -> None:
+        """Add a script to the persistence data.
+
+        Args:
+            script (SMALScript): The SMALScript object to add.
+            overwrite (bool): Whether to overwrite an existing script with the same name. Defaults to False.
+            save (bool): Whether to save the updated persistence data to file after adding the script. Defaults to False.
+
+        Raises:
+            ValueError: If a script with the same name already exists and overwrite is False.
+
+        """
+        if script.name in self.scripts and not overwrite:
+            raise ValueError(f"A script with the name '{script.name}' already exists. Use overwrite=True to replace it.")
+        self.scripts[script.name] = script
+        logging.debug("Script '%s' added to persistence.", script.name)
+        if save:
+            self.save()
+
+    def delete_script(self, script_name: str, save: bool = False) -> None:
+        """Delete a script from the persistence data.
+
+        Args:
+            script_name (str): The name of the script to delete.
+            save (bool): Whether to save the updated persistence data to file after deleting the script. Defaults to False.
+
+        """
+        if script_name in self.scripts:
+            del self.scripts[script_name]
+            logging.debug("Script '%s' deleted from persistence.", script_name)
+            if save:
+                self.save()
+        else:
+            logging.warning("Attempted to delete non-existent script '%s'.", script_name)
 
     def is_correction_enabled(self, correction: str | Correction) -> bool:
         """Check if a specific correction is enabled.

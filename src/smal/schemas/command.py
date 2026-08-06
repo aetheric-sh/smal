@@ -1,3 +1,5 @@
+"""Module defining the Command model for representing commands in a state machine."""
+
 from __future__ import annotations  # Until Python 3.14
 
 from typing import Any, ClassVar, Literal

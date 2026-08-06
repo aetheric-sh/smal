@@ -1,4 +1,7 @@
-"""Module defining the Error model for representing errors in a state machine, including their properties, validation rules, and support for short form definitions."""
+"""Module defining the Error model for representing errors in a state machine.
+
+This includes their properties, validation rules, and support for short form definitions.
+"""
 
 from __future__ import annotations  # Until Python 3.14
 

@@ -85,3 +85,12 @@ class REPLLike(Protocol):
 
         """
         ...
+
+    def execute_statement(self, command: str) -> None:
+        """Execute a command statement in the REPL.
+
+        Args:
+            command (str): The command statement to execute.
+
+        """
+        ...
