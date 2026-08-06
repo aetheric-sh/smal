@@ -85,4 +85,4 @@ class MsgCmdSet(cmd2.CommandSet):
         extra_kwargs = parse_params(parsed_args.param or [])
         retval = send_msg_fn(active_connection.device, parsed_args.content, **extra_kwargs)
         if retval is not None:
-            parent_app.print_msg(f"Response from device: {retval}")
+            parent_app.print_msg(f"{retval}")
