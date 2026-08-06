@@ -21,9 +21,11 @@ if TYPE_CHECKING:
     from smal.repl.connection import ConnectedDevice
     from smal.schemas.state_machine import StateMachine
 
+_debug_parser = cmd2.Cmd2ArgumentParser()
+_debug_parser.add_subparsers(title="subcommand", help="subcommand help")
 
 _run_parser = cmd2.Cmd2ArgumentParser()
-_run_parser.add_argument("-f", "--file", type=Path, completer=cmd2.Cmd.path_complete, help="Path to the external Python file containing the harvest function.", required=True)
+_run_parser.add_argument("file", type=Path, completer=cmd2.Cmd.path_complete, help="Path to the external Python file containing the harvest function.")
 _run_parser.add_argument(
     "-p",
     "--param",
@@ -40,18 +42,18 @@ class RunArgs(BaseModel):
     param: list[tuple[str, Any]] | None = None
 
 
-_gen_boilerplate_parser = cmd2.Cmd2ArgumentParser()
-_gen_boilerplate_parser.add_argument("output_dir", type=Path, completer=cmd2.Cmd.path_complete, help="Directory to output the generated boilerplate code.")
-_gen_boilerplate_parser.add_argument("-l", "--lang", type=str, default="c", choices=["c"], help="Programming language for the boilerplate code.")
-_gen_boilerplate_parser.add_argument("-f", "--filename", type=str, help="Optional filename for the generated boilerplate code. If not provided, a default name will be used.")
-_gen_boilerplate_parser.add_argument(
+_boilerplate_parser = cmd2.Cmd2ArgumentParser()
+_boilerplate_parser.add_argument("output_dir", type=Path, completer=cmd2.Cmd.path_complete, help="Directory to output the generated boilerplate code.")
+_boilerplate_parser.add_argument("-l", "--lang", type=str, default="c", choices=["c"], help="Programming language for the boilerplate code.")
+_boilerplate_parser.add_argument("-f", "--filename", type=str, help="Optional filename for the generated boilerplate code. If not provided, a default name will be used.")
+_boilerplate_parser.add_argument(
     "--force",
     action="store_true",
     help="Force overwrite of existing files in the output directory. If not set, existing files will not be overwritten.",
 )
 
 
-class GenBoilerplateArgs(BaseModel):
+class BoilerplateArgs(BaseModel):
     """Model describing the arguments to the gen_boilerplate command."""
 
     output_dir: Path
@@ -72,8 +74,23 @@ class HarvestFn(Protocol):
 class DebugCmdSet(cmd2.CommandSet):
     """Command set for debugging in the SMAL REPL."""
 
-    @cmd2.with_argparser(_run_parser)
-    def do_run(self, args: argparse.Namespace) -> None:
+    @cmd2.with_argparser(_debug_parser)
+    def do_debug(self, args: argparse.Namespace) -> None:
+        """Manage SMAL state machine debugging.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments.
+
+        """
+        handler = args.cmd2_handler.get()
+        if handler is not None:
+            handler(args)
+        else:
+            self._cmd.poutput("No subcommand given.")
+            self._cmd.do_help("debug")
+
+    @cmd2.as_subcommand_to("debug", "run", _run_parser, help="Run the SMAL debug data harvesting tool.")
+    def debug_run(self, args: argparse.Namespace) -> None:
         """Run the SMAL debug data harvesting tool to harvest curated debug data from a connected device.
 
         Args:
@@ -119,8 +136,8 @@ class DebugCmdSet(cmd2.CommandSet):
         console.print()
         _display_entries(entries, active_machine)
 
-    @cmd2.with_argparser(_gen_boilerplate_parser)
-    def do_gen_boilerplate(self, args: argparse.Namespace) -> None:
+    @cmd2.as_subcommand_to("debug", "boilerplate", _boilerplate_parser, help="Generate boilerplate debugging code for a new project utilizing SMAL.")
+    def debug_boilerplate(self, args: argparse.Namespace) -> None:
         """Generate boilerplate debugging code for a new project utilizing SMAL.
 
         Args:
@@ -130,7 +147,7 @@ class DebugCmdSet(cmd2.CommandSet):
             RuntimeError: If the parent REPL application cannot be accessed or is not of the expected type.
 
         """
-        parsed_args = GenBoilerplateArgs.model_validate(vars(args))
+        parsed_args = BoilerplateArgs.model_validate(vars(args))
         try:
             parent_app = get_parent_app(self)
         except Exception as e:
