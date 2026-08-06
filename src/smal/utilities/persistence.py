@@ -32,6 +32,10 @@ class SMALPersistence(BaseModel):
         default_factory=dict,
         description="A dictionary mapping script names to their corresponding SMALScript objects.",
     )
+    modules: dict[str, Path] = Field(
+        default_factory=dict,
+        description="A dictionary mapping module names to their corresponding file paths.",
+    )
 
     @staticmethod
     def clean() -> None:
@@ -123,6 +127,42 @@ class SMALPersistence(BaseModel):
                 self.save()
         else:
             logging.warning("Attempted to delete non-existent script '%s'.", script_name)
+
+    def add_module(self, module_name: str, module_path: Path, overwrite: bool = False, save: bool = False) -> None:
+        """Add a module to the persistence data.
+
+        Args:
+            module_name (str): The name of the module to add.
+            module_path (Path): The file path of the module to add.
+            overwrite (bool): Whether to overwrite an existing module with the same name. Defaults to False.
+            save (bool): Whether to save the updated persistence data to file after adding the module. Defaults to False.
+
+        Raises:
+            ValueError: If a module with the same name already exists and overwrite is False.
+
+        """
+        if module_name in self.modules and not overwrite:
+            raise ValueError(f"A module with the name '{module_name}' already exists. Use overwrite=True to replace it.")
+        self.modules[module_name] = module_path
+        logging.debug("Module '%s' added to persistence at path '%s'.", module_name, module_path)
+        if save:
+            self.save()
+
+    def delete_module(self, module_name: str, save: bool = False) -> None:
+        """Delete a module from the persistence data.
+
+        Args:
+            module_name (str): The name of the module to delete.
+            save (bool): Whether to save the updated persistence data to file after deleting the module. Defaults to False.
+
+        """
+        if module_name in self.modules:
+            del self.modules[module_name]
+            logging.debug("Module '%s' deleted from persistence.", module_name)
+            if save:
+                self.save()
+        else:
+            logging.warning("Attempted to delete non-existent module '%s'.", module_name)
 
     def is_correction_enabled(self, correction: str | Correction) -> bool:
         """Check if a specific correction is enabled.

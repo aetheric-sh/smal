@@ -126,8 +126,16 @@ class MachineCmdSet(cmd2.CommandSet):
         if not machines:
             parent_app.print_warning("No loaded machines found.")
             return
-        machine_data = [(machine_name, str(parent_app.get_machine_path(machine_name))) for machine_name in machines]
-        echo_table("Loaded SMAL Machines", ["Name", "Path"], machine_data)
+        machine_data = [[machine_name, str(parent_app.get_machine_path(machine_name))] for machine_name in machines]
+        echo_table(
+            "Loaded SMAL Machines",
+            ["Name", "Path"],
+            machine_data,
+            col_metadata={
+                "Name": {"style": "cyan"},
+                "Path": {"style": "green"},
+            },
+        )
 
     @cmd2.as_subcommand_to("machine", "switch", _switch_parser, help="Switch to a different loaded SMAL state machine")
     def machine_switch(self, args: argparse.Namespace) -> None:

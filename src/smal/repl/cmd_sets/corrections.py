@@ -132,5 +132,14 @@ class CorrectionsCmdSet(cmd2.CommandSet):
         persistence = get_persistence()
         # Persistence should always have all corrections in its corrections dict
         corrections = [next(c for c in ALL_CORRECTIONS if c.name == correction_name) for correction_name in persistence.corrections]
-        corrections_data = [(c.name, str(persistence.is_correction_enabled(c)), c.description) for c in corrections]
-        echo_table("SMAL Corrections", ["Name", "Enabled", "Description"], corrections_data)
+        corrections_data = [[c.name, str(persistence.is_correction_enabled(c)), c.description] for c in corrections]
+        echo_table(
+            "SMAL Corrections",
+            ["Name", "Enabled", "Description"],
+            corrections_data,
+            col_metadata={
+                "Name": {"style": "cyan"},
+                "Enabled": {"style": "green"},
+                "Description": {"style": "yellow"},
+            },
+        )

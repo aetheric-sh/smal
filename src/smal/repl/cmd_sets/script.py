@@ -227,6 +227,7 @@ class ScriptCmdSet(cmd2.CommandSet):
         if script is None:
             parent_app.print_error(f"No script found with the name '{parsed_args.script_name}'.")
             return
+        parent_app.print_success(f"Running script '{script.name}' with {len(script.cmds)} command(s).", omit_heading=True)
         # Execute the script's commands in order
         for command in script.cmds:
             for _ in range(command.exc_count):
@@ -240,6 +241,7 @@ class ScriptCmdSet(cmd2.CommandSet):
                     cmd = f"msg send '{command.cmd}' {cmd_args_str}"
                 else:
                     cmd = f"msg send '{command.cmd}'"
+                parent_app.print_msg(f"[bold magenta]CMD> {cmd}[/bold magenta]")
                 parent_app.execute_statement(cmd)
                 if command.post_delay_ms > 0:
                     sleep(command.post_delay_ms / 1000.0)
@@ -260,8 +262,15 @@ class ScriptCmdSet(cmd2.CommandSet):
         if not persistence.scripts:
             parent_app.print_warning("No scripts found in persistence.")
             return
-        script_data = [(script.name,) for script in persistence.scripts.values()]
-        echo_table("Stored SMAL Scripts", ["Name"], script_data)
+        script_data = [[script.name] for script in persistence.scripts.values()]
+        echo_table(
+            "Stored SMAL Scripts",
+            ["Name"],
+            script_data,
+            col_metadata={
+                "Name": {"style": "cyan"},
+            },
+        )
 
     @cmd2.as_subcommand_to("script", "view", _view_parser, help="View the details of a script by name.")
     def script_view(self, args: argparse.Namespace) -> None:

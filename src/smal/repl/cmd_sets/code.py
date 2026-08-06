@@ -189,6 +189,13 @@ class CodeCmdSet(cmd2.CommandSet):
             "Builtin SMAL Macros",
             ["Name", "Lang", "Import Path", "Signature", "Description"],
             [[macro.name, macro.lang, macro.import_path, macro.signature, macro.description] for macro in MacroRegistry.list_macros()],
+            col_metadata={
+                "Name": {"style": "cyan"},
+                "Lang": {"style": "green"},
+                "Import Path": {"style": "yellow"},
+                "Signature": {"style": "magenta"},
+                "Description": {"style": "white"},
+            },
         )
 
     @cmd2.as_subcommand_to("code", "templates", _templates_parser, help="List all Jinja2 templates provided by SMAL that can be used to generate code.")
@@ -203,6 +210,11 @@ class CodeCmdSet(cmd2.CommandSet):
             "Builtin SMAL Templates",
             ["Name", "Lang", "Description"],
             [[template.name, template.lang, template.description] for template in TemplateRegistry.list_templates()],
+            col_metadata={
+                "Name": {"style": "cyan"},
+                "Lang": {"style": "green"},
+                "Description": {"style": "yellow"},
+            },
         )
 
 
