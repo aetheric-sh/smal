@@ -16,8 +16,13 @@ if TYPE_CHECKING:
 _module_parser = cmd2.Cmd2ArgumentParser()
 _module_parser.add_subparsers(title="subcommand", help="subcommand help")
 
-_set_parser = cmd2.Cmd2ArgumentParser()
-_set_parser.add_argument("filepath", type=Path, completer=cmd2.Cmd.path_complete, help="Path to the module definition file (.py) containing the `harvest` and `connect` functions.")
+_load_parser = cmd2.Cmd2ArgumentParser()
+_load_parser.add_argument(
+    "filepath",
+    type=Path,
+    completer=cmd2.Cmd.path_complete,
+    help="Path to the module definition file (.py) containing the `harvest` and `connect` functions.",
+)
 
 _info_parser = cmd2.Cmd2ArgumentParser()
 
@@ -46,9 +51,9 @@ class ModuleCmdSet(cmd2.CommandSet):
             self._cmd.poutput("No subcommand given.")
             self._cmd.do_help("module")
 
-    @cmd2.as_subcommand_to("module", "set", _set_parser, help="Set the module definition file for the SMAL REPL.")
-    def module_set(self, args: argparse.Namespace) -> None:
-        """Set the module definition file for the SMAL REPL.
+    @cmd2.as_subcommand_to("module", "load", _load_parser, help="Load the module definition file for the SMAL REPL.")
+    def module_load(self, args: argparse.Namespace) -> None:
+        """Load the module definition file for the SMAL REPL.
 
         Args:
             args (argparse.Namespace): The parsed command-line arguments.
@@ -75,7 +80,7 @@ class ModuleCmdSet(cmd2.CommandSet):
             raise RuntimeError("Failed to get parent REPL application.") from e
         active_module = parent_app.get_active_module()
         if active_module is None:
-            parent_app.print_warning("No active module. Set one with the `module set` command.", omit_heading=True)
+            parent_app.print_warning("No active module. Load one with the `module load` command.", omit_heading=True)
         else:
             info_str = ",\n- ".join([f"{k}: {v}" for k, v in vars(active_module).items()])
             parent_app.print_msg(f"[bold green]Active module Info:[/bold green]\n- {info_str}")
