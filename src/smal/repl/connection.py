@@ -114,7 +114,7 @@ class DeviceConnection:
         """
         if self.device is None:
             return cmd2.stylize("disconnected", "bold red")
-        connected_str = cmd2.stylize(f"connected[{self.device.get_name()}]", "bold green")
+        connected_str = cmd2.stylize(f"connected::{self.device.get_name()}", "bold green")
         connection_details = self.device.get_connection_details()
         if connection_details is None:
             return connected_str
