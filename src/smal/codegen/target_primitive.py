@@ -61,6 +61,6 @@ def get_target_primitive(smal_primitive: SMALPrimitive, lang: str) -> TargetPrim
     local_primitive_size = local_primitive_sizes_bytes.get(decoded_primitive)
     if local_primitive_size is None:
         raise ValueError(
-            f"Codegen language package '{lang}' does not define a size in bytes for local primitive that maps to SMAL primitive '{smal_primitive.value}'"
+            f"Codegen language package '{lang}' does not define a size in bytes for local primitive that maps to SMAL primitive '{smal_primitive.value}'",
         )
     return TargetPrimitive(decoded_primitive, local_primitive_size)
