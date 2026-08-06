@@ -2,6 +2,7 @@
 
 from __future__ import annotations  # Until Python 3.14
 
+from pathlib import Path  # noqa: TC003 - Pydantic requires this at runtime for type validation
 from typing import TYPE_CHECKING
 
 import cmd2
@@ -12,7 +13,6 @@ from smal.repl.target_module import TargetModule
 
 if TYPE_CHECKING:
     import argparse
-    from pathlib import Path
 
 _msg_parser = cmd2.Cmd2ArgumentParser()
 _msg_parser.add_subparsers(title="subcommand", help="subcommand help")
