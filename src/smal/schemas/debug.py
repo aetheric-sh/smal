@@ -518,7 +518,10 @@ class SMALDebugEntry(BaseModel):
                 error_code, detail = struct.unpack(error_fmt, payload_bytes[0:payload_size_bytes])
                 payload_dict.update({"error_code": error_code, "detail": detail})
             elif entry_type & (
-                SMALDebugEntryType.ENTRY_TYPE_EVENT_RX | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX | SMALDebugEntryType.ENTRY_TYPE_CMD_RX | SMALDebugEntryType.ENTRY_TYPE_CMD_TX
+                SMALDebugEntryType.ENTRY_TYPE_EVENT_RX
+                | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX
+                | SMALDebugEntryType.ENTRY_TYPE_CMD_RX
+                | SMALDebugEntryType.ENTRY_TYPE_CMD_TX
             ):
                 identifier, data_len, value = struct.unpack(message_fmt, payload_bytes[0:payload_size_bytes])
                 payload_dict.update(
@@ -628,7 +631,10 @@ class SMALFlushStatus(BaseModel):
         default=0,
         ge=0,
         le=0xFFFF,
-        description="The total number of entries that need to be sent in the current flush cycle, i.e. the number of entries that were in the ring at the start of the flush.",
+        description=(
+            "The total number of entries that need to be sent in the current flush cycle, "
+            "i.e. the number of entries that were in the ring at the start of the flush."
+        ),
         json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
     )
     num_entries_sent: int = Field(
@@ -654,7 +660,12 @@ def _get_payload_type(entry_type: int) -> str:
         return "transition"
     if entry_type & SMALDebugEntryType.ENTRY_TYPE_ERROR:
         return "error"
-    if entry_type & (SMALDebugEntryType.ENTRY_TYPE_EVENT_RX | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX | SMALDebugEntryType.ENTRY_TYPE_CMD_RX | SMALDebugEntryType.ENTRY_TYPE_CMD_TX):
+    if entry_type & (
+        SMALDebugEntryType.ENTRY_TYPE_EVENT_RX
+        | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX
+        | SMALDebugEntryType.ENTRY_TYPE_CMD_RX
+        | SMALDebugEntryType.ENTRY_TYPE_CMD_TX
+    ):
         return "message"
     if entry_type & (SMALDebugEntryType.ENTRY_TYPE_DATA_READ | SMALDebugEntryType.ENTRY_TYPE_DATA_WRITE):
         return "data"

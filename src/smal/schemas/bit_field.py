@@ -1,3 +1,5 @@
+"""Module defining the BitField model for representing individual fields within a bitfield."""
+
 from __future__ import annotations  # Until Python 3.14
 
 from typing import ClassVar
@@ -16,7 +18,20 @@ class BitField(IdentifierValidationMixin, BaseModel):
     bit: int = Field(..., description="The bit index within the bitfield this field is assigned to.")
 
     @field_validator("bit")
+    @classmethod
     def validate_bit(cls, v: int) -> int:
+        """Validate a bit within the bitfield.
+
+        Args:
+            v (int): The bit index to validate, which must be a non-negative integer.
+
+        Raises:
+            ValueError: If the bit index is negative, which is invalid for a bitfield.
+
+        Returns:
+            int: The validated bit index, guaranteed to be non-negative.
+
+        """
         if v < 0:
             raise ValueError("Bit index must be >= 0")
         return v

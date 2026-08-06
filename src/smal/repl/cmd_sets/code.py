@@ -23,7 +23,11 @@ _code_parser.add_subparsers(title="subcommand", help="subcommand help")
 
 
 _generate_parser = cmd2.Cmd2ArgumentParser()
-_generate_parser.add_argument("template", type=str, help="Name of the builtin SMAL template to generate, or the filepath to a custom, SMAL-compliant Jinja2 template to generate.")
+_generate_parser.add_argument(
+    "template",
+    type=str,
+    help="Name of the builtin SMAL template to generate, or the filepath to a custom, SMAL-compliant Jinja2 template to generate.",
+)
 _generate_parser.add_argument(
     "-m",
     "--machine",
@@ -31,9 +35,25 @@ _generate_parser.add_argument(
     default=None,
     help="Name of the SMAL state machine to generate code for, or a path to the SMAL file. If not provided, the active machine will be used.",
 )
-_generate_parser.add_argument("-o", "--output-dir", type=Path, default=Path("./generated"), help="Directory to output the generated code (default: ./generated).")
-_generate_parser.add_argument("-n", "--filename", type=str, default=None, help="Optional filename for the generated code. If not provided, a default name will be used.")
-_generate_parser.add_argument("--force", action="store_true", help="Force overwrite of existing files in the output directory. If not set, existing files will not be overwritten.")
+_generate_parser.add_argument(
+    "-o",
+    "--output-dir",
+    type=Path,
+    default=Path("./generated"),
+    help="Directory to output the generated code (default: ./generated).",
+)
+_generate_parser.add_argument(
+    "-n",
+    "--filename",
+    type=str,
+    default=None,
+    help="Optional filename for the generated code. If not provided, a default name will be used.",
+)
+_generate_parser.add_argument(
+    "--force",
+    action="store_true",
+    help="Force overwrite of existing files in the output directory. If not set, existing files will not be overwritten.",
+)
 
 
 class GenerateArgs(BaseModel):
@@ -107,7 +127,10 @@ class CodeCmdSet(cmd2.CommandSet):
         if TemplateRegistry.has_template(parsed_args.template):
             # Generate the code using the built-in template
             try:
-                with console.status(f"Generating code from {parsed_args.machine} using built-in template: [bold cyan]{parsed_args.template}[/bold cyan]", spinner="dots"):
+                with console.status(
+                    f"Generating code from {parsed_args.machine} using built-in template: [bold cyan]{parsed_args.template}[/bold cyan]",
+                    spinner="dots",
+                ):
                     generated_filepath = generate_code_cmd_builtin(
                         smal_path=smal_path,
                         template_name=parsed_args.template,
@@ -115,7 +138,9 @@ class CodeCmdSet(cmd2.CommandSet):
                         out_filename=parsed_args.filename,
                         force=parsed_args.force,
                     )
-                console.print(f"[green]Code successfully generated from builtin template {parsed_args.template}: [bold cyan]{generated_filepath}[/bold cyan][/green]")
+                console.print(
+                    f"[green]Code successfully generated from builtin template {parsed_args.template}: [bold cyan]{generated_filepath}[/bold cyan][/green]",
+                )
             except ValueError as e:
                 console.print(f"[red]Failed to generate code from builtin template {parsed_args.template} due to rendering error: {e}[/red]")
         # If the user selected a custom template

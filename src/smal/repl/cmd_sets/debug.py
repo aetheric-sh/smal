@@ -11,7 +11,7 @@ from rich.markup import escape
 
 from smal.codegen.code_generator import SMALCodeGenerator
 from smal.codegen.templates.builtin_templates import TemplateRegistry
-from smal.repl.helpers import echo_table, get_parent_app, import_external_fn_from_file, parse_key_value, parse_params
+from smal.repl.helpers import echo_table, get_parent_app, parse_key_value, parse_params
 from smal.schemas.debug import SMALDebugEntry, SMALDebugEntryType
 from smal.schemas.state_machine import SMALFile
 
@@ -25,7 +25,13 @@ _debug_parser = cmd2.Cmd2ArgumentParser()
 _debug_parser.add_subparsers(title="subcommand", help="subcommand help")
 
 _run_parser = cmd2.Cmd2ArgumentParser()
-_run_parser.add_argument("-m", "--module", type=Path, completer=cmd2.Cmd.path_complete, help="Path to the external Python file containing the harvest function.")
+_run_parser.add_argument(
+    "-m",
+    "--module",
+    type=Path,
+    completer=cmd2.Cmd.path_complete,
+    help="Path to the external Python file containing the harvest function.",
+)
 _run_parser.add_argument(
     "-p",
     "--param",
@@ -45,7 +51,12 @@ class RunArgs(BaseModel):
 _boilerplate_parser = cmd2.Cmd2ArgumentParser()
 _boilerplate_parser.add_argument("output_dir", type=Path, completer=cmd2.Cmd.path_complete, help="Directory to output the generated boilerplate code.")
 _boilerplate_parser.add_argument("-l", "--lang", type=str, default="c", choices=["c"], help="Programming language for the boilerplate code.")
-_boilerplate_parser.add_argument("-f", "--filename", type=str, help="Optional filename for the generated boilerplate code. If not provided, a default name will be used.")
+_boilerplate_parser.add_argument(
+    "-f",
+    "--filename",
+    type=str,
+    help="Optional filename for the generated boilerplate code. If not provided, a default name will be used.",
+)
 _boilerplate_parser.add_argument(
     "--force",
     action="store_true",
@@ -125,7 +136,9 @@ class DebugCmdSet(cmd2.CommandSet):
                 raise RuntimeError(f"Failed to set active module to {parsed_args.module}.")
             harvest_fn = active_module.harvest_fn
         else:
-            parent_app.print_error("No active module found. Please set a module first with the `module set` command or provide a module file path with the `--module` option.")
+            parent_app.print_error(
+                "No active module found. Please set a module first with the `module set` command or provide a module file path with the `--module` option.",
+            )
             return
         console.print(f"[bold blue] Harvesting data from machine '{active_machine.name}'...[/bold blue]")
         extra_kwargs: dict[str, Any] = parse_params(parsed_args.param or [])
@@ -212,7 +225,8 @@ def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
             str(idx),
             (
                 f"{entry.timestamp_ms}"
-                f" (from_start=+{entry.timestamp_ms - start_timestamp}ms, from_prev=+{(f'{entry.timestamp_ms - entries[idx - 2].timestamp_ms}ms' if idx > 1 else 'null')})"
+                f" (from_start=+{entry.timestamp_ms - start_timestamp}ms, "
+                f"from_prev=+{(f'{entry.timestamp_ms - entries[idx - 2].timestamp_ms}ms' if idx > 1 else 'null')})"
             ),
             SMALDebugEntryType.formatted_display(entry.entry_type),
             _format_payload_details(entry, sm),

@@ -10,4 +10,5 @@ from .machine import MachineCmdSet
 from .module import ModuleCmdSet
 from .msg import MsgCmdSet
 from .rules import RulesCmdSet
+from .script import ScriptCmdSet
 from .validate import ValidateCmdSet

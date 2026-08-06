@@ -26,7 +26,13 @@ _diagram_parser.add_argument(
 _diagram_parser.add_argument("-o", "--open", action="store_true", help="Open the generated diagram after creation.")
 _diagram_parser.add_argument("-f", "--force", action="store_true", help="Force overwrite of existing files in the output directory.")
 _diagram_parser.add_argument("-t", "--title", action="store_true", help="Include the state machine title in the diagram.")
-_diagram_parser.add_argument("-r", "--orientation", choices=["lr", "tb"], default="lr", help="The orientation of the diagram, either lr (left-right) or tb (top-bottom).")
+_diagram_parser.add_argument(
+    "-r",
+    "--orientation",
+    choices=["lr", "tb"],
+    default="lr",
+    help="The orientation of the diagram, either lr (left-right) or tb (top-bottom).",
+)
 
 
 class DiagramArgs(BaseModel):

@@ -1,3 +1,7 @@
+"""Module defining the C primitive types for SMAL code generation."""
+
+from __future__ import annotations  # Until Python 3.14
+
 from typing import Final
 
 from smal.utilities.smal_primitive import SMALPrimitive

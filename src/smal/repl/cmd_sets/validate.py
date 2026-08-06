@@ -82,7 +82,10 @@ class ValidateCmdSet(cmd2.CommandSet):
                 validation_result = validator.validate()
                 validation_result.echo_report(parsed_args.file)
         else:
-            parent_app.print_error(f"Invalid filetype detected: {parsed_args.file.suffix}. Must be one of {', '.join(JinjaTemplateValidator.VALID_EXTENSIONS)}", prefix="❌")
+            parent_app.print_error(
+                f"Invalid filetype detected: {parsed_args.file.suffix}. Must be one of {', '.join(JinjaTemplateValidator.VALID_EXTENSIONS)}",
+                prefix="❌",
+            )
 
 
 @dataclass(frozen=True)
@@ -129,7 +132,10 @@ class Severity(str, Enum):
 
 @dataclass
 class SMALValidationIssue:
-    """Dataclass representing a validation issue found during template validation, including its severity, message, location, and an optional code for categorization."""
+    """Dataclass representing a validation issue found during template validation.
+
+    This includes its severity, message, location, and an optional code for categorization.
+    """
 
     severity: Severity
     message: str
@@ -218,7 +224,8 @@ class JinjaTemplateValidator:
         else:
             if template.suffix.lower() not in self.VALID_EXTENSIONS:
                 raise ValueError(
-                    f"Template file '{template}' does not have a typical Jinja2 template extension: {template.suffix}. Must be one of {', '.join(self.VALID_EXTENSIONS)}",
+                    f"Template file '{template}' does not have a typical Jinja2 template extension: {template.suffix}. "
+                    f"Must be one of {', '.join(self.VALID_EXTENSIONS)}",
                 )
             self.env, self.template = self._generator.load_external_template(template)
             self.builtin = False

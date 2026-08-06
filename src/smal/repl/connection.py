@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import cmd2
 
-from smal.repl.helpers import import_external_fn_from_file
-from smal.repl.repl_like import REPLLike
-from smal.repl.target_module import TargetModule
+from smal.repl.repl_like import REPLLike  # noqa: TC001 - Pydantic requires this at runtime for type checking
+from smal.repl.target_module import TargetModule  # noqa: TC001 - Pydantic requires this at runtime for type checking
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -13,7 +13,18 @@ import cmd2
 from pydantic import BaseModel
 from rich.console import Console
 
-from smal.repl.cmd_sets import CodeCmdSet, CorrectionsCmdSet, DebugCmdSet, DiagramCmdSet, MachineCmdSet, ModuleCmdSet, MsgCmdSet, RulesCmdSet, ValidateCmdSet
+from smal.repl.cmd_sets import (
+    CodeCmdSet,
+    CorrectionsCmdSet,
+    DebugCmdSet,
+    DiagramCmdSet,
+    MachineCmdSet,
+    ModuleCmdSet,
+    MsgCmdSet,
+    RulesCmdSet,
+    ScriptCmdSet,
+    ValidateCmdSet,
+)
 from smal.repl.connection import ConnectFn, DeviceConnection
 from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params
 from smal.repl.target_module import SendMsgFn, TargetModule
@@ -27,7 +38,13 @@ if TYPE_CHECKING:
     from smal.schemas.state_machine import StateMachine
 
 _connect_parser = cmd2.Cmd2ArgumentParser()
-_connect_parser.add_argument("-m", "--module", type=Path, completer=cmd2.Cmd.path_complete, help="The path to the module containing the connect function for your device.")
+_connect_parser.add_argument(
+    "-m",
+    "--module",
+    type=Path,
+    completer=cmd2.Cmd.path_complete,
+    help="The path to the module containing the connect function for your device.",
+)
 _connect_parser.add_argument(
     "-p",
     "--param",
@@ -85,6 +102,7 @@ class SMALREPL(cmd2.Cmd):
         self.register_command_set(ModuleCmdSet())
         self.register_command_set(MsgCmdSet())
         self.register_command_set(RulesCmdSet())
+        self.register_command_set(ScriptCmdSet())
         self.register_command_set(ValidateCmdSet())
         self._update_prompt()
 
@@ -111,7 +129,9 @@ class SMALREPL(cmd2.Cmd):
 
         """
         if self._active_connection is not None and self._active_connection.is_connected:
-            self.console.print(f"[bold red]Already connected to device: {self._active_connection.name}. Disconnect first with the `disconnect` command.[/bold red]")
+            self.console.print(
+                f"[bold red]Already connected to device: {self._active_connection.name}. Disconnect first with the `disconnect` command.[/bold red]",
+            )
             return
         parsed_args = ConnectArgs.model_validate(vars(args))
         try:
@@ -198,7 +218,11 @@ class SMALREPL(cmd2.Cmd):
                     self.console.print("➡️  [bold]Windows detected[/bold].")
                     self.console.print("Install Graphviz using the official installer:")
                     self.console.print("[cyan]https://graphviz.org/download/[/cyan]")
-                    echo_list("Recommended", ["Download the 'Graphviz Windows Installer (EXE)'", "Run it and check 'Add Graphviz to the system PATH'"], tab_size=4)
+                    echo_list(
+                        "Recommended",
+                        ["Download the 'Graphviz Windows Installer (EXE)'", "Run it and check 'Add Graphviz to the system PATH'"],
+                        tab_size=4,
+                    )
                 case "Darwin":
                     self.console.print("➡️  [bold]macOS detected[/bold].")
                     echo_list("Install Graphviz with Homebrew", ["[code]brew install graphviz[/code]"], tab_size=4, bold_header=False)
@@ -210,7 +234,11 @@ class SMALREPL(cmd2.Cmd):
                     self.console.print("➡️  [bold]Linux detected[/bold].")
                     echo_list(
                         "Install Graphviz using your package manager",
-                        ["Debian/Ubuntu: [code]sudo apt install graphviz[/code]", "Fedora: [code]sudo dnf install graphviz[/code]", "Arch: [code]sudo pacman -S graphviz[/code]"],
+                        [
+                            "Debian/Ubuntu: [code]sudo apt install graphviz[/code]",
+                            "Fedora: [code]sudo dnf install graphviz[/code]",
+                            "Arch: [code]sudo pacman -S graphviz[/code]",
+                        ],
                         tab_size=4,
                         bold_header=False,
                     )
@@ -430,6 +458,15 @@ class SMALREPL(cmd2.Cmd):
 
         """
         return self._active_module
+
+    def execute_statement(self, statement: str) -> None:
+        """Execute a command statement in the REPL.
+
+        Args:
+            statement (str): The command statement to execute.
+
+        """
+        self.onecmd_plus_hooks(statement)  # Use onecmd_plus_hooks to ensure pre/post command hooks are executed
 
     def _disconnect_from_device(self, **kwargs: Any) -> None:
         if self._active_connection is None or not self._active_connection.is_connected:

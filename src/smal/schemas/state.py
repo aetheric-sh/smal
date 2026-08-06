@@ -70,7 +70,7 @@ class StateType(str, Enum):
 
     @cached_property
     def is_pseudo_state(self) -> bool:
-        """Get whether or not this StateType represents a pseudostate, e.g. a non-behavioral state which only serves a structural or control-flow purpose in the state machine.
+        """Get whether or not this StateType represents a pseudostate, e.g. a non-behavioral state which only serves a structural or control-flow purpose.
 
         Returns:
             bool: True if this StateType is a pseudostate, False otherwise.
@@ -348,7 +348,10 @@ class State(BaseModel, IdentifierValidationMixin):
             sorted_ids = sorted(substate_ids)
             expected = list(range(len(substate_ids)))
             if sorted_ids != expected:
-                raise ValueError(f"Substates of State '{self.name}' must have unique, non-negative, and monotonically increasing IDs starting from 0. Found IDs: {substate_ids}")
+                raise ValueError(
+                    f"Substates of State '{self.name}' must have unique, non-negative, and \
+                                 monotonically increasing IDs starting from 0. Found IDs: {substate_ids}",
+                )
         return self
 
     @model_validator(mode="after")

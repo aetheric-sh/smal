@@ -1,4 +1,4 @@
-"""Module defining the StateMachine model and related classes for representing state machines, including their states, transitions, events, and associated metadata."""
+"""Module defining the StateMachine model and related classes for representing state machines, including their states, transitions, events, and metadata."""
 
 from __future__ import annotations  # Until Python 3.14
 
@@ -82,7 +82,8 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         match len(initial_states):
             case 0:
                 raise ValueError(
-                    f"StateMachine '{self.name}' has no root initial state. A state machine must have exactly one root initial state (type: INITIAL and not a substate).",
+                    f"StateMachine '{self.name}' has no root initial state. \
+                        A state machine must have exactly one root initial state (type: INITIAL and not a substate).",
                 )
             case 1:
                 return initial_states[0]
@@ -96,7 +97,8 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
     def root_state(self) -> State | None:
         """Get the root state of this state machine, which is the unique state that is not a substate of any other state and has no incoming transitions.
 
-        NOTE: Not all state machines are guaranteed to have a root state, for example, an indefinitely-running state machine that always lands back in its initial state.
+        NOTE: Not all state machines are guaranteed to have a root state, \
+        for example, an indefinitely-running state machine that always lands back in its initial state.
 
         No state machine is allowed to have more than one root state, as that would violate the tree structure requirement for the state hierarchy.
 
@@ -111,7 +113,10 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
             case 1:
                 return roots[0]
             case _:
-                raise ValueError(f"StateMachine '{self.name}' has multiple root states: {', '.join(s.name for s in roots)}. A state machine must have exactly one root state.")
+                raise ValueError(
+                    f"StateMachine '{self.name}' has multiple root states: {', '.join(s.name for s in roots)}. \
+                        A state machine must have exactly one root state.",
+                )
 
     @model_validator(mode="before")
     @classmethod
@@ -405,7 +410,8 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         Args:
             name (str, optional): The name of the state machine. Defaults to "NULL".
             version (str, optional): The semantic version of the state machine. Defaults to "0.0.0".
-            states (list[State] | None, optional): An optional list of states to initialize the state machine with. Defaults to None, which results in an empty list of states.
+            states (list[State] | None, optional): An optional list of states to initialize the state machine with. \
+                Defaults to None, which results in an empty list of states.
 
         Returns:
             Self: A blank StateMachine instance.
@@ -537,7 +543,8 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
             ValueError: If the file does not have a supported SMAL file extension.
 
         """
-        # First, we need to restore any modified transitions back to their original composite states if they were redirected to initial substates during validation
+        # First, we need to restore any modified transitions back to their original composite states
+        # if they were redirected to initial substates during validation
         for t in self.transitions:
             if t.original_src is not None:
                 t.src = t.original_src
@@ -549,7 +556,12 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         path = Path(path)
         if not SMALConstants.SupportedFileExtensions.is_smal_file(path, check_exists=False):
             raise ValueError(f"SMAL file must have one of the following extensions: {', '.join(SMALConstants.SupportedFileExtensions.all())}")
-        model_data = self.model_dump(exclude_unset=exclude_unset, exclude_defaults=exclude_defaults, exclude_none=exclude_none, exclude_computed_fields=exclude_computed_fields)
+        model_data = self.model_dump(
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            exclude_computed_fields=exclude_computed_fields,
+        )
         yaml_data = yaml.safe_dump(model_data, sort_keys=sort_keys, indent=indent)
         path.write_text(yaml_data, encoding="utf-8")
 
