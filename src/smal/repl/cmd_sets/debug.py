@@ -25,7 +25,7 @@ _debug_parser = cmd2.Cmd2ArgumentParser()
 _debug_parser.add_subparsers(title="subcommand", help="subcommand help")
 
 _run_parser = cmd2.Cmd2ArgumentParser()
-_run_parser.add_argument("file", type=Path, completer=cmd2.Cmd.path_complete, help="Path to the external Python file containing the harvest function.")
+_run_parser.add_argument("-m", "--module", type=Path, completer=cmd2.Cmd.path_complete, help="Path to the external Python file containing the harvest function.")
 _run_parser.add_argument(
     "-p",
     "--param",
@@ -38,7 +38,7 @@ _run_parser.add_argument(
 class RunArgs(BaseModel):
     """Model describing the arguments to the run command."""
 
-    file: Path
+    module: Path | None = None
     param: list[tuple[str, Any]] | None = None
 
 
@@ -115,9 +115,17 @@ class DebugCmdSet(cmd2.CommandSet):
         if active_machine is None:
             parent_app.print_error("No active machine found. Please load a machine definition first with the `machine load` command.")
             return
-        harvest_fn = import_external_fn_from_file(parsed_args.file, "harvest_module", "harvest")
-        if not isinstance(harvest_fn, HarvestFn):
-            parent_app.print_error(f"The 'harvest' function in {parsed_args.file} does not match the expected signature.")
+        active_module = parent_app.get_active_module()
+        if active_module is not None:
+            harvest_fn = active_module.harvest_fn
+        elif parsed_args.module is not None:
+            parent_app.set_active_module(parsed_args.module)
+            active_module = parent_app.get_active_module()
+            if active_module is None:
+                raise RuntimeError(f"Failed to set active module to {parsed_args.module}.")
+            harvest_fn = active_module.harvest_fn
+        else:
+            parent_app.print_error("No active module found. Please set a module first with the `module set` command or provide a module file path with the `--module` option.")
             return
         console.print(f"[bold blue] Harvesting data from machine '{active_machine.name}'...[/bold blue]")
         extra_kwargs: dict[str, Any] = parse_params(parsed_args.param or [])
