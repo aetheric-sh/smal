@@ -64,14 +64,14 @@ class REPLLike(Protocol):
         """Print a message to the console."""
         ...
 
-    def print_success(self, message: str, prefix: str | None = None) -> None:
+    def print_success(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print a success message to the console."""
         ...
 
-    def print_error(self, message: str, prefix: str | None = None) -> None:
+    def print_error(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print an error message to the console."""
         ...
 
-    def print_warning(self, message: str, prefix: str | None = None) -> None:
+    def print_warning(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print a warning message to the console."""
         ...

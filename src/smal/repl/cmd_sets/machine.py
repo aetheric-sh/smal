@@ -168,12 +168,12 @@ class MachineCmdSet(cmd2.CommandSet):
         machine = parent_app.get_machine_by_path(file_path)
         if machine and not overwrite:
             parent_app.set_active_machine(machine)
-            parent_app.print_success(f"Successfully loaded '{machine.name}' machine definition from cache.")
+            parent_app.print_success(f"Successfully loaded '{machine.name}' machine definition from cache.", omit_heading=True)
             return machine
         with console.status(f"[bold blue]Loading machine definition from file {file_path}...[/bold blue]"):
             try:
                 machine_from_file = SMALFile.from_file(file_path)
-                parent_app.print_success(f"Successfully loaded machine definition from file: {file_path}.")
+                parent_app.print_success(f"Successfully loaded machine definition from file: {file_path}.", omit_heading=True)
                 parent_app.cache_machine(file_path, machine_from_file)
                 return machine_from_file
             except FileNotFoundError:

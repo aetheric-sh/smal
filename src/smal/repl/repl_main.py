@@ -358,44 +358,41 @@ class SMALREPL(cmd2.Cmd):
         """
         self.console.print(message)
 
-    def print_success(self, message: str, prefix: str | None = None) -> None:
+    def print_success(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print a success message to the console.
 
         Args:
             message (str): The success message to print.
             prefix (str | None): An optional prefix for the message. If provided, it will be displayed before the message.
+            omit_heading (bool): If True, the "Success: " heading will be omitted from the message.
 
         """
-        if prefix:
-            self.console.print(f"{prefix} [bold green]Success: {message}[/bold green]")
-        else:
-            self.console.print(f"[bold green]Success: {message}[/bold green]")
+        msg = f"{prefix + ' ' if prefix else ''}[bold green]{'Success: ' if not omit_heading else ''}{message}[/bold green]"
+        self.console.print(msg)
 
-    def print_warning(self, message: str, prefix: str | None = None) -> None:
+    def print_warning(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print a warning message to the console.
 
         Args:
             message (str): The warning message to print.
             prefix (str | None): An optional prefix for the message. If provided, it will be displayed before the message.
+            omit_heading (bool): If True, the "Warning: " heading will be omitted from the message.
 
         """
-        if prefix:
-            self.console.print(f"{prefix} [bold yellow]Warning: {message}[/bold yellow]")
-        else:
-            self.console.print(f"[bold yellow]Warning: {message}[/bold yellow]")
+        msg = f"{prefix + ' ' if prefix else ''}[bold yellow]{'Warning: ' if not omit_heading else ''}{message}[/bold yellow]"
+        self.console.print(msg)
 
-    def print_error(self, message: str, prefix: str | None = None) -> None:
+    def print_error(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print an error message to the console.
 
         Args:
             message (str): The error message to print.
             prefix (str | None): An optional prefix for the message. If provided, it will be displayed before the message.
+            omit_heading (bool): If True, the "Error: " heading will be omitted from the message.
 
         """
-        if prefix:
-            self.console.print(f"{prefix} [bold red]Error: {message}[/bold red]")
-        else:
-            self.console.print(f"[bold red]Error: {message}[/bold red]")
+        msg = f"{prefix + ' ' if prefix else ''}[bold red]{'Error: ' if not omit_heading else ''}{message}[/bold red]"
+        self.console.print(msg)
 
     def _disconnect_from_device(self, **kwargs: Any) -> None:
         if self._active_connection is None or not self._active_connection.is_connected:
