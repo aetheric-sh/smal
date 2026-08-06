@@ -121,7 +121,7 @@ class ScriptCmdSet(cmd2.CommandSet):
             return
         console = parent_app.get_console()
         if parsed_args.filepath.is_dir():
-            with console.status(f"[bold blue]Searching for SMAL machine definitions under {parsed_args.file}...[/bold blue]"):
+            with console.status(f"[bold blue]Searching for SMAL machine definitions under {parsed_args.filepath}...[/bold blue]"):
                 script_files = sorted(p for p in parsed_args.filepath.rglob(f"*{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}") if p.is_file())
             if not script_files:
                 parent_app.print_warning(f"No SMAL script (`{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}`) files found under directory: {parsed_args.filepath}")
@@ -229,19 +229,20 @@ class ScriptCmdSet(cmd2.CommandSet):
             return
         # Execute the script's commands in order
         for command in script.cmds:
-            if command.pre_delay_ms > 0:
-                sleep(command.pre_delay_ms / 1000.0)
-            cmd_args: list[str] = []
-            for k, v in command.metadata.items():
-                cmd_args.append(f"-p {k}={v}")
-            cmd_args_str = " ".join(cmd_args)
-            if cmd_args:
-                cmd = f"msg send '{command.cmd}' {cmd_args_str}"
-            else:
-                cmd = f"msg send '{command.cmd}'"
-            parent_app.execute_statement(cmd)
-            if command.post_delay_ms > 0:
-                sleep(command.post_delay_ms / 1000.0)
+            for _ in range(command.exc_count):
+                if command.pre_delay_ms > 0:
+                    sleep(command.pre_delay_ms / 1000.0)
+                cmd_args: list[str] = []
+                for k, v in command.metadata.items():
+                    cmd_args.append(f"-p {k}={v}")
+                cmd_args_str = " ".join(cmd_args)
+                if cmd_args:
+                    cmd = f"msg send '{command.cmd}' {cmd_args_str}"
+                else:
+                    cmd = f"msg send '{command.cmd}'"
+                parent_app.execute_statement(cmd)
+                if command.post_delay_ms > 0:
+                    sleep(command.post_delay_ms / 1000.0)
 
     @cmd2.as_subcommand_to("script", "list", _list_parser, help="List all scripts currently stored in persistence.")
     def script_list(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
@@ -259,7 +260,7 @@ class ScriptCmdSet(cmd2.CommandSet):
         if not persistence.scripts:
             parent_app.print_warning("No scripts found in persistence.")
             return
-        script_data = list(persistence.scripts)
+        script_data = [(script.name,) for script in persistence.scripts.values()]
         echo_table("Stored SMAL Scripts", ["Name"], script_data)
 
     @cmd2.as_subcommand_to("script", "view", _view_parser, help="View the details of a script by name.")
@@ -282,15 +283,17 @@ class ScriptCmdSet(cmd2.CommandSet):
             return
         # Display the script's details
         parent_app.print_msg(f"Script Name: {script.name}")
-        parent_app.print_msg(f"Number of Commands: {len(script.cmds)}")
+        cmd_count = sum(command.exc_count for command in script.cmds)
+        parent_app.print_msg(f"Number of Commands: {cmd_count}")
         for idx, command in enumerate(script.cmds, start=1):
-            parent_app.print_msg(f"Command {idx}: {command.cmd}")
-            parent_app.print_msg(f"  Pre-delay (ms): {command.pre_delay_ms}")
-            parent_app.print_msg(f"  Post-delay (ms): {command.post_delay_ms}")
-            if command.metadata:
-                parent_app.print_msg("  Metadata:")
-                for k, v in command.metadata.items():
-                    parent_app.print_msg(f"    {k}: {v}")
+            for i in range(1, command.exc_count + 1):
+                parent_app.print_msg(f"Command {idx} (Execution Iteration {i}): {command.cmd}")
+                parent_app.print_msg(f"  Pre-delay (ms): {command.pre_delay_ms}")
+                parent_app.print_msg(f"  Post-delay (ms): {command.post_delay_ms}")
+                if command.metadata:
+                    parent_app.print_msg("  Metadata:")
+                    for k, v in command.metadata.items():
+                        parent_app.print_msg(f"    {k}: {v}")
 
     def _load_script_from_file(self, filepath: Path, overwrite: bool, persistence: SMALPersistence, parent_app: REPLLike) -> SMALScript | None:
         """Load a script from a file.
