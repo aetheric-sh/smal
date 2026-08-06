@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.0 (2026-08-06)
+
+### Features
+
+- Bump version for REPL change
+  ([`770a87f`](https://github.com/aetheric-sh/smal/commit/770a87fb176061c1973a52f5867e1de15d6fb730))
+
+
 ## v0.4.6 (2026-04-29)
 
 ### Bug Fixes
