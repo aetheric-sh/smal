@@ -1,50 +1,88 @@
-"""Module defining the 'validate' command for the SMAL CLI, which validates .smal files and external Jinja2 templates for compliance/compatibility with SMAL."""
+"""Module defining the `validation` command set for the SMAL REPL."""
 
 from __future__ import annotations  # Until Python 3.14
 
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
-from pathlib import Path  # noqa: TC003 - Move application import to TYPE_CHECKING block. Typer needs this.
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
-import typer
+import cmd2
+import yaml
 from jinja2 import TemplateNotFound, nodes
-from rich.console import Console
+from pydantic import BaseModel
 
 from smal.codegen.code_generator import SMALCodeGenerator
+from smal.repl.helpers import get_parent_app, get_persistence
 from smal.schemas.state_machine import SMALFile
 from smal.utilities import constants as SMALConstants
+from smal.utilities.rules import ALL_RULES
 
 if TYPE_CHECKING:
+    import argparse
     from collections.abc import Iterator
 
-    from pydantic import BaseModel
 
-validate_app = typer.Typer(help="Validate .smal files and external Jinja2 templates for compliance/compatibility with SMAL.")
+_validate_parser = cmd2.Cmd2ArgumentParser()
+_validate_parser.add_argument("file", type=Path, completer=cmd2.Cmd.path_complete, help="Path to the SMAL state machine file to validate.")
+_validate_parser.add_argument("-e", "--enforce-rules", action="store_true", help="Enforce additional validation rules beyond basic schema validation.")
 
 
-@validate_app.callback(invoke_without_command=True)
-def validate_root(
-    filepath: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=False, readable=True, help="Path to the .smal or .j2 file to validate."),  # noqa: B008
-) -> None:
-    """Validate cmd entrypoint for the SMAL CLI.
+class ValidateArgs(BaseModel):
+    """Model describing the arguments to the validate command."""
 
-    Args:
-        filepath (Path, optional): The path to the .smal or .j2 file to validate.
+    file: Path
+    enforce_rules: bool = False
 
-    """
-    console = Console()
-    if filepath.suffix in SMALConstants.SupportedFileExtensions.all():
-        console.print("❌ [red]SMAL file validation is not yet implemented.[/red] 🚀")
-        return
-    if filepath.suffix in JinjaTemplateValidator.VALID_EXTENSIONS:
-        with console.status("Jinja2 codegen template detected. Validating", spinner="dots"):
-            validator = JinjaTemplateValidator(filepath)
-            validation_result = validator.validate()
-            validation_result.echo_report(filepath)
-    else:
-        typer.BadParameter(f"Invalid filetype detected: {filepath.suffix}")
+
+class ValidateCmdSet(cmd2.CommandSet):
+    """Command set for handling validation in the SMAL REPL."""
+
+    @cmd2.with_argparser(_validate_parser)
+    def do_validate(self, args: argparse.Namespace) -> None:
+        """Manage SMAL state machine validation.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments.
+
+        """
+        parsed_args = ValidateArgs.model_validate(vars(args))
+        try:
+            parent_app = get_parent_app(self)
+        except Exception as e:
+            raise RuntimeError("Failed to get parent REPL application.") from e
+        console = parent_app.get_console()
+        if parsed_args.file.suffix in SMALConstants.SupportedFileExtensions.all():
+            try:
+                file_data = parsed_args.file.read_text()
+                model_data = yaml.safe_load(file_data)
+                persistence = get_persistence()
+                rules_to_reenable: list[str] = []
+                if not parsed_args.enforce_rules:
+                    rules_to_reenable = [rule.name for rule in ALL_RULES if persistence.is_rule_enabled(rule.name)]
+                    console.print(f"Temporarily disabling {len(rules_to_reenable)} rules for validation...")
+                    for rule_name in rules_to_reenable:
+                        persistence.enable_rule(rule_name, False, write_to_file=False)
+                    persistence.save()
+                SMALFile.model_validate(model_data)
+                parent_app.print_success(f"'{parsed_args.file}' is a valid SMAL file!", prefix="✅")
+                if rules_to_reenable:
+                    console.print(f"Re-enabling {len(rules_to_reenable)} rules after validation...")
+                    for rule_name in rules_to_reenable:
+                        persistence.enable_rule(rule_name, True, write_to_file=False)
+                    persistence.save()
+                return
+            except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
+                parent_app.print_error(f"Invalid SMAL file: {e}", prefix="❌")
+                return
+        if parsed_args.file.suffix in JinjaTemplateValidator.VALID_EXTENSIONS:
+            with console.status("Jinja2 codegen template detected. Validating", spinner="dots"):
+                validator = JinjaTemplateValidator(parsed_args.file)
+                validation_result = validator.validate()
+                validation_result.echo_report(parsed_args.file)
+        else:
+            parent_app.print_error(f"Invalid filetype detected: {parsed_args.file.suffix}. Must be one of {', '.join(JinjaTemplateValidator.VALID_EXTENSIONS)}", prefix="❌")
 
 
 @dataclass(frozen=True)
