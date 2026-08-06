@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 import cmd2
 
 from smal.repl.helpers import import_external_fn_from_file
+from smal.repl.repl_like import REPLLike
+from smal.repl.target_module import TargetModule
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -48,11 +50,13 @@ class DeviceConnection:
     device: ConnectedDevice | None = None
 
     @classmethod
-    def create(cls, fn_module_path: Path, **kwargs: Any) -> DeviceConnection | None:
+    def create(cls, parent_app: REPLLike, target_module: TargetModule | None, fn_module_path: Path | None, **kwargs: Any) -> DeviceConnection | None:
         """Create a connection to an arbitrary device.
 
         Args:
-            fn_module_path (Path): The path to the module containing the `connect` function.
+            parent_app (REPLLike): The parent REPL application.
+            target_module (TargetModule | None): The target module containing the `connect` function.
+            fn_module_path (Path | None): The path to the module containing the `connect`
             **kwargs (Any): Arbitrary keyword arguments to pass to the `connect` function.
 
         Raises:
@@ -67,7 +71,16 @@ class DeviceConnection:
             DeviceConnection | None: The established device connection if successful, otherwise None.
 
         """
-        connect_fn: ConnectFn = import_external_fn_from_file(fn_module_path, "connect_module", "connect")
+        if target_module is not None:
+            connect_fn = target_module.connect_fn
+        elif fn_module_path is not None:
+            parent_app.set_active_module(fn_module_path)
+            target_module = parent_app.get_active_module()
+            if target_module is None:
+                raise RuntimeError(f"Failed to set active module to {fn_module_path}.")
+            connect_fn = target_module.connect_fn
+        else:
+            raise ValueError("Either target_module or fn_module_path must be provided.")
         try:
             connected_device = connect_fn(**kwargs)
         except Exception as e:

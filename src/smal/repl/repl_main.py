@@ -12,19 +12,21 @@ import cmd2
 from pydantic import BaseModel
 from rich.console import Console
 
-from smal.repl.cmd_sets import CodeCmdSet, CorrectionsCmdSet, DebugCmdSet, DiagramCmdSet, MachineCmdSet, RulesCmdSet, ValidateCmdSet
-from smal.repl.connection import DeviceConnection
-from smal.repl.helpers import echo_list, parse_key_value, parse_params
+from smal.repl.cmd_sets import CodeCmdSet, CorrectionsCmdSet, DebugCmdSet, DiagramCmdSet, MachineCmdSet, ModuleCmdSet, RulesCmdSet, ValidateCmdSet
+from smal.repl.connection import ConnectFn, DeviceConnection
+from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params
+from smal.repl.target_module import TargetModule
 from smal.utilities import constants as SMALConstants
 from smal.utilities.persistence import SMALPersistence
 
 if TYPE_CHECKING:
     import argparse
 
+    from smal.repl.cmd_sets.debug import HarvestFn
     from smal.schemas.state_machine import StateMachine
 
 _connect_parser = cmd2.Cmd2ArgumentParser()
-_connect_parser.add_argument("module", type=Path, completer=cmd2.Cmd.path_complete, help="The path to the module containing the connect function for your device.")
+_connect_parser.add_argument("-m", "--module", type=Path, completer=cmd2.Cmd.path_complete, help="The path to the module containing the connect function for your device.")
 _connect_parser.add_argument(
     "-p",
     "--param",
@@ -37,7 +39,7 @@ _connect_parser.add_argument(
 class ConnectArgs(BaseModel):
     """Model describing the arguments to the connect command."""
 
-    module: Path
+    module: Path | None = None
     param: list[tuple[str, Any]] | None = None
 
 
@@ -70,6 +72,7 @@ class SMALREPL(cmd2.Cmd):
         super().__init__(*args, **kwargs)
         self._active_machine: StateMachine | None = None  # Placeholder for the active machine object
         self._active_connection: DeviceConnection | None = None  # Placeholder for the active connection object
+        self._active_module: TargetModule | None = None  # Placeholder for the active module
         self._machine_paths_to_names: dict[Path, str] = {}  # Placeholder for the machine paths to names mapping
         self._machine_names_to_objs: dict[str, StateMachine] = {}  # Placeholder for the machine map
         self.console = Console()
@@ -78,6 +81,7 @@ class SMALREPL(cmd2.Cmd):
         self.register_command_set(DebugCmdSet())
         self.register_command_set(DiagramCmdSet())
         self.register_command_set(MachineCmdSet())
+        self.register_command_set(ModuleCmdSet())
         self.register_command_set(RulesCmdSet())
         self.register_command_set(ValidateCmdSet())
         self._update_prompt()
@@ -114,14 +118,15 @@ class SMALREPL(cmd2.Cmd):
             self.print_error(f"Failed to process connection arguments: {e}")
             return
         try:
-            self.console.print(f"[bold blue]Attempting connection to device using module {args.module}...[/bold blue]")
-            self._active_connection = DeviceConnection.create(fn_module_path=args.module, **extra_kwargs)
+            module = args.module or (self._active_module.filepath if self._active_module else None)
+            self.console.print(f"[bold blue]Attempting connection to device using module {module}...[/bold blue]")
+            self._active_connection = DeviceConnection.create(self, self._active_module, args.module, **extra_kwargs)
             if self._active_connection is not None:
                 self.print_success(f"Connected to device: {self._active_connection.name}")
             else:
-                self.print_error(f"Connection failed using module {args.module}. No device returned.")
+                self.print_error(f"Connection failed using module {module}. No device returned.")
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
-            self.print_error(f"Failed to connect using module {args.module}: {e}")
+            self.print_error(f"Failed to connect using module {module}: {e}")
 
     @cmd2.with_argparser(_cinfo_parser)
     def do_cinfo(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
@@ -393,6 +398,31 @@ class SMALREPL(cmd2.Cmd):
         """
         msg = f"{prefix + ' ' if prefix else ''}[bold red]{'Error: ' if not omit_heading else ''}{message}[/bold red]"
         self.console.print(msg)
+
+    def set_active_module(self, module_file: Path) -> None:
+        """Set the active module for the REPL.
+
+        Args:
+            module_file (Path): The path to the module file to set as active.
+
+        """
+        if not module_file.is_file():
+            self.print_error(f"Module file not found: {module_file}")
+            return
+        self._active_module = module_file
+        connect_fn: ConnectFn = import_external_fn_from_file(module_file, "smal_connect_module", "connect")
+        harvest_fn: HarvestFn = import_external_fn_from_file(module_file, "smal_harvest_module", "harvest")
+        self._active_module = TargetModule(filepath=module_file, connect_fn=connect_fn, harvest_fn=harvest_fn)
+        self.print_success(f"Active module set to: {module_file}", omit_heading=True)
+
+    def get_active_module(self) -> TargetModule | None:
+        """Get the currently active module for the REPL.
+
+        Returns:
+            TargetModule | None: The currently active module, or None if no module is active.
+
+        """
+        return self._active_module
 
     def _disconnect_from_device(self, **kwargs: Any) -> None:
         if self._active_connection is None or not self._active_connection.is_connected:

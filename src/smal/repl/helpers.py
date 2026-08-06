@@ -180,6 +180,7 @@ def import_external_fn_from_file(module_path: Path, module_name: str, fn_name: s
     extern_fn = getattr(fn_module, fn_name)
     if not callable(extern_fn):
         raise TypeError(f"'{fn_name}' in module {module_path} is not callable.")
+    # TODO: Validate the signature of the function
     return extern_fn
 
 

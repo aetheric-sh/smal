@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from rich.console import Console
 
     from smal.repl.connection import DeviceConnection
+    from smal.repl.target_module import TargetModule
     from smal.schemas.state_machine import StateMachine
 
 
@@ -30,10 +31,6 @@ class REPLLike(Protocol):
 
     def cache_machine(self, fp: Path, machine: StateMachine) -> None:
         """Cache the machine object for the given path."""
-        ...
-
-    def get_machine_name(self, path: Path) -> str | None:
-        """Get the machine name for the given path."""
         ...
 
     def get_machine_by_name(self, name: str) -> StateMachine | None:
@@ -74,4 +71,17 @@ class REPLLike(Protocol):
 
     def print_warning(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print a warning message to the console."""
+        ...
+
+    def set_active_module(self, module_file: Path) -> None:
+        """Set the active module for the REPL."""
+        ...
+
+    def get_active_module(self) -> TargetModule | None:
+        """Get the currently active module for the REPL.
+
+        Returns:
+            TargetModule | None: The currently active module, or None if no module is active.
+
+        """
         ...

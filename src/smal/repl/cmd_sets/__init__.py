@@ -7,5 +7,6 @@ from .corrections import CorrectionsCmdSet
 from .debug import DebugCmdSet
 from .diagram import DiagramCmdSet
 from .machine import MachineCmdSet
+from .module import ModuleCmdSet
 from .rules import RulesCmdSet
 from .validate import ValidateCmdSet
