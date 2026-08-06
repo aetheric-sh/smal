@@ -3,7 +3,7 @@
 from __future__ import annotations  # Until Python 3.14
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import cmd2
 
@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+@runtime_checkable
 class ConnectedDevice(Protocol):
     """Protocol defining an arbitrary connected device."""
 
