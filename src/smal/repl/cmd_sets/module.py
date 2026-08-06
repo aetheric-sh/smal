@@ -78,4 +78,4 @@ class ModuleCmdSet(cmd2.CommandSet):
             parent_app.print_warning("No active module. Set one with the `module set` command.", omit_heading=True)
         else:
             info_str = ",\n- ".join([f"{k}: {v}" for k, v in vars(active_module).items()])
-            parent_app.print_msg(f"[bold green]Active module Info:[/bold green]\n- {info_str}", omit_heading=True)
+            parent_app.print_msg(f"[bold green]Active module Info:[/bold green]\n- {info_str}")
