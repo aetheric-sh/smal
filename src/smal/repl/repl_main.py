@@ -112,12 +112,12 @@ class SMALREPL(cmd2.Cmd):
             self.print_error(f"Failed to process connection arguments: {e}")
             return
         try:
-            with self.console.status(f"[bold blue]Attempting connection to device using module {args.module}...[/bold blue]"):
-                self._active_connection = DeviceConnection.create(fn_module_path=args.module, **extra_kwargs)
-                if self._active_connection is not None:
-                    self.print_success(f"Connected to device: {self._active_connection.name}")
-                else:
-                    self.print_error(f"Connection failed using module {args.module}. No device returned.")
+            self.console.print(f"[bold blue]Attempting connection to device using module {args.module}...[/bold blue]")
+            self._active_connection = DeviceConnection.create(fn_module_path=args.module, **extra_kwargs)
+            if self._active_connection is not None:
+                self.print_success(f"Connected to device: {self._active_connection.name}")
+            else:
+                self.print_error(f"Connection failed using module {args.module}. No device returned.")
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
             self.print_error(f"Failed to connect using module {args.module}: {e}")
 

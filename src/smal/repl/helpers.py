@@ -7,7 +7,7 @@ import importlib
 import sys
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import cmd2
 from rich.console import Console
@@ -15,6 +15,9 @@ from rich.table import Table
 
 from smal.repl.repl_like import REPLLike
 from smal.utilities.persistence import SMALPersistence
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 console = Console()
 
@@ -141,11 +144,11 @@ def get_parent_app(cmd_set: cmd2.CommandSet) -> REPLLike:
     return parent_app
 
 
-def import_external_fn_from_file(module_path: str, module_name: str, fn_name: str) -> object:
+def import_external_fn_from_file(module_path: Path, module_name: str, fn_name: str) -> object:
     """Import an external function from a given file path.
 
     Args:
-        module_path (str): The file path to the module containing the function.
+        module_path (Path): The file path to the module containing the function.
         module_name (str): The name to assign to the imported module.
         fn_name (str): The name of the function to import.
 
