@@ -6,7 +6,7 @@ This is the python file that contains target-specific implementations for data h
 from __future__ import annotations  # Until Python 3.14
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from smal.repl.connection import ConnectedDevice, ConnectFn
 
 
+@runtime_checkable
 class SendMsgFn(Protocol):
     """Protocol describing a function that sends a message to the actively connected SMAL device."""
 
