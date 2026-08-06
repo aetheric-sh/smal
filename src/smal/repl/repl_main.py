@@ -384,15 +384,16 @@ class SMALREPL(cmd2.Cmd):
         if self._active_connection is None or not self._active_connection.is_connected:
             self.console.print("[bold green]No active device connection to disconnect from.[/bold green]")
             return
-        self.print_warning(f"Active device connection detected, attempting to disconnect {self._active_connection.name}...")
+        device_name = self._active_connection.name
+        self.print_warning(f"Active device connection detected, attempting to disconnect {device_name}...")
         try:
-            with self.console.status(f"[bold blue]Disconnecting from device {self._active_connection.name}...[/bold blue]"):
+            with self.console.status(f"[bold blue]Disconnecting from device {device_name}...[/bold blue]"):
                 if self._active_connection.disconnect(**kwargs):
-                    self.print_success(f"Successfully disconnected from device {self._active_connection.name}.")
+                    self.print_success(f"Successfully disconnected from device {device_name}.")
                 else:
-                    self.print_error(f"Failed to disconnect from device {self._active_connection.name}.")
+                    self.print_error(f"Failed to disconnect from device {device_name}.")
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
-            self.print_error(f"Error occurred while disconnecting from device {self._active_connection.name}: {e}.")
+            self.print_error(f"Error occurred while disconnecting from device {device_name}: {e}.")
 
     def _update_prompt(self) -> None:
         """Update the prompt with the active machine and connection names."""
