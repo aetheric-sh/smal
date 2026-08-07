@@ -41,6 +41,12 @@ Produce a polished, auto‑layout state machine diagram directly from your `.sma
 ### 🐞 Debug-friendly  
 SMAL includes a structured debug layout that maps cleanly to firmware and tooling.
 
+### 📬 Generic Messaging
+A simple interface for defining how to communicate with your embedded device is provided so you can add comms directly to the REPL!
+
+### 📝 Scripting
+Want to write structured sequences of messages that you can send with a single command? SMAL provides that with an easy, YAML-based script structure (`*.smalscr`) that works seamlessly with your messaging paradigm of choice.
+
 ### 🛠️ Extensible  
 Add custom generators, validators, or analysis tools.
 
@@ -49,3 +55,26 @@ Add custom generators, validators, or analysis tools.
 ```bash
 pip install smal-lang
 ```
+
+Or, using [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv tool install smal-lang   # install the `smal` CLI globally
+uv add smal-lang            # or add it as a project dependency
+```
+
+# 🚀 Quick Start
+
+Try it with one of the bundled examples in [`src/examples`](src/examples):
+
+```bash
+smal
+smal> machine load src/examples/simple/simple.smal
+smal> diagram ./out
+```
+
+This loads the machine and renders `out/simple_state_machine_diagram.svg`. Run `code generate <template> -o <output_dir>` to generate firmware code from the same file.
+
+# 📄 License
+
+MIT — see [LICENSE](LICENSE). See [CHANGELOG.md](CHANGELOG.md) for release history.
