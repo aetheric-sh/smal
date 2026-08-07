@@ -83,7 +83,13 @@ def echo_list(header: str, items: list[str], tab_size: int = 2, bold_header: boo
     console.tab_size = original_tab_size
 
 
-def echo_table(title: str, columns: list[str], rows: list[list[str]], col_metadata: dict[str, dict[str, Any]] | None = None) -> None:
+def echo_table(
+    title: str,
+    columns: list[str],
+    rows: list[list[str]],
+    col_metadata: dict[str, dict[str, Any]] | None = None,
+    show_lines: bool = False,
+) -> None:
     """Echo a rich table to stdout with the given title, columns and rows.
 
     Args:
@@ -92,9 +98,10 @@ def echo_table(title: str, columns: list[str], rows: list[list[str]], col_metada
         rows (list[list[str]]): The rows of the table, where each row is a list of cell values.
         col_metadata (dict[str, dict[str, Any]], optional): Optional metadata for columns, \
             where keys are column names and values are dictionaries of keyword arguments to pass to Table.add_column(). Defaults to None.
+        show_lines (bool, optional): Whether to show separator lines between rows. Defaults to False.
 
     """
-    table = Table(title=title)
+    table = Table(title=title, show_lines=show_lines)
     for col in columns:
         col_md = col_metadata.get(col, {}) if col_metadata else {}
         table.add_column(col, **col_md)
