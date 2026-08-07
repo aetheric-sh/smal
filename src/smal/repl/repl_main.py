@@ -418,11 +418,11 @@ class SMALREPL(cmd2.Cmd):
             self.print_error(f"Error occurred while disconnecting from device {device_name}: {e}.")
 
     def _update_prompt(self) -> None:
-        """Update the prompt with the active machine and connection names."""
+        """Update the prompt with the active connection, machine, and module."""
         stylized_connection_str = self._active_connection.connection_info_str if self._active_connection else cmd2.stylize("disconnected", "bold red")
-        stylized_machine_str = cmd2.stylize(self._active_machine.name, "bold green") if self._active_machine else cmd2.stylize("NULL_MACHINE", "bold red")
-        stylized_module_str = cmd2.stylize(self._active_module.filepath.name, "bold green") if self._active_module else cmd2.stylize("NULL_MODULE", "bold red")
-        self.prompt = f"{SMALConstants.REPL_NAME}[{stylized_connection_str}]({stylized_machine_str})[{stylized_module_str}]> "
+        stylized_machine_str = cmd2.stylize(self._active_machine.name, "bold green") if self._active_machine else cmd2.stylize("null", "bold red")
+        stylized_module_str = cmd2.stylize(self._active_module.filepath.name, "bold green") if self._active_module else cmd2.stylize("null", "bold red")
+        self.prompt = f"{SMALConstants.REPL_NAME}[conn:{stylized_connection_str}|mach:{stylized_machine_str}|mod:{stylized_module_str}]> "
 
 
 def main() -> None:
