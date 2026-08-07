@@ -12,6 +12,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
+from smal.schemas.action import Action
 from smal.schemas.command import Command  # noqa: TC001 - Move application import to TYPE_CHECKING block
 from smal.schemas.enumeration import Enumeration  # noqa: TC001 - Move application import to TYPE_CHECKING block
 from smal.schemas.error import Error
@@ -39,6 +40,7 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
     version: str = Field(..., description="Semantic version (major.minor.patch) of this state machine.")
     states: list[State] = Field(..., description="States associated with this state machine.")
     events: list[Event] = Field(default_factory=list, description="Events associated with this state machine, if any.")
+    actions: list[Action] = Field(default_factory=list, description="Actions associated with this state machine, if any.")
     commands: list[Command] = Field(default_factory=list, description="Commands associated with this state machine, if any.")
     errors: list[Error] = Field(default_factory=list, description="Errors associated with this state machine, if any.")
     constants: dict[str, str | int] = Field(default_factory=dict, description="Constants to define for this state machine, if any.")
@@ -167,6 +169,22 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         if v is None:
             return []
         return [State.from_shorthand(s) for s in v]
+
+    @field_validator("actions", mode="before")
+    @classmethod
+    def expand_shorthand_actions(cls, v: list[str | dict[str, Any]] | None) -> list[Action]:
+        """Expand all short-hand defined actions into their full object notation.
+
+        Args:
+            v (Any): The input value for the actions field, which can be a list of action names (str) or action definitions (dict).
+
+        Returns:
+            list[Action]: A list of Action objects.
+
+        """
+        if v is None:
+            return []
+        return [Action.from_shorthand(a) for a in v]
 
     @field_validator("events", mode="before")
     @classmethod
@@ -310,6 +328,9 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
                 raise ValueError(f"StateMachine '{self.name}': Transition event '{t.evt}' references an event that does not exist.")
             if t.tgt_entry_evt is not None and t.tgt_entry_evt not in event_names:
                 raise ValueError(f"StateMachine '{self.name}': Transition target entry event '{t.tgt_entry_evt}' references an event that does not exist.")
+            for action in t.actions:
+                if action not in {a.name for a in self.actions}:
+                    raise ValueError(f"StateMachine '{self.name}': Transition action '{action}' references an action that does not exist.")
         return self
 
     @model_validator(mode="after")

@@ -47,7 +47,8 @@ class SMALCodeGenerator:
         """
         env = self._build_env()
         smal_tmpl = TemplateRegistry.get(template_name)
-        filepath = str(Path(smal_tmpl.lang) / smal_tmpl.filename)
+        # Jinja2 template names always use forward slashes, regardless of OS.
+        filepath = f"{smal_tmpl.lang}/{smal_tmpl.filename}"
         tmpl = env.get_template(filepath)
         return env, tmpl, smal_tmpl
 

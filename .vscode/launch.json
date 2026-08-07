@@ -5,133 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "SMAL: diagram",
+            "name": "SMAL - Debug",
             "type": "debugpy",
             "request": "launch",
-            "module": "smal.cli.app",
-            "cwd": "${workspaceFolder}/src",
-            "args": [
-                "diagram",
-                "${workspaceFolder}/src/examples/${input:exampleChoice}/${input:exampleChoice}.smal",
-                "${workspaceFolder}/src/examples/${input:exampleChoice}",
-                "-f",
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "SMAL: code (builtin)",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "smal.cli.app",
-            "cwd": "${workspaceFolder}/src",
-            "args": [
-                "code",
-                "generate",
-                "${workspaceFolder}/src/examples/${input:exampleChoice}/${input:exampleChoice}.smal",
-                "-t",
-                "c_machine_hdr",
-                "-f"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "SMAL: code macros",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "smal.cli.app",
-            "cwd": "${workspaceFolder}/src",
-            "args": [
-                "code",
-                "macros"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "SMAL: templates",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "smal.cli.app",
-            "cwd": "${workspaceFolder}/src",
-            "args": [
-                "templates",
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "SMAL: rules",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "smal.cli.app",
-            "cwd": "${workspaceFolder}/src",
-            "args": [
-                "rules",
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "SMAL: corrections",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "smal.cli.app",
-            "cwd": "${workspaceFolder}/src",
-            "args": [
-                "corrections",
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "SMAL: debug",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "smal.cli.app",
-            "cwd": "${workspaceFolder}/src",
+            "module": "smal.repl.repl_main",
             "justMyCode": false,
-            "args": [
-                "debug",
-                "${workspaceFolder}/src/examples/simple/simple.smal",
-                "${workspaceFolder}/src/smal/schemas/bit_field.py",
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "SMAL: validate",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "smal.cli.app",
             "cwd": "${workspaceFolder}/src",
-            "args": [
-                "validate",
-                "${workspaceFolder}/src/smal/codegen/templates/c_machine_hdr.j2",
-            ],
             "console": "integratedTerminal"
-        },
-        {
-            "name": "SMAL: debug gen-boilerplate",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "smal.cli.app",
-            "cwd": "${workspaceFolder}/src",
-            "args": [
-                "debug",
-                "gen-boilerplate",
-                "c",
-                "-f",
-            ],
-            "console": "integratedTerminal"
-        },
-    ],
-    "inputs": [
-        {
-            "id": "exampleChoice",
-            "type": "pickString",
-            "description": "Choose an example",
-            "options": [
-                "simple",
-                "simple_shorthand",
-                "substates",
-                "complex",
-            ],
-            "default": "simple"
         }
     ]
 }

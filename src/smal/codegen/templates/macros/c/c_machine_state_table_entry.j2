@@ -3,7 +3,7 @@
 typedef void (*{{ smal.name | lower }}_action_t)({{ smal.name | lower }}_state_machine_t *state_machine);
 
 /* A state table entry for the {{ smal.name | capitalize }} state machine. */
-#define MAX_ACTIONS_PER_EVENT {{ max_actions }}
+#define MAX_ACTIONS_PER_EVENT {{ max_actions }} // Arbitrary number to cap static allocation of actions in state table. Adjust as needed.
 typedef struct
 {
     /* The initial state for this table entry. */
