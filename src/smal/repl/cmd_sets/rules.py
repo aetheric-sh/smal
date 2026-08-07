@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import rule_completer
-from smal.repl.helpers import echo_table, get_parent_app, get_persistence
+from smal.repl.helpers import echo_table, get_persistence
 from smal.utilities.rules import ALL_RULES
 
 if TYPE_CHECKING:
@@ -39,7 +40,7 @@ class DisableArgs(BaseModel):
     name: str
 
 
-class RulesCmdSet(cmd2.CommandSet):
+class RulesCmdSet(SMALCmdSet):
     """Command set for handling rules in the SMAL REPL."""
 
     @cmd2.with_argparser(_rules_parser)
@@ -69,10 +70,7 @@ class RulesCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = EnableArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         if parsed_args.name.lower() == "all":
             for r in ALL_RULES:
@@ -99,10 +97,7 @@ class RulesCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = DisableArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         if parsed_args.name.lower() == "all":
             for r in ALL_RULES:

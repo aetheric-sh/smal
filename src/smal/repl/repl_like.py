@@ -29,14 +29,6 @@ class REPLLike(Protocol):
         """Set the active machine for the REPL."""
         ...
 
-    def get_machine_by_name(self, name: str) -> StateMachine | None:
-        """Get the machine object for the given name."""
-        ...
-
-    def get_machine_by_path(self, path: Path) -> StateMachine | None:
-        """Get the machine object for the given path."""
-        ...
-
     def get_active_connection(self) -> DeviceConnection | None:
         """Get the active device connection for the REPL."""
         ...
@@ -70,15 +62,6 @@ class REPLLike(Protocol):
 
         Returns:
             TargetModule | None: The currently active module, or None if no module is active.
-
-        """
-        ...
-
-    def execute_statement(self, command: str) -> None:
-        """Execute a command statement in the REPL.
-
-        Args:
-            command (str): The command statement to execute.
 
         """
         ...

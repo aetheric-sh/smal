@@ -55,6 +55,10 @@ class SMALPersistence(BaseModel):
         default_factory=dict,
         description="A dictionary mapping module names to their corresponding file paths.",
     )
+    python_scripts: dict[str, Path] = Field(
+        default_factory=dict,
+        description="A dictionary mapping Python script names to their corresponding file paths.",
+    )
     machines: dict[str, StateMachine] = Field(
         default_factory=dict,
         description="A dictionary mapping machine names to their corresponding StateMachine objects.",
@@ -196,6 +200,42 @@ class SMALPersistence(BaseModel):
                 self.save()
         else:
             logging.warning("Attempted to delete non-existent module '%s'.", module_name)
+
+    def add_python_script(self, script_name: str, script_path: Path, overwrite: bool = False, save: bool = False) -> None:
+        """Add a Python script to the persistence data.
+
+        Args:
+            script_name (str): The name of the Python script to add.
+            script_path (Path): The file path of the Python script to add.
+            overwrite (bool): Whether to overwrite an existing Python script with the same name. Defaults to False.
+            save (bool): Whether to save the updated persistence data to file after adding the Python script. Defaults to False.
+
+        Raises:
+            ValueError: If a Python script with the same name already exists and overwrite is False.
+
+        """
+        if script_name in self.python_scripts and not overwrite:
+            raise ValueError(f"A Python script with the name '{script_name}' already exists. Use overwrite=True to replace it.")
+        self.python_scripts[script_name] = script_path
+        logging.debug("Python script '%s' added to persistence at path '%s'.", script_name, script_path)
+        if save:
+            self.save()
+
+    def delete_python_script(self, script_name: str, save: bool = False) -> None:
+        """Delete a Python script from the persistence data.
+
+        Args:
+            script_name (str): The name of the Python script to delete.
+            save (bool): Whether to save the updated persistence data to file after deleting the Python script. Defaults to False.
+
+        """
+        if script_name in self.python_scripts:
+            del self.python_scripts[script_name]
+            logging.debug("Python script '%s' deleted from persistence.", script_name)
+            if save:
+                self.save()
+        else:
+            logging.warning("Attempted to delete non-existent Python script '%s'.", script_name)
 
     def add_machine(self, machine: StateMachine, overwrite: bool = False, save: bool = False) -> None:
         """Add a machine to the persistence data.

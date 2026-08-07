@@ -7,6 +7,7 @@ import importlib
 import sys
 from contextlib import contextmanager
 from contextvars import ContextVar
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 import cmd2
@@ -110,20 +111,36 @@ def echo_table(
     console.print(table)
 
 
+@cache
 def get_persistence() -> SMALPersistence:
-    """Get the SMAL persistence file, which contains the enabled status of corrections.
+    """Get the SMAL persistence object, which contains the enabled status of rules/corrections plus cached machines, modules, and scripts.
+
+    The persistence file is only read from disk (and parsed) once per process; the resulting object is cached
+    in memory and reused by subsequent calls, since this is invoked on nearly every REPL command (and on every
+    tab-completion attempt via the various completers). Callers that mutate the returned object and call
+    `.save()` on it keep writing through to disk as before. Use `reset_persistence_cache()` if the on-disk
+    file is ever replaced or removed out from under the cache (e.g. by the `clean` command).
 
     Returns:
-        SMALPersistence: The SMAL persistence object.
+        SMALPersistence: The (possibly cached) SMAL persistence object.
 
     """
     try:
-        return SMALPersistence.load()
+        persistence = SMALPersistence.load()
     except FileNotFoundError:
         console.print("[yellow]No existing persistence data found. Creating new persistence with default settings.[/yellow]")
         persistence = SMALPersistence()
         persistence.save()
-        return persistence
+    return persistence
+
+
+def reset_persistence_cache() -> None:
+    """Clear the in-memory persistence cache so the next `get_persistence()` call re-reads it from disk.
+
+    Must be called after anything that replaces or deletes the persistence file behind the cache's back
+    (e.g. the `clean` command), otherwise stale in-memory data would keep being served for the rest of the session.
+    """
+    get_persistence.cache_clear()
 
 
 def get_parent_app(cmd_set: cmd2.CommandSet) -> REPLLike:

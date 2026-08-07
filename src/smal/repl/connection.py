@@ -86,7 +86,7 @@ class DeviceConnection:
         try:
             connected_device = connect_fn(**kwargs)
         except Exception as e:
-            raise RuntimeError(f"Failed to connect using {fn_module_path}: {e}") from e
+            raise RuntimeError(f"Failed to connect: {e}") from e
         if connected_device is None:
             return None
         if not isinstance(connected_device, ConnectedDevice):
@@ -107,12 +107,10 @@ class DeviceConnection:
 
         """
         if self.device is None:
-            # TODO: Log error
             return False
         try:
             result = self.device.disconnect(**kwargs)
             if result:
-                # TODO: Log success
                 self.device = None
                 self.name = self._DEFAULT_NAME
             return result
@@ -121,15 +119,15 @@ class DeviceConnection:
 
     @property
     def connection_info_str(self) -> str:
-        """Get the string representing information about the active device connection, if any.
+        """Get the stylized name of the actively connected device, or a placeholder if there is none.
 
         Returns:
-            str: The string representing information about the active device connection, if any.
+            str: The stylized device name, or a stylized "none" placeholder if there is no active connection.
 
         """
         if self.device is None:
             return cmd2.stylize("disconnected", "bold red")
-        return cmd2.stylize(f"connected::{self.device.get_name()}", "bold green")
+        return cmd2.stylize(self.device.get_name(), "bold green")
 
     @property
     def connection_details_str(self) -> str | None:

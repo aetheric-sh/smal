@@ -11,9 +11,10 @@ from pydantic import BaseModel
 
 from smal.codegen import MacroRegistry, TemplateRegistry
 from smal.codegen.code_generator import SMALCodeGenerator
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.cmd_sets.validate import JinjaTemplateValidator
 from smal.repl.completers import machine_completer, template_completer
-from smal.repl.helpers import echo_table, get_parent_app, get_persistence
+from smal.repl.helpers import echo_table, get_persistence
 from smal.schemas.state_machine import SMALFile
 
 if TYPE_CHECKING:
@@ -71,7 +72,7 @@ _macros_parser = cmd2.Cmd2ArgumentParser()
 _templates_parser = cmd2.Cmd2ArgumentParser()
 
 
-class CodeCmdSet(cmd2.CommandSet):
+class CodeCmdSet(SMALCmdSet):
     """Command set for handling code in the SMAL REPL."""
 
     @cmd2.with_argparser(_code_parser)
@@ -98,10 +99,7 @@ class CodeCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = GenerateArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         console = parent_app.get_console()
         persistence = get_persistence()
         # Validate output directory existence and writability

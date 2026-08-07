@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import correction_completer
-from smal.repl.helpers import echo_table, get_parent_app, get_persistence
+from smal.repl.helpers import echo_table, get_persistence
 from smal.utilities.corrections import ALL_CORRECTIONS
 
 if TYPE_CHECKING:
@@ -39,7 +40,7 @@ class DisableArgs(BaseModel):
     name: str
 
 
-class CorrectionsCmdSet(cmd2.CommandSet):
+class CorrectionsCmdSet(SMALCmdSet):
     """Command set for handling corrections in the SMAL REPL."""
 
     @cmd2.with_argparser(_corrections_parser)
@@ -69,10 +70,7 @@ class CorrectionsCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = EnableArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         if parsed_args.name.lower() == "all":
             for c in ALL_CORRECTIONS:
@@ -99,10 +97,7 @@ class CorrectionsCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = DisableArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         if parsed_args.name.lower() == "all":
             for c in ALL_CORRECTIONS:

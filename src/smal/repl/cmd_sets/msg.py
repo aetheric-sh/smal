@@ -7,11 +7,14 @@ from typing import TYPE_CHECKING, Any
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import module_completer
-from smal.repl.helpers import get_parent_app, get_persistence, parse_key_value, parse_params
+from smal.repl.helpers import get_persistence, parse_key_value, parse_params
 
 if TYPE_CHECKING:
     import argparse
+
+    from smal.repl.repl_like import REPLLike
 
 _msg_parser = cmd2.Cmd2ArgumentParser()
 _msg_parser.add_subparsers(title="subcommand", help="subcommand help")
@@ -36,7 +39,7 @@ class SendArgs(BaseModel):
     param: list[tuple[str, Any]] | None = None
 
 
-class MsgCmdSet(cmd2.CommandSet):
+class MsgCmdSet(SMALCmdSet):
     """Command set for the `msg` command."""
 
     @cmd2.with_argparser(_msg_parser)
@@ -63,32 +66,44 @@ class MsgCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = SendArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
-        active_connection = parent_app.get_active_connection()
-        persistence = get_persistence()
-        if active_connection is None:
-            parent_app.print_error("No active connection found. Please connect to a device first using the `connect` command.")
-            return
-        if parsed_args.module is not None:
-            module_path = persistence.modules.get(parsed_args.module)
-            if module_path is None:
-                parent_app.print_error(f"Module '{parsed_args.module}' not found in persistence. Please load the module first using the `module load` command.")
-                return
-            parent_app.set_active_module(module_path)
-        active_module = parent_app.get_active_module()
-        if active_module is None:
-            parent_app.print_error(
-                "No active module found. Please load a module first using the `module load` command or provide one to this command with the `-m` option.",
-            )
-            return
-        send_msg_fn = active_module.send_msg_fn
-        if send_msg_fn is None:
-            parent_app.print_error(f"The active module '{active_module.filepath}' does not support a sending messages.")
-            return
+        parent_app = self.parent_app
         extra_kwargs = parse_params(parsed_args.param or [])
-        retval = send_msg_fn(active_connection.device, parsed_args.content, **extra_kwargs)
+        retval = send_message(parent_app, parsed_args.content, module=parsed_args.module, **extra_kwargs)
         if retval is not None:
             parent_app.print_msg(f"{retval}")
+
+
+def send_message(parent_app: REPLLike, content: str, module: str | None = None, **extra_kwargs: Any) -> Any:
+    """Send a message to the actively connected SMAL device using the active (or given) module.
+
+    Args:
+        parent_app (REPLLike): The parent REPL application.
+        content (str): The content of the message to send to the actively connected SMAL device.
+        module (str | None): The name of a cached module to switch to before sending, if any.
+        **extra_kwargs (Any): Additional keyword arguments to pass to the module's send function.
+
+    Returns:
+        Any: The response from the device after sending the message, if any.
+
+    """
+    active_connection = parent_app.get_active_connection()
+    if active_connection is None:
+        parent_app.print_error("No active connection found. Please connect to a device first using the `connect` command.")
+        return None
+    if module is not None:
+        module_path = get_persistence().modules.get(module)
+        if module_path is None:
+            parent_app.print_error(f"Module '{module}' not found in persistence. Please load the module first using the `module load` command.")
+            return None
+        parent_app.set_active_module(module_path)
+    active_module = parent_app.get_active_module()
+    if active_module is None:
+        parent_app.print_error(
+            "No active module found. Please load a module first using the `module load` command or provide one to this command with the `-m` option.",
+        )
+        return None
+    send_msg_fn = active_module.send_msg_fn
+    if send_msg_fn is None:
+        parent_app.print_error(f"The active module '{active_module.filepath}' does not support a sending messages.")
+        return None
+    return send_msg_fn(active_connection.device, content, **extra_kwargs)

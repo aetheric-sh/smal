@@ -9,8 +9,9 @@ import cmd2
 from pydantic import BaseModel
 
 from smal.diagramming.generation import generate_state_machine_svg
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import machine_completer
-from smal.repl.helpers import get_parent_app, get_persistence
+from smal.repl.helpers import get_persistence
 
 if TYPE_CHECKING:
     import argparse
@@ -48,7 +49,7 @@ class DiagramArgs(BaseModel):
     orientation: Literal["lr", "tb"] = "lr"
 
 
-class DiagramCmdSet(cmd2.CommandSet):
+class DiagramCmdSet(SMALCmdSet):
     """Command set for generating diagrams in the SMAL REPL."""
 
     @cmd2.with_argparser(_diagram_parser)
@@ -63,10 +64,7 @@ class DiagramCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = DiagramArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         console = parent_app.get_console()
         persistence = get_persistence()
         if parsed_args.machine is None:

@@ -11,7 +11,8 @@ from rich.markup import escape
 
 from smal.codegen.code_generator import SMALCodeGenerator
 from smal.codegen.templates.builtin_templates import TemplateRegistry
-from smal.repl.helpers import echo_table, get_parent_app, parse_key_value, parse_params
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
+from smal.repl.helpers import echo_table, parse_key_value, parse_params
 from smal.schemas.debug import SMALDebugEntry, SMALDebugEntryType
 from smal.schemas.state_machine import SMALFile
 
@@ -82,7 +83,7 @@ class HarvestFn(Protocol):
         ...
 
 
-class DebugCmdSet(cmd2.CommandSet):
+class DebugCmdSet(SMALCmdSet):
     """Command set for debugging in the SMAL REPL."""
 
     @cmd2.with_argparser(_debug_parser)
@@ -113,10 +114,7 @@ class DebugCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = RunArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         console = parent_app.get_console()
         active_connection = parent_app.get_active_connection()
         if active_connection is None:
@@ -169,10 +167,7 @@ class DebugCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = BoilerplateArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         console = parent_app.get_console()
         # Validate output directory existence and writability
         if not parsed_args.output_dir.exists():

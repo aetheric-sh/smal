@@ -26,7 +26,7 @@ from smal.repl.cmd_sets import (
     ValidateCmdSet,
 )
 from smal.repl.connection import ConnectFn, DeviceConnection
-from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params
+from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params, reset_persistence_cache
 from smal.repl.target_module import SendMsgFn, TargetModule
 from smal.utilities import constants as SMALConstants
 from smal.utilities.persistence import SMALPersistence
@@ -79,6 +79,18 @@ class DisconnectArgs(BaseModel):
     param: list[tuple[str, Any]] | None = None
 
 
+_clean_parser = cmd2.Cmd2ArgumentParser()
+_clean_parser.add_argument(
+    "-y", "--yes", action="store_true", help="Automatically confirm the cleaning of the application data directory without prompting for confirmation."
+)
+
+
+class CleanArgs(BaseModel):
+    """Model describing the arguments to the clean command."""
+
+    yes: bool = False
+
+
 class SMALREPL(cmd2.Cmd):
     """Class defining the main REPL for the SMAL tool."""
 
@@ -87,12 +99,13 @@ class SMALREPL(cmd2.Cmd):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the SMAL REPL."""
+        # Persist command history across sessions alongside the rest of SMAL's app data, so it survives restarts
+        # (and is cleared along with everything else by the `clean` command). Callers may override this.
+        kwargs.setdefault("persistent_history_file", str(SMALPersistence.DEFAULT_PATH.parent / "history.dat"))
         super().__init__(*args, **kwargs)
         self._active_machine: StateMachine | None = None  # Placeholder for the active machine object
         self._active_connection: DeviceConnection | None = None  # Placeholder for the active connection object
         self._active_module: TargetModule | None = None  # Placeholder for the active module
-        self._machine_paths_to_names: dict[Path, str] = {}  # Placeholder for the machine paths to names mapping
-        self._machine_names_to_objs: dict[str, StateMachine] = {}  # Placeholder for the machine map
         self.console = Console()
         self.register_command_set(CodeCmdSet())
         self.register_command_set(CorrectionsCmdSet())
@@ -146,9 +159,9 @@ class SMALREPL(cmd2.Cmd):
             if self._active_connection is not None:
                 self.print_success(f"Connected to device: {self._active_connection.name}")
             else:
-                self.print_error(f"Connection failed using module {module}. No device returned.")
+                self.print_error("Connection failed. No device returned.")
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
-            self.print_error(f"Failed to connect using module {module}: {e}")
+            self.print_error(f"{e}")
 
     @cmd2.with_argparser(_cinfo_parser)
     def do_cinfo(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
@@ -181,22 +194,26 @@ class SMALREPL(cmd2.Cmd):
             return
         self._disconnect_from_device(**extra_kwargs)
 
-    def do_clean(self, arg: str) -> None:  # noqa: ARG002 - Unused method argument
+    @cmd2.with_argparser(_clean_parser)
+    def do_clean(self, args: argparse.Namespace) -> None:
         """Clean the SMAL persisted application data directory.
 
         Args:
-            arg (str): Unused argument.
+            args (argparse.Namespace): The parsed command-line arguments containing the confirmation flag.
 
         """
+        parsed_args = CleanArgs.model_validate(vars(args))
         app_dir = SMALPersistence.DEFAULT_PATH.parent
         if not app_dir.exists():
             self.console.print("[bold yellow]Nothing to clean — no application data directory found.[/bold yellow]")
             return
-        confirmation = self.read_input(cmd2.stylize(f"Are you sure you want to delete the application data directory at {app_dir}? [y/N] ", "bold yellow"))
-        if confirmation.strip().lower() not in {"y", "yes"}:
-            self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
-            return
+        if not parsed_args.yes:
+            confirmation = self.read_input(cmd2.stylize(f"Are you sure you want to delete the application data directory at {app_dir}? [y/N] ", "bold yellow"))
+            if confirmation.strip().lower() not in {"y", "yes"}:
+                self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
+                return
         SMALPersistence.clean()
+        reset_persistence_cache()
         self.console.print(f"[bold green]Removed application data directory: {app_dir}[/bold green]")
 
     def do_graphviz(self, arg: str) -> None:  # noqa: ARG002 - Unused method argument
@@ -302,45 +319,6 @@ class SMALREPL(cmd2.Cmd):
         """
         self._active_machine = machine
 
-    def get_machine_name(self, path: Path) -> str | None:
-        """Get the name of the state machine associated with the given file path.
-
-        Args:
-            path (Path): The file path of the state machine definition.
-
-        Returns:
-            str | None: The name of the state machine, or None if not found.
-
-        """
-        return self._machine_paths_to_names.get(path)
-
-    def get_machine_by_name(self, name: str) -> StateMachine | None:
-        """Get the state machine object associated with the given name.
-
-        Args:
-            name (str): The name of the state machine.
-
-        Returns:
-            StateMachine | None: The state machine object, or None if not found.
-
-        """
-        return self._machine_names_to_objs.get(name)
-
-    def get_machine_by_path(self, path: Path) -> StateMachine | None:
-        """Get the state machine object associated with the given file path.
-
-        Args:
-            path (Path): The file path of the state machine definition.
-
-        Returns:
-            StateMachine | None: The state machine object, or None if not found.
-
-        """
-        name = self._machine_paths_to_names.get(path)
-        if name is None:
-            return None
-        return self._machine_names_to_objs.get(name)
-
     def get_active_connection(self) -> DeviceConnection | None:
         """Get the currently active device connection.
 
@@ -424,15 +402,6 @@ class SMALREPL(cmd2.Cmd):
         """
         return self._active_module
 
-    def execute_statement(self, statement: str) -> None:
-        """Execute a command statement in the REPL.
-
-        Args:
-            statement (str): The command statement to execute.
-
-        """
-        self.onecmd_plus_hooks(statement)  # Use onecmd_plus_hooks to ensure pre/post command hooks are executed
-
     def _disconnect_from_device(self, **kwargs: Any) -> None:
         if self._active_connection is None or not self._active_connection.is_connected:
             self.console.print("[bold green]No active device connection to disconnect from.[/bold green]")
@@ -449,10 +418,11 @@ class SMALREPL(cmd2.Cmd):
             self.print_error(f"Error occurred while disconnecting from device {device_name}: {e}.")
 
     def _update_prompt(self) -> None:
-        """Update the prompt with the active machine and connection names."""
+        """Update the prompt with the active connection, machine, and module."""
         stylized_connection_str = self._active_connection.connection_info_str if self._active_connection else cmd2.stylize("disconnected", "bold red")
-        stylized_machine_str = cmd2.stylize(self._active_machine.name, "bold green") if self._active_machine else cmd2.stylize("NULL_MACHINE", "bold red")
-        self.prompt = f"{SMALConstants.REPL_NAME}[{stylized_connection_str}]({stylized_machine_str})> "
+        stylized_machine_str = cmd2.stylize(self._active_machine.name, "bold green") if self._active_machine else cmd2.stylize("null", "bold red")
+        stylized_module_str = cmd2.stylize(self._active_module.filepath.name, "bold green") if self._active_module else cmd2.stylize("null", "bold red")
+        self.prompt = f"{SMALConstants.REPL_NAME}[conn:{stylized_connection_str}|mach:{stylized_machine_str}|mod:{stylized_module_str}]> "
 
 
 def main() -> None:

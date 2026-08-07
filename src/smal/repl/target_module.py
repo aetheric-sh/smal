@@ -20,12 +20,12 @@ if TYPE_CHECKING:
 class SendMsgFn(Protocol):
     """Protocol describing a function that sends a message to the actively connected SMAL device."""
 
-    def __call__(self, device: ConnectedDevice, content: str, **kwargs: Any) -> Any:
+    def __call__(self, device: ConnectedDevice, content: str | dict | bytes, **kwargs: Any) -> Any:
         """Send a message to the actively connected SMAL device.
 
         Args:
             device (ConnectedDevice): The actively connected SMAL device.
-            content (str): The content of the message to send.
+            content (str | dict | bytes): The content of the message to send.
             **kwargs: Additional keyword arguments to pass to the send function.
 
         Returns:
