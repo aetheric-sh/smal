@@ -116,25 +116,26 @@ class CodeCmdSet(cmd2.CommandSet):
                 parent_app.print_error("No active machine found. Please specify a machine or set an active machine.")
                 return
             smal_path = persistence.machine_paths.get(active_machine.name)
+            machine = active_machine
         else:
-            cached_path = persistence.machine_paths.get(parsed_args.machine)
-            if cached_path is not None:
-                smal_path = cached_path
-            else:
-                smal_path = Path(parsed_args.machine)
-                if not smal_path.is_file():
-                    parent_app.print_error(f"Specified machine path is not a valid file: {smal_path}")
+            cached_machine = persistence.machines.get(parsed_args.machine)
+            if cached_machine is None:
+                cached_path = persistence.machine_paths.get(parsed_args.machine)
+                if cached_path is None:
+                    parent_app.print_error(f"Specified machine is not cached and no path is known: {parsed_args.machine}")
                     return
+                cached_machine = SMALFile.from_file(cached_path)
+            machine = cached_machine
         # If the user selected a builtin template
         if TemplateRegistry.has_template(parsed_args.template):
             # Generate the code using the built-in template
             try:
                 with console.status(
-                    f"Generating code from {parsed_args.machine} using built-in template: [bold cyan]{parsed_args.template}[/bold cyan]",
+                    f"Generating code from {machine.name} using built-in template: [bold cyan]{parsed_args.template}[/bold cyan]",
                     spinner="dots",
                 ):
                     generated_filepath = generate_code_cmd_builtin(
-                        smal_path=smal_path,
+                        machine=machine,
                         template_name=parsed_args.template,
                         out_dir=parsed_args.output_dir,
                         out_filename=parsed_args.filename,
@@ -164,9 +165,11 @@ class CodeCmdSet(cmd2.CommandSet):
                 return
             # Generate the custom code
             try:
-                with console.status(f"Generating code from {smal_path} using custom template: [bold cyan]{custom_template_path}[/bold cyan]", spinner="dots"):
+                with console.status(
+                    f"Generating code from {machine.name} using custom template: [bold cyan]{custom_template_path}[/bold cyan]", spinner="dots"
+                ):
                     generated_filepath = generate_code_cmd_custom(
-                        smal_path=smal_path,
+                        machine=machine,
                         custom_template_path=custom_template_path,
                         out_dir=parsed_args.output_dir,
                         out_filename=parsed_args.filename,
@@ -220,11 +223,11 @@ class CodeCmdSet(cmd2.CommandSet):
         )
 
 
-def generate_code_cmd_builtin(smal_path: Path, template_name: str, out_dir: Path, out_filename: str | None, force: bool) -> Path:
+def generate_code_cmd_builtin(machine: SMALFile, template_name: str, out_dir: Path, out_filename: str | None, force: bool) -> Path:
     """Generate code using a builtin SMAL jinja template.
 
     Args:
-        smal_path (Path): The path to the SMAL file.
+        machine (SMALFile): The SMAL machine object.
         template_name (str): The name of the builtin SMAL template to use for code generation.
         out_dir (Path): The directory where the generated code will be written.
         out_filename (str | None): The optional filename for the generated code. If not provided, a default name based on the template will be used.
@@ -234,7 +237,6 @@ def generate_code_cmd_builtin(smal_path: Path, template_name: str, out_dir: Path
         Path: The path to the generated code file.
 
     """
-    smal = SMALFile.from_file(smal_path)
     generator = SMALCodeGenerator()
     _env, btmpl, smal_tmpl = generator.load_builtin_template(template_name)
     sanitized_out_fn = Path(out_filename).stem if out_filename else None
@@ -242,19 +244,19 @@ def generate_code_cmd_builtin(smal_path: Path, template_name: str, out_dir: Path
     out_filepath = out_dir / fn
     extra_context = smal_tmpl.extra_context.copy()
     for ctx_key, compute_fn in smal_tmpl.computed_extra_context.items():
-        extra_context[ctx_key] = compute_fn(smal)
+        extra_context[ctx_key] = compute_fn(machine)
     try:
-        generator.render_to_file(btmpl, smal, out_filepath, force=force, **extra_context)
+        generator.render_to_file(btmpl, machine, out_filepath, force=force, **extra_context)
     except ValueError:  # noqa: TRY203 - Error will automatically re-raise. Keeping for clarity
         raise
     return out_filepath
 
 
-def generate_code_cmd_custom(smal_path: Path, custom_template_path: Path, out_dir: Path, out_filename: str | None, force: bool) -> Path:
+def generate_code_cmd_custom(machine: SMALFile, custom_template_path: Path, out_dir: Path, out_filename: str | None, force: bool) -> Path:
     """Generate code using a custom jinja template.
 
     Args:
-        smal_path (Path): The path to the SMAL file.
+        machine (SMALFile): The SMAL machine object.
         custom_template_path (Path): The path to the custom, SMAL-compliant Jinja2 template file to use for code generation.
         out_dir (Path): The directory where the generated code will be written.
         out_filename (str | None): The optional filename for the generated code. If not provided, a default name based on the template will be used.
@@ -264,14 +266,13 @@ def generate_code_cmd_custom(smal_path: Path, custom_template_path: Path, out_di
         Path: The path to the generated code file.
 
     """
-    smal = SMALFile.from_file(smal_path)
     generator = SMALCodeGenerator()
     _env, ctmpl = generator.load_external_template(custom_template_path)
     sanitized_out_fn = Path(out_filename).stem if out_filename else None
     fn = f"{sanitized_out_fn}{ctmpl.output_extension}" if sanitized_out_fn else f"{ctmpl.name}{ctmpl.output_extension}"
     out_filepath = out_dir / fn
     try:
-        generator.render_to_file(ctmpl, smal, out_filepath, force=force)
+        generator.render_to_file(ctmpl, machine, out_filepath, force=force)
     except ValueError:  # noqa: TRY203 - Error will automatically re-raise. Keeping for clarity
         raise
     return out_filepath

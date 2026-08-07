@@ -6,7 +6,7 @@ static const {{ smal.name | lower }}_state_table_entry_t {{ smal.name | lower }}
     "{" ~
     (smal.name | upper) ~ "_STATE_" ~ (t.src | upper) ~ ", " ~
     (smal.name | upper) ~ "_EVENT_" ~ (t.evt | upper) ~ ", " ~
-    "[" ~ (t.actions | join(', ')) ~ "], " ~
+    "{" ~ ((t.actions + ["NULL"]) | join(', ')) ~ "}, " ~
     (smal.name | upper) ~ "_STATE_" ~ (t.tgt | upper) ~ ", " ~
     (
         (smal.name | upper) ~ "_EVENT_" ~ (t.tgt_entry_evt | upper)

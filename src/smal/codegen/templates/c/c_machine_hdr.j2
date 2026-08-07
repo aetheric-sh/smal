@@ -7,11 +7,13 @@
 {% from "macros/c/c_machine_struct.j2" import c_machine_struct %}
 {% from "macros/c/c_machine_version.j2" import c_machine_version %}
 {% from "macros/c/c_machine_state_transition_table.j2" import c_machine_state_transition_table %}
+{% from "macros/c/c_machine_actions.j2" import c_machine_actions %}
 {{ c_autogen_banner_state_machine(smal) }}
 #ifndef {{ smal.metadata.header_guard }}
 #define {{ smal.metadata.header_guard }}
 
 #include <stdint.h>
+#include <stddef.h>
 
 {{ c_machine_version(smal) }}
 
@@ -30,6 +32,9 @@
 {{ c_machine_struct(smal) }}
 
 {{ c_machine_state_table_entry(smal, 3) }}
+
+// ACTIONS
+{{ c_machine_actions(smal) }}
 
 // STATE TABLE
 {{ c_machine_state_transition_table(smal) }}

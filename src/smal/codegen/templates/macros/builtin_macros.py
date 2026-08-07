@@ -63,6 +63,13 @@ class MacroRegistry:
                     description="Macro that creates a C-style enumeration.",
                     params=["c_enum_data"],
                 ),
+                "c_machine_actions": SMALMacro(
+                    name="c_machine_actions",
+                    filename="c_machine_actions.j2",
+                    lang="c",
+                    description="Macro that generates the declarations for all actions of a state machine in C.",
+                    params=["smal"],
+                ),
                 "c_struct": SMALMacro(
                     name="c_struct",
                     filename="c_struct.j2",
