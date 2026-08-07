@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.7 (2026-08-07)
+
+### Bug Fixes
+
+- Pass REPL logger to external python scripts ([#43](https://github.com/aetheric-sh/smal/pull/43),
+  [`02ddc12`](https://github.com/aetheric-sh/smal/commit/02ddc12879951df6fee11a3fe439007e61e7a603))
+
+
 ## v0.5.6 (2026-08-07)
 
 ### Bug Fixes
