@@ -165,7 +165,8 @@ class MachineCmdSet(cmd2.CommandSet):
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
-        machine = parent_app.get_machine_by_name(parsed_args.name)
+        persistence = get_persistence()
+        machine = persistence.machines.get(parsed_args.name)
         if not machine:
             machine_path = get_persistence().machine_paths.get(parsed_args.name)
             if machine_path:
@@ -215,8 +216,8 @@ class MachineCmdSet(cmd2.CommandSet):
 
         """
         console = parent_app.get_console()
-        machine = parent_app.get_machine_by_path(file_path)
         persistence = get_persistence()
+        machine = next((m for m, p in persistence.machine_paths.items() if p == file_path), None)
         if machine and not overwrite:
             parent_app.set_active_machine(machine)
             parent_app.print_success(f"Successfully loaded '{machine.name}' machine definition from cache.", omit_heading=True)

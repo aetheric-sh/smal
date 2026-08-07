@@ -86,7 +86,7 @@ class DeviceConnection:
         try:
             connected_device = connect_fn(**kwargs)
         except Exception as e:
-            raise RuntimeError(f"Failed to connect using {fn_module_path}: {e}") from e
+            raise RuntimeError(f"Failed to connect: {e}") from e
         if connected_device is None:
             return None
         if not isinstance(connected_device, ConnectedDevice):

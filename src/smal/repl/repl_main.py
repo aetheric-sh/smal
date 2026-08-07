@@ -103,8 +103,6 @@ class SMALREPL(cmd2.Cmd):
         self._active_machine: StateMachine | None = None  # Placeholder for the active machine object
         self._active_connection: DeviceConnection | None = None  # Placeholder for the active connection object
         self._active_module: TargetModule | None = None  # Placeholder for the active module
-        self._machine_paths_to_names: dict[Path, str] = {}  # Placeholder for the machine paths to names mapping
-        self._machine_names_to_objs: dict[str, StateMachine] = {}  # Placeholder for the machine map
         self.console = Console()
         self.register_command_set(CodeCmdSet())
         self.register_command_set(CorrectionsCmdSet())
@@ -158,9 +156,9 @@ class SMALREPL(cmd2.Cmd):
             if self._active_connection is not None:
                 self.print_success(f"Connected to device: {self._active_connection.name}")
             else:
-                self.print_error(f"Connection failed using module {module}. No device returned.")
+                self.print_error("Connection failed. No device returned.")
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
-            self.print_error(f"Failed to connect using module {module}: {e}")
+            self.print_error(f"{e}")
 
     @cmd2.with_argparser(_cinfo_parser)
     def do_cinfo(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
@@ -317,45 +315,6 @@ class SMALREPL(cmd2.Cmd):
         """
         self._active_machine = machine
 
-    def get_machine_name(self, path: Path) -> str | None:
-        """Get the name of the state machine associated with the given file path.
-
-        Args:
-            path (Path): The file path of the state machine definition.
-
-        Returns:
-            str | None: The name of the state machine, or None if not found.
-
-        """
-        return self._machine_paths_to_names.get(path)
-
-    def get_machine_by_name(self, name: str) -> StateMachine | None:
-        """Get the state machine object associated with the given name.
-
-        Args:
-            name (str): The name of the state machine.
-
-        Returns:
-            StateMachine | None: The state machine object, or None if not found.
-
-        """
-        return self._machine_names_to_objs.get(name)
-
-    def get_machine_by_path(self, path: Path) -> StateMachine | None:
-        """Get the state machine object associated with the given file path.
-
-        Args:
-            path (Path): The file path of the state machine definition.
-
-        Returns:
-            StateMachine | None: The state machine object, or None if not found.
-
-        """
-        name = self._machine_paths_to_names.get(path)
-        if name is None:
-            return None
-        return self._machine_names_to_objs.get(name)
-
     def get_active_connection(self) -> DeviceConnection | None:
         """Get the currently active device connection.
 
@@ -467,7 +426,8 @@ class SMALREPL(cmd2.Cmd):
         """Update the prompt with the active machine and connection names."""
         stylized_connection_str = self._active_connection.connection_info_str if self._active_connection else cmd2.stylize("disconnected", "bold red")
         stylized_machine_str = cmd2.stylize(self._active_machine.name, "bold green") if self._active_machine else cmd2.stylize("NULL_MACHINE", "bold red")
-        self.prompt = f"{SMALConstants.REPL_NAME}[{stylized_connection_str}]({stylized_machine_str})> "
+        stylized_module_str = cmd2.stylize(self._active_module.filepath.name, "bold green") if self._active_module else cmd2.stylize("NULL_MODULE", "bold red")
+        self.prompt = f"{SMALConstants.REPL_NAME}[{stylized_connection_str}]({stylized_machine_str})[{stylized_module_str}]> "
 
 
 def main() -> None:
