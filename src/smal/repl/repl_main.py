@@ -26,7 +26,7 @@ from smal.repl.cmd_sets import (
     ValidateCmdSet,
 )
 from smal.repl.connection import ConnectFn, DeviceConnection
-from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params
+from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params, reset_persistence_cache
 from smal.repl.target_module import SendMsgFn, TargetModule
 from smal.utilities import constants as SMALConstants
 from smal.utilities.persistence import SMALPersistence
@@ -210,6 +210,7 @@ class SMALREPL(cmd2.Cmd):
                 self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
                 return
         SMALPersistence.clean()
+        reset_persistence_cache()
         self.console.print(f"[bold green]Removed application data directory: {app_dir}[/bold green]")
 
     def do_graphviz(self, arg: str) -> None:  # noqa: ARG002 - Unused method argument
