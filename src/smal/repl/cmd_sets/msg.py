@@ -2,7 +2,7 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import cmd2
 from pydantic import BaseModel
@@ -33,7 +33,7 @@ class SendArgs(BaseModel):
 
     content: str
     module: str | None = None
-    param: list[tuple[str, str]] | None = None
+    param: list[tuple[str, Any]] | None = None
 
 
 class MsgCmdSet(cmd2.CommandSet):
