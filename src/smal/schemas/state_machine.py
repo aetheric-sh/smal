@@ -12,7 +12,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from smal.schemas.action import Action  # noqa: TC001 - Move application import to TYPE_CHECKING block
+from smal.schemas.action import Action
 from smal.schemas.command import Command  # noqa: TC001 - Move application import to TYPE_CHECKING block
 from smal.schemas.enumeration import Enumeration  # noqa: TC001 - Move application import to TYPE_CHECKING block
 from smal.schemas.error import Error

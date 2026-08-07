@@ -115,7 +115,6 @@ class CodeCmdSet(cmd2.CommandSet):
             if active_machine is None:
                 parent_app.print_error("No active machine found. Please specify a machine or set an active machine.")
                 return
-            smal_path = persistence.machine_paths.get(active_machine.name)
             machine = active_machine
         else:
             cached_machine = persistence.machines.get(parsed_args.machine)
