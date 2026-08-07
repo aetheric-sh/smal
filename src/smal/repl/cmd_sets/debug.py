@@ -241,6 +241,6 @@ def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
             "#": {"style": "cyan"},
             "Timestamp (ms)": {"style": "green"},
             "Entry Type": {"style": "yellow"},
-            "Details": {"style": "white"},
+            "Details": {"style": "magenta"},
         },
     )

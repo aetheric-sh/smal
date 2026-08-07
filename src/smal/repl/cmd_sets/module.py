@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
-from smal.repl.helpers import get_parent_app
+from smal.repl.helpers import echo_table, get_parent_app, get_persistence
 
 if TYPE_CHECKING:
     import argparse
@@ -23,14 +23,52 @@ _load_parser.add_argument(
     completer=cmd2.Cmd.path_complete,
     help="Path to the module definition file (.py) containing the `harvest` and `connect` functions.",
 )
+_load_parser.add_argument(
+    "-n",
+    "--name",
+    type=str,
+    help="Optional name for the module. If not provided, the module's filename (without extension) will be used as the name.",
+)
+_load_parser.add_argument(
+    "-c",
+    "--cache",
+    action="store_false",
+    help="Cache the module path for future use (default: True).",
+)
+_load_parser.add_argument(
+    "-o",
+    "--overwrite",
+    action="store_true",
+    help="Overwrite the cached module path if it already exists (default: False).",
+)
 
-_info_parser = cmd2.Cmd2ArgumentParser()
 
-
-class SetArgs(BaseModel):
+class LoadArgs(BaseModel):
     """Model describing the arguments to the set command."""
 
     filepath: Path
+    name: str | None = None
+    cache: bool = True
+    overwrite: bool = False
+
+
+_info_parser = cmd2.Cmd2ArgumentParser()
+
+_switch_parser = cmd2.Cmd2ArgumentParser()
+_switch_parser.add_argument(
+    "name",
+    type=str,
+    help="Name of the module to switch to. Use `module list` to see available modules.",
+)
+
+
+class SwitchArgs(BaseModel):
+    """Model describing the arguments to the switch command."""
+
+    name: str
+
+
+_list_parser = cmd2.Cmd2ArgumentParser()
 
 
 class ModuleCmdSet(cmd2.CommandSet):
@@ -59,12 +97,15 @@ class ModuleCmdSet(cmd2.CommandSet):
             args (argparse.Namespace): The parsed command-line arguments.
 
         """
-        parsed_args = SetArgs.model_validate(vars(args))
+        parsed_args = LoadArgs.model_validate(vars(args))
         try:
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
         parent_app.set_active_module(parsed_args.filepath)
+        persistence = get_persistence()
+        if parsed_args.cache:
+            persistence.add_module(parsed_args.name or parsed_args.filepath.stem, parsed_args.filepath, overwrite=parsed_args.overwrite, save=True)
 
     @cmd2.as_subcommand_to("module", "info", _info_parser, help="Display information about the currently active module.")
     def module_info(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused argument
@@ -84,3 +125,50 @@ class ModuleCmdSet(cmd2.CommandSet):
         else:
             info_str = ",\n- ".join([f"{k}: {v}" for k, v in vars(active_module).items()])
             parent_app.print_msg(f"[bold green]Active module Info:[/bold green]\n- {info_str}")
+
+    @cmd2.as_subcommand_to("module", "switch", _switch_parser, help="Switch to a different cached module.")
+    def module_switch(self, args: argparse.Namespace) -> None:
+        """Switch to a different cached module.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments.
+
+        """
+        parsed_args = SwitchArgs.model_validate(vars(args))
+        try:
+            parent_app = get_parent_app(self)
+        except Exception as e:
+            raise RuntimeError("Failed to get parent REPL application.") from e
+        persistence = get_persistence()
+        module_path = persistence.modules.get(parsed_args.name)
+        if module_path is None:
+            parent_app.print_error(f"No cached module found with the name '{parsed_args.name}'. Use `module list` to see available modules.", omit_heading=True)
+            return
+        parent_app.set_active_module(module_path)
+
+    @cmd2.as_subcommand_to("module", "list", _list_parser, help="List all cached modules.")
+    def module_list(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused argument
+        """List all cached modules.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments.
+
+        """
+        try:
+            parent_app = get_parent_app(self)
+        except Exception as e:
+            raise RuntimeError("Failed to get parent REPL application.") from e
+        persistence = get_persistence()
+        if not persistence.modules:
+            parent_app.print_msg("No cached modules found.")
+            return
+        module_data = [[name, str(path)] for name, path in persistence.modules.items()]
+        echo_table(
+            "Cached Modules",
+            ["Name", "File Path"],
+            module_data,
+            col_metadata={
+                "Name": {"style": "cyan"},
+                "File Path": {"style": "green"},
+            },
+        )

@@ -18,6 +18,7 @@ class SMALScriptCommand(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict, description="Optional arbitrary metadata associated with the command.")
     pre_delay_ms: int = Field(default=0, description="Delay before command execution in milliseconds.")
     post_delay_ms: int = Field(default=0, description="Delay after command execution in milliseconds.")
+    exc_count: int = Field(default=1, ge=1, description="Number of times to execute the command.")
 
 
 class SMALScript(BaseModel):

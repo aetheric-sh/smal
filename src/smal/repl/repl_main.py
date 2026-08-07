@@ -192,7 +192,7 @@ class SMALREPL(cmd2.Cmd):
         if not app_dir.exists():
             self.console.print("[bold yellow]Nothing to clean — no application data directory found.[/bold yellow]")
             return
-        confirmation = self.read_input(f"Are you sure you want to delete the application data directory at {app_dir}? [y/N] ")
+        confirmation = self.read_input(cmd2.stylize(f"Are you sure you want to delete the application data directory at {app_dir}? [y/N] ", "bold yellow"))
         if confirmation.strip().lower() not in {"y", "yes"}:
             self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
             return

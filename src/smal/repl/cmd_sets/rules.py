@@ -132,5 +132,14 @@ class RulesCmdSet(cmd2.CommandSet):
         persistence = get_persistence()
         # Persistence should always have all rules in its rules dict
         rules = [next(r for r in ALL_RULES if r.name == rule_name) for rule_name in persistence.rules]
-        rules_data = [(r.name, str(persistence.is_rule_enabled(r)), r.description) for r in rules]
-        echo_table("SMAL Ruleset", ["Name", "Enabled", "Description"], rules_data)
+        rules_data = [[r.name, str(persistence.is_rule_enabled(r)), r.description] for r in rules]
+        echo_table(
+            "SMAL Ruleset",
+            ["Name", "Enabled", "Description"],
+            rules_data,
+            col_metadata={
+                "Name": {"style": "cyan"},
+                "Enabled": {"style": "green"},
+                "Description": {"style": "yellow"},
+            },
+        )
