@@ -302,17 +302,6 @@ class SMALREPL(cmd2.Cmd):
         """
         self._active_machine = machine
 
-    def cache_machine(self, fp: Path, machine: StateMachine) -> None:
-        """Cache the given state machine object for the specified file path.
-
-        Args:
-            fp (Path): The file path of the state machine definition.
-            machine (StateMachine): The state machine object to cache.
-
-        """
-        self._machine_paths_to_names[fp] = machine.name
-        self._machine_names_to_objs[machine.name] = machine
-
     def get_machine_name(self, path: Path) -> str | None:
         """Get the name of the state machine associated with the given file path.
 
@@ -351,30 +340,6 @@ class SMALREPL(cmd2.Cmd):
         if name is None:
             return None
         return self._machine_names_to_objs.get(name)
-
-    def get_cached_machines(self) -> dict[str, StateMachine]:
-        """Get the cached state machines.
-
-        Returns:
-            dict[str, StateMachine]: A dictionary mapping state machine names to their corresponding objects.
-
-        """
-        return self._machine_names_to_objs
-
-    def get_machine_path(self, name: str) -> Path | None:
-        """Get the file path associated with the given state machine name.
-
-        Args:
-            name (str): The name of the state machine.
-
-        Returns:
-            Path | None: The file path of the state machine definition, or None if not found.
-
-        """
-        for path, machine_name in self._machine_paths_to_names.items():
-            if machine_name == name:
-                return path
-        return None
 
     def get_active_connection(self) -> DeviceConnection | None:
         """Get the currently active device connection.

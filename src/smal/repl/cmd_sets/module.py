@@ -3,11 +3,12 @@
 from __future__ import annotations  # Until Python 3.14
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.completers import module_completer
 from smal.repl.helpers import echo_table, get_parent_app, get_persistence
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ _load_parser.add_argument(
     "-n",
     "--name",
     type=str,
+    completer=module_completer,
     help="Optional name for the module. If not provided, the module's filename (without extension) will be used as the name.",
 )
 _load_parser.add_argument(
@@ -54,10 +56,18 @@ class LoadArgs(BaseModel):
 
 _info_parser = cmd2.Cmd2ArgumentParser()
 
+
+def _module_completer(cmd: cmd2.Cmd, text: str, line: str, begidx: int, endidx: int, *args: Any, **kwargs: Any) -> list[str]:  # noqa: ARG001 - Unused arguments
+    persistence = get_persistence()
+    values = list(persistence.modules.keys())
+    return [v for v in values if v.startswith(text)]
+
+
 _switch_parser = cmd2.Cmd2ArgumentParser()
 _switch_parser.add_argument(
     "name",
     type=str,
+    completer=_module_completer,
     help="Name of the module to switch to. Use `module list` to see available modules.",
 )
 
@@ -123,8 +133,18 @@ class ModuleCmdSet(cmd2.CommandSet):
         if active_module is None:
             parent_app.print_warning("No active module. Load one with the `module load` command.", omit_heading=True)
         else:
-            info_str = ",\n- ".join([f"{k}: {v}" for k, v in vars(active_module).items()])
-            parent_app.print_msg(f"[bold green]Active module Info:[/bold green]\n- {info_str}")
+            echo_table(
+                "Active Module Info",
+                ["Hook Name", "Signature", "Address"],
+                active_module.info,
+                col_metadata={
+                    "Hook Name": {"style": "cyan"},
+                    "Signature": {"style": "green"},
+                    "Address": {"style": "yellow"},
+                },
+                show_lines=True,
+            )
+            parent_app.print_msg(f"[bold cyan]Module Location: {active_module.filepath}[/bold cyan]")
 
     @cmd2.as_subcommand_to("module", "switch", _switch_parser, help="Switch to a different cached module.")
     def module_switch(self, args: argparse.Namespace) -> None:

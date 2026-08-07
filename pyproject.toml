@@ -149,6 +149,8 @@ lint.ignore = [
 
     "RET504", # Unnecessary assignment before `return` statement
 
+    "PLR0917", # Too many positional arguments
+
     "S101", # Use of `assert` detected
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
     "S603", # `subprocess` call: check for execution of untrusted input

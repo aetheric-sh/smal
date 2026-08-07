@@ -2,8 +2,10 @@
 
 from __future__ import annotations  # Until Python 3.14
 
+import json
 import logging
 import shutil
+from contextvars import ContextVar
 from pathlib import Path
 from typing import ClassVar
 
@@ -11,8 +13,25 @@ from platformdirs import user_data_dir
 from pydantic import BaseModel, Field
 
 from smal.schemas.smal_script import SMALScript  # noqa: TC001 - Pydantic requires this at runtime for type validation
+from smal.schemas.state_machine import StateMachine  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.utilities.corrections import ALL_CORRECTIONS, Correction
 from smal.utilities.rules import ALL_RULES, Rule
+
+# Holds the rules/corrections settings while a persistence file is being deserialized, so that StateMachine
+# objects cached under `SMALPersistence.machines` don't have to call `SMALPersistence.load()` (which would try to
+# deserialize those same machines again) from their own `model_post_init`, causing infinite recursion.
+_loading_settings: ContextVar[tuple[dict[str, bool], dict[str, bool]] | None] = ContextVar("_loading_settings", default=None)
+
+
+def get_loading_settings() -> tuple[dict[str, bool], dict[str, bool]] | None:
+    """Get the rules/corrections settings of the persistence file currently being deserialized, if any.
+
+    Returns:
+        tuple[dict[str, bool], dict[str, bool]] | None: A tuple of (rules, corrections) settings if a persistence \
+            file is currently being loaded, or None otherwise.
+
+    """
+    return _loading_settings.get()
 
 
 class SMALPersistence(BaseModel):
@@ -36,6 +55,14 @@ class SMALPersistence(BaseModel):
         default_factory=dict,
         description="A dictionary mapping module names to their corresponding file paths.",
     )
+    machines: dict[str, StateMachine] = Field(
+        default_factory=dict,
+        description="A dictionary mapping machine names to their corresponding StateMachine objects.",
+    )
+    machine_paths: dict[str, Path] = Field(
+        default_factory=dict,
+        description="A dictionary mapping machine names to their corresponding file paths.",
+    )
 
     @staticmethod
     def clean() -> None:
@@ -57,7 +84,13 @@ class SMALPersistence(BaseModel):
         if not path.exists():
             raise FileNotFoundError(f"Persistence file not found at {path}. Please save the persistence data first.")
         with path.open("r", encoding="utf-8") as f:
-            return cls.model_validate_json(f.read())
+            raw = f.read()
+        raw_data = json.loads(raw)
+        token = _loading_settings.set((raw_data.get("rules", {}), raw_data.get("corrections", {})))
+        try:
+            return cls.model_validate_json(raw)
+        finally:
+            _loading_settings.reset(token)
 
     def enable_correction(self, correction: str | Correction, enabled: bool, write_to_file: bool = True) -> None:
         """Enable or disable a specific correction.
@@ -163,6 +196,77 @@ class SMALPersistence(BaseModel):
                 self.save()
         else:
             logging.warning("Attempted to delete non-existent module '%s'.", module_name)
+
+    def add_machine(self, machine: StateMachine, overwrite: bool = False, save: bool = False) -> None:
+        """Add a machine to the persistence data.
+
+        Args:
+            machine (StateMachine): The StateMachine object to add.
+            overwrite (bool): Whether to overwrite an existing machine with the same name. Defaults to False.
+            save (bool): Whether to save the updated persistence data to file after adding the machine. Defaults to False.
+
+        Raises:
+            ValueError: If a machine with the same name already exists and overwrite is False.
+
+        """
+        if machine.name in self.machines and not overwrite:
+            raise ValueError(f"A machine with the name '{machine.name}' already exists. Use overwrite=True to replace it.")
+        self.machines[machine.name] = machine
+        logging.debug("Machine '%s' added to persistence.", machine.name)
+        if save:
+            self.save()
+
+    def delete_machine(self, machine_name: str, save: bool = False) -> None:
+        """Delete a machine from the persistence data.
+
+        Args:
+            machine_name (str): The name of the machine to delete.
+            save (bool): Whether to save the updated persistence data to file after deleting the machine. Defaults to False.
+
+        """
+        if machine_name in self.machines:
+            del self.machines[machine_name]
+            logging.debug("Machine '%s' deleted from persistence.", machine_name)
+            if save:
+                self.save()
+        else:
+            logging.warning("Attempted to delete non-existent machine '%s'.", machine_name)
+
+    def add_machine_path(self, machine_name: str, machine_path: Path, overwrite: bool = False, save: bool = False) -> None:
+        """Add a machine path to the persistence data.
+
+        Args:
+            machine_name (str): The name of the machine.
+            machine_path (Path): The file path of the machine.
+            overwrite (bool): Whether to overwrite an existing machine path with the same name. Defaults to False.
+            save (bool): Whether to save the updated persistence data to file after adding the machine path. Defaults to False.
+
+        Raises:
+            ValueError: If a machine path with the same name already exists and overwrite is False.
+
+        """
+        if machine_name in self.machine_paths and not overwrite:
+            raise ValueError(f"A machine path with the name '{machine_name}' already exists. Use overwrite=True to replace it.")
+        self.machine_paths[machine_name] = machine_path
+        logging.debug("Machine path for '%s' added to persistence at path '%s'.", machine_name, machine_path)
+        if save:
+            self.save()
+
+    def delete_machine_path(self, machine_name: str, save: bool = False) -> None:
+        """Delete a machine path from the persistence data.
+
+        Args:
+            machine_name (str): The name of the machine whose path to delete.
+            save (bool): Whether to save the updated persistence data to file after deleting the machine path. Defaults to False.
+
+        """
+        if machine_name in self.machine_paths:
+            del self.machine_paths[machine_name]
+            logging.debug("Machine path for '%s' deleted from persistence.", machine_name)
+            if save:
+                self.save()
+        else:
+            logging.warning("Attempted to delete non-existent machine path for '%s'.", machine_name)
 
     def is_correction_enabled(self, correction: str | Correction) -> bool:
         """Check if a specific correction is enabled.
