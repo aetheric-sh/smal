@@ -79,6 +79,18 @@ class DisconnectArgs(BaseModel):
     param: list[tuple[str, Any]] | None = None
 
 
+_clean_parser = cmd2.Cmd2ArgumentParser()
+_clean_parser.add_argument(
+    "-y", "--yes", action="store_true", help="Automatically confirm the cleaning of the application data directory without prompting for confirmation."
+)
+
+
+class CleanArgs(BaseModel):
+    """Model describing the arguments to the clean command."""
+
+    yes: bool = False
+
+
 class SMALREPL(cmd2.Cmd):
     """Class defining the main REPL for the SMAL tool."""
 
@@ -181,21 +193,24 @@ class SMALREPL(cmd2.Cmd):
             return
         self._disconnect_from_device(**extra_kwargs)
 
-    def do_clean(self, arg: str) -> None:  # noqa: ARG002 - Unused method argument
+    @cmd2.with_argparser(_clean_parser)
+    def do_clean(self, args: argparse.Namespace) -> None:
         """Clean the SMAL persisted application data directory.
 
         Args:
-            arg (str): Unused argument.
+            args (argparse.Namespace): The parsed command-line arguments containing the confirmation flag.
 
         """
+        parsed_args = CleanArgs.model_validate(vars(args))
         app_dir = SMALPersistence.DEFAULT_PATH.parent
         if not app_dir.exists():
             self.console.print("[bold yellow]Nothing to clean — no application data directory found.[/bold yellow]")
             return
-        confirmation = self.read_input(cmd2.stylize(f"Are you sure you want to delete the application data directory at {app_dir}? [y/N] ", "bold yellow"))
-        if confirmation.strip().lower() not in {"y", "yes"}:
-            self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
-            return
+        if not parsed_args.yes:
+            confirmation = self.read_input(cmd2.stylize(f"Are you sure you want to delete the application data directory at {app_dir}? [y/N] ", "bold yellow"))
+            if confirmation.strip().lower() not in {"y", "yes"}:
+                self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
+                return
         SMALPersistence.clean()
         self.console.print(f"[bold green]Removed application data directory: {app_dir}[/bold green]")
 
