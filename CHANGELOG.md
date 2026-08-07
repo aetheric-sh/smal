@@ -1,6 +1,39 @@
 # CHANGELOG
 
 
+## v0.5.6 (2026-08-07)
+
+### Bug Fixes
+
+- Bugfixes and python scripting addition ([#42](https://github.com/aetheric-sh/smal/pull/42),
+  [`3690138`](https://github.com/aetheric-sh/smal/commit/369013867ce98e023a251a933530c4bf032216a8))
+
+- Update send_msg api ([#42](https://github.com/aetheric-sh/smal/pull/42),
+  [`3690138`](https://github.com/aetheric-sh/smal/commit/369013867ce98e023a251a933530c4bf032216a8))
+
+* Add automatic -y to clean
+
+* Fix some dead code around machine caching
+
+* Remove duplicate module completer code
+
+fix double msg parsing on msg send
+
+* remove dead code
+
+fix redundant persistence I/O
+
+* add persistent command history
+
+* add confirmation before deleting scripts
+
+* abstract out duplicate code
+
+* clean up prompt
+
+* Added support for python scripting
+
+
 ## v0.5.5 (2026-08-07)
 
 ### Bug Fixes

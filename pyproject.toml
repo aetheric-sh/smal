@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smal-lang"
-version = "0.5.5"
+version = "0.5.6"
 description = "State Machine Abstraction Language (SMAL) is a YAML-based description language for simple, robust and debuggable state machines."
 readme = "README.md"
 requires-python = ">=3.10"
