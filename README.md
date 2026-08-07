@@ -27,6 +27,8 @@ A `.smal` file describes your entire state machine — states, events, transitio
 
 SMAL is built for embedded systems, audio devices, wearables, robotics, and any environment where clarity, determinism, and debuggability matter.
 
+SMAL also ships an interactive REPL CLI (`smal`) for working with your state machines directly from the terminal — load and validate `.smal` files, generate code and diagrams on demand, and connect to a live device to send messages and run scripted command sequences against it.
+
 # ✨ Features
 
 ### 🧩 YAML-based DSL  
