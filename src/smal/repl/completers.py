@@ -127,4 +127,5 @@ def script_completer(cmd: cmd2.Cmd, text: str, line: str, begidx: int, endidx: i
 
     """
     persistence = get_persistence()
-    return [script_name for script_name in persistence.scripts if script_name.startswith(text)]
+    all_names = set(persistence.scripts) | set(persistence.python_scripts)
+    return [script_name for script_name in all_names if script_name.startswith(text)]
