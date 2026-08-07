@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import machine_completer
-from smal.repl.helpers import echo_table, get_parent_app, get_persistence
+from smal.repl.helpers import echo_table, get_persistence
 from smal.repl.repl_like import REPLLike  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.state_machine import SMALFile
 from smal.utilities import constants as SMALConstants
@@ -54,7 +55,7 @@ class SwitchArgs(BaseModel):
     name: str
 
 
-class MachineCmdSet(cmd2.CommandSet):
+class MachineCmdSet(SMALCmdSet):
     """Command set for handling machines in the SMAL REPL."""
 
     @cmd2.with_argparser(_machine_parser)
@@ -85,10 +86,7 @@ class MachineCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = LoadArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         console = parent_app.get_console()
         if not parsed_args.file.exists():
             parent_app.print_error(f"File or directory not found: {parsed_args.file}")
@@ -129,10 +127,7 @@ class MachineCmdSet(cmd2.CommandSet):
             RuntimeError: If the `MachineCmdSet` is not registered with a parent cmd2 application.
 
         """
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         machine_names = list(persistence.machines.keys())
         if not machine_names:
@@ -161,10 +156,7 @@ class MachineCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = SwitchArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         machine = persistence.machines.get(parsed_args.name)
         if not machine:
@@ -189,10 +181,7 @@ class MachineCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = UpdateArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         machine_path = persistence.machine_paths.get(parsed_args.name)
         if not machine_path or not machine_path.exists():

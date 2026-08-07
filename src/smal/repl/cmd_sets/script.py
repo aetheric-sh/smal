@@ -15,8 +15,9 @@ import cmd2
 from pydantic import BaseModel
 
 from smal.repl.cmd_sets.msg import send_message
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import script_completer
-from smal.repl.helpers import echo_table, get_parent_app, get_persistence, parse_key_value, parse_params
+from smal.repl.helpers import echo_table, get_persistence, parse_key_value, parse_params
 from smal.schemas.smal_script import SMALScript, SMALScriptCommand
 from smal.utilities import constants as SMALConstants
 
@@ -94,7 +95,7 @@ class ViewArgs(BaseModel):
     script_name: str
 
 
-class ScriptCmdSet(cmd2.CommandSet):
+class ScriptCmdSet(SMALCmdSet):
     """Command set for the `script` command."""
 
     @cmd2.with_argparser(_script_parser)
@@ -121,10 +122,7 @@ class ScriptCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = LoadArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         if not parsed_args.filepath.exists():
             parent_app.print_error(f"Script file '{parsed_args.filepath}' does not exist.")
             return
@@ -153,10 +151,7 @@ class ScriptCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = DeleteArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         if parsed_args.script_name.lower() == "all":
             if not persistence.scripts:
@@ -185,10 +180,7 @@ class ScriptCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = CreateArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         name = self._cmd.read_input("Script name: ").strip()
         while not name:
             parent_app.print_warning("Script name cannot be empty.")
@@ -237,10 +229,7 @@ class ScriptCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = RunArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         script = persistence.scripts.get(parsed_args.script_name)
         if script is None:
@@ -269,10 +258,7 @@ class ScriptCmdSet(cmd2.CommandSet):
             args (argparse.Namespace): The parsed command-line arguments. Unused.
 
         """
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         if not persistence.scripts:
             parent_app.print_warning("No scripts found in persistence.")
@@ -296,10 +282,7 @@ class ScriptCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = ViewArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         script = persistence.scripts.get(parsed_args.script_name)
         if script is None:

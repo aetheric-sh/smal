@@ -3,13 +3,14 @@
 from __future__ import annotations  # Until Python 3.14
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import module_completer
-from smal.repl.helpers import echo_table, get_parent_app, get_persistence
+from smal.repl.helpers import echo_table, get_persistence
 
 if TYPE_CHECKING:
     import argparse
@@ -75,7 +76,7 @@ class SwitchArgs(BaseModel):
 _list_parser = cmd2.Cmd2ArgumentParser()
 
 
-class ModuleCmdSet(cmd2.CommandSet):
+class ModuleCmdSet(SMALCmdSet):
     """Command set for handling modules in the SMAL REPL."""
 
     @cmd2.with_argparser(_module_parser)
@@ -102,10 +103,7 @@ class ModuleCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = LoadArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         parent_app.set_active_module(parsed_args.filepath)
         persistence = get_persistence()
         if parsed_args.cache:
@@ -119,10 +117,7 @@ class ModuleCmdSet(cmd2.CommandSet):
             args (argparse.Namespace): The parsed command-line arguments.
 
         """
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         active_module = parent_app.get_active_module()
         if active_module is None:
             parent_app.print_warning("No active module. Load one with the `module load` command.", omit_heading=True)
@@ -149,10 +144,7 @@ class ModuleCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = SwitchArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         module_path = persistence.modules.get(parsed_args.name)
         if module_path is None:
@@ -168,10 +160,7 @@ class ModuleCmdSet(cmd2.CommandSet):
             args (argparse.Namespace): The parsed command-line arguments.
 
         """
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         persistence = get_persistence()
         if not persistence.modules:
             parent_app.print_msg("No cached modules found.")

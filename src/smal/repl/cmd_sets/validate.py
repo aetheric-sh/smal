@@ -14,7 +14,8 @@ from jinja2 import TemplateNotFound, nodes
 from pydantic import BaseModel
 
 from smal.codegen.code_generator import SMALCodeGenerator
-from smal.repl.helpers import get_parent_app, get_persistence
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
+from smal.repl.helpers import get_persistence
 from smal.schemas.state_machine import SMALFile
 from smal.utilities import constants as SMALConstants
 from smal.utilities.rules import ALL_RULES
@@ -36,7 +37,7 @@ class ValidateArgs(BaseModel):
     enforce_rules: bool = False
 
 
-class ValidateCmdSet(cmd2.CommandSet):
+class ValidateCmdSet(SMALCmdSet):
     """Command set for handling validation in the SMAL REPL."""
 
     @cmd2.with_argparser(_validate_parser)
@@ -48,10 +49,7 @@ class ValidateCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = ValidateArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         console = parent_app.get_console()
         if parsed_args.file.suffix in SMALConstants.SupportedFileExtensions.all():
             try:

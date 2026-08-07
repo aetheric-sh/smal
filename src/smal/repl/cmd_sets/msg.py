@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, Any
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import module_completer
-from smal.repl.helpers import get_parent_app, get_persistence, parse_key_value, parse_params
+from smal.repl.helpers import get_persistence, parse_key_value, parse_params
 
 if TYPE_CHECKING:
     import argparse
@@ -38,7 +39,7 @@ class SendArgs(BaseModel):
     param: list[tuple[str, Any]] | None = None
 
 
-class MsgCmdSet(cmd2.CommandSet):
+class MsgCmdSet(SMALCmdSet):
     """Command set for the `msg` command."""
 
     @cmd2.with_argparser(_msg_parser)
@@ -65,10 +66,7 @@ class MsgCmdSet(cmd2.CommandSet):
 
         """
         parsed_args = SendArgs.model_validate(vars(args))
-        try:
-            parent_app = get_parent_app(self)
-        except Exception as e:
-            raise RuntimeError("Failed to get parent REPL application.") from e
+        parent_app = self.parent_app
         extra_kwargs = parse_params(parsed_args.param or [])
         retval = send_message(parent_app, parsed_args.content, module=parsed_args.module, **extra_kwargs)
         if retval is not None:
