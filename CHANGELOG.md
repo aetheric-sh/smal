@@ -1,6 +1,21 @@
 # CHANGELOG
 
 
+## v0.5.1 (2026-08-07)
+
+### Bug Fixes
+
+- Add scripting support ([#37](https://github.com/aetheric-sh/smal/pull/37),
+  [`4f3e872`](https://github.com/aetheric-sh/smal/commit/4f3e87264cbe75373ed63cbc25492f1281471f0d))
+
+* Fixed all ruff issues
+
+* Fix ruff line length
+
+- Bump CI to fix GH outage
+  ([`a3fef11`](https://github.com/aetheric-sh/smal/commit/a3fef11dbceced9dc8fdb23e274becc57af7639b))
+
+
 ## v0.5.0 (2026-08-06)
 
 ### Features
