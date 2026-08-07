@@ -398,15 +398,6 @@ class SMALREPL(cmd2.Cmd):
         """
         return self._active_module
 
-    def execute_statement(self, statement: str) -> None:
-        """Execute a command statement in the REPL.
-
-        Args:
-            statement (str): The command statement to execute.
-
-        """
-        self.onecmd_plus_hooks(statement)  # Use onecmd_plus_hooks to ensure pre/post command hooks are executed
-
     def _disconnect_from_device(self, **kwargs: Any) -> None:
         if self._active_connection is None or not self._active_connection.is_connected:
             self.console.print("[bold green]No active device connection to disconnect from.[/bold green]")
