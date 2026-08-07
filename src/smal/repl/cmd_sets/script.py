@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.cmd_sets.msg import send_message
 from smal.repl.completers import script_completer
 from smal.repl.helpers import echo_table, get_parent_app, get_persistence, parse_key_value, parse_params
 from smal.schemas.smal_script import SMALScript, SMALScriptCommand
@@ -229,21 +230,17 @@ class ScriptCmdSet(cmd2.CommandSet):
             parent_app.print_error(f"No script found with the name '{parsed_args.script_name}'.")
             return
         parent_app.print_success(f"Running script '{script.name}' with {len(script.cmds)} command(s).", omit_heading=True)
-        # Execute the script's commands in order
+        # Execute the script's commands in order. `send_message` is called directly (rather than building and
+        # re-parsing a `msg send ...` statement) so message content and metadata containing quotes or other
+        # shell-like special characters round-trip correctly.
         for command in script.cmds:
             for _ in range(command.exc_count):
                 if command.pre_delay_ms > 0:
                     sleep(command.pre_delay_ms / 1000.0)
-                cmd_args: list[str] = []
-                for k, v in command.metadata.items():
-                    cmd_args.append(f"-p {k}={v}")
-                cmd_args_str = " ".join(cmd_args)
-                if cmd_args:
-                    cmd = f"msg send '{command.cmd}' {cmd_args_str}"
-                else:
-                    cmd = f"msg send '{command.cmd}'"
-                parent_app.print_msg(f"[bold magenta]CMD> {cmd}[/bold magenta]")
-                parent_app.execute_statement(cmd)
+                parent_app.print_msg(f"[bold magenta]CMD> msg send {command.cmd!r} {command.metadata}[/bold magenta]")
+                retval = send_message(parent_app, command.cmd, **command.metadata)
+                if retval is not None:
+                    parent_app.print_msg(f"{retval}")
                 if command.post_delay_ms > 0:
                     sleep(command.post_delay_ms / 1000.0)
 
