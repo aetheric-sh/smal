@@ -57,17 +57,11 @@ class LoadArgs(BaseModel):
 _info_parser = cmd2.Cmd2ArgumentParser()
 
 
-def _module_completer(cmd: cmd2.Cmd, text: str, line: str, begidx: int, endidx: int, *args: Any, **kwargs: Any) -> list[str]:  # noqa: ARG001 - Unused arguments
-    persistence = get_persistence()
-    values = list(persistence.modules.keys())
-    return [v for v in values if v.startswith(text)]
-
-
 _switch_parser = cmd2.Cmd2ArgumentParser()
 _switch_parser.add_argument(
     "name",
     type=str,
-    completer=_module_completer,
+    completer=module_completer,
     help="Name of the module to switch to. Use `module list` to see available modules.",
 )
 
