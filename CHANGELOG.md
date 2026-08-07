@@ -1,6 +1,18 @@
 # CHANGELOG
 
 
+## v0.5.5 (2026-08-07)
+
+### Bug Fixes
+
+- Msg fixes ([#41](https://github.com/aetheric-sh/smal/pull/41),
+  [`70a1191`](https://github.com/aetheric-sh/smal/commit/70a1191c6b7411fa519fe29e35084059f9a574a4))
+
+* Fix type annotation on SendArgs
+
+* update version
+
+
 ## v0.5.4 (2026-08-07)
 
 ### Bug Fixes
