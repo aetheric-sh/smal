@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.5.4 (2026-08-07)
+
+### Bug Fixes
+
+- Codegen fixes ([#40](https://github.com/aetheric-sh/smal/pull/40),
+  [`b540472`](https://github.com/aetheric-sh/smal/commit/b540472487f4ac19f9a2459c2a0268b341ddecb1))
+
+* Update codegen and add actions
+
+* Fix ruff
+
+* Add newline to macro file
+
+* Add EOF to launch.json
+
+* Remove EOF from macro
+
+
 ## v0.5.3 (2026-08-07)
 
 ### Bug Fixes
