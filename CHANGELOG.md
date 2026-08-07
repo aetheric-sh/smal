@@ -1,6 +1,18 @@
 # CHANGELOG
 
 
+## v0.5.3 (2026-08-07)
+
+### Bug Fixes
+
+- Module cmd enhancements ([#39](https://github.com/aetheric-sh/smal/pull/39),
+  [`8a97159`](https://github.com/aetheric-sh/smal/commit/8a97159a7acaef07bdf0997688f29f69b5c85d67))
+
+* Enhance module info with callback signatures
+
+* Add completers to REPL params and cleanup
+
+
 ## v0.5.2 (2026-08-07)
 
 ### Bug Fixes
