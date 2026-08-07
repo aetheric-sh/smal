@@ -99,6 +99,9 @@ class SMALREPL(cmd2.Cmd):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the SMAL REPL."""
+        # Persist command history across sessions alongside the rest of SMAL's app data, so it survives restarts
+        # (and is cleared along with everything else by the `clean` command). Callers may override this.
+        kwargs.setdefault("persistent_history_file", str(SMALPersistence.DEFAULT_PATH.parent / "history.dat"))
         super().__init__(*args, **kwargs)
         self._active_machine: StateMachine | None = None  # Placeholder for the active machine object
         self._active_connection: DeviceConnection | None = None  # Placeholder for the active connection object
