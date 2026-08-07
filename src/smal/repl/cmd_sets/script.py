@@ -41,12 +41,19 @@ class LoadArgs(BaseModel):
 
 _delete_parser = cmd2.Cmd2ArgumentParser()
 _delete_parser.add_argument("script_name", type=str, completer=script_completer, help="The name of the script to delete, or all if 'all' is given.")
+_delete_parser.add_argument(
+    "-y",
+    "--yes",
+    action="store_true",
+    help="Automatically confirm deletion of all scripts without prompting for confirmation. Only relevant when deleting 'all'.",
+)
 
 
 class DeleteArgs(BaseModel):
     """Model describing the arguments to the delete command."""
 
     script_name: str
+    yes: bool = False
 
 
 _create_parser = cmd2.Cmd2ArgumentParser()
@@ -152,6 +159,16 @@ class ScriptCmdSet(cmd2.CommandSet):
             raise RuntimeError("Failed to get parent REPL application.") from e
         persistence = get_persistence()
         if parsed_args.script_name.lower() == "all":
+            if not persistence.scripts:
+                parent_app.print_warning("No scripts found in persistence.")
+                return
+            if not parsed_args.yes:
+                confirmation = self._cmd.read_input(
+                    cmd2.stylize(f"Are you sure you want to delete all {len(persistence.scripts)} script(s) from persistence? [y/N] ", "bold yellow"),
+                )
+                if confirmation.strip().lower() not in {"y", "yes"}:
+                    parent_app.print_warning("Cancelled — no scripts were deleted.")
+                    return
             persistence.scripts.clear()
             persistence.save()
             parent_app.print_success("All scripts have been deleted from persistence.", omit_heading=True)
