@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
-from smal.repl.helpers import echo_table, get_parent_app
+from smal.repl.completers import machine_completer
+from smal.repl.helpers import echo_table, get_parent_app, get_persistence
 from smal.repl.repl_like import REPLLike  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.state_machine import SMALFile
 from smal.utilities import constants as SMALConstants
@@ -31,10 +32,20 @@ class LoadArgs(BaseModel):
     overwrite: bool = False
 
 
+_update_parser = cmd2.Cmd2ArgumentParser()
+_update_parser.add_argument("name", type=str, completer=machine_completer, help="The name of the machine to update.")
+
+
+class UpdateArgs(BaseModel):
+    """Model describing the arguments to the update command."""
+
+    name: str
+
+
 _list_parser = cmd2.Cmd2ArgumentParser()
 
 _switch_parser = cmd2.Cmd2ArgumentParser()
-_switch_parser.add_argument("name", type=str, help="The name of the machine to switch to.")
+_switch_parser.add_argument("name", type=str, completer=machine_completer, help="The name of the machine to switch to.")
 
 
 class SwitchArgs(BaseModel):
@@ -122,11 +133,12 @@ class MachineCmdSet(cmd2.CommandSet):
             parent_app = get_parent_app(self)
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
-        machines = list(parent_app.get_cached_machines())
-        if not machines:
+        persistence = get_persistence()
+        machine_names = list(persistence.machines.keys())
+        if not machine_names:
             parent_app.print_warning("No loaded machines found.")
             return
-        machine_data = [[machine_name, str(parent_app.get_machine_path(machine_name))] for machine_name in machines]
+        machine_data = [[machine_name, str(persistence.machine_paths.get(machine_name))] for machine_name in machine_names]
         echo_table(
             "Loaded SMAL Machines",
             ["Name", "Path"],
@@ -155,10 +167,40 @@ class MachineCmdSet(cmd2.CommandSet):
             raise RuntimeError("Failed to get parent REPL application.") from e
         machine = parent_app.get_machine_by_name(parsed_args.name)
         if not machine:
+            machine_path = get_persistence().machine_paths.get(parsed_args.name)
+            if machine_path:
+                machine_from_file = self._load_machine_from_file(parent_app, machine_path, overwrite=True)
+                if machine_from_file:
+                    parent_app.set_active_machine(machine_from_file)
+                    parent_app.print_success(f"Switched to machine '{machine_from_file.name}'.")
+                    return
             parent_app.print_error(f"No loaded machine found with name '{parsed_args.name}'.")
             return
         parent_app.set_active_machine(machine)
         parent_app.print_success(f"Switched to machine '{machine.name}'.")
+
+    @cmd2.as_subcommand_to("machine", "update", _update_parser, help="Update a loaded SMAL state machine definition from its source file")
+    def machine_update(self, args: argparse.Namespace) -> None:
+        """Update a loaded SMAL state machine definition from its source file.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments.
+
+        """
+        parsed_args = UpdateArgs.model_validate(vars(args))
+        try:
+            parent_app = get_parent_app(self)
+        except Exception as e:
+            raise RuntimeError("Failed to get parent REPL application.") from e
+        persistence = get_persistence()
+        machine_path = persistence.machine_paths.get(parsed_args.name)
+        if not machine_path or not machine_path.exists():
+            parent_app.print_error(f"Cannot update machine '{parsed_args.name}' because its source file is missing or unknown.")
+            return
+        updated_machine = self._load_machine_from_file(parent_app, machine_path, overwrite=True)
+        if updated_machine:
+            parent_app.set_active_machine(updated_machine)
+            parent_app.print_success(f"Updated machine '{updated_machine.name}' from file '{machine_path}'.")
 
     def _load_machine_from_file(self, parent_app: REPLLike, file_path: Path, overwrite: bool) -> SMALFile | None:
         """Load a SMAL state machine definition from a file.
@@ -174,6 +216,7 @@ class MachineCmdSet(cmd2.CommandSet):
         """
         console = parent_app.get_console()
         machine = parent_app.get_machine_by_path(file_path)
+        persistence = get_persistence()
         if machine and not overwrite:
             parent_app.set_active_machine(machine)
             parent_app.print_success(f"Successfully loaded '{machine.name}' machine definition from cache.", omit_heading=True)
@@ -182,7 +225,8 @@ class MachineCmdSet(cmd2.CommandSet):
             try:
                 machine_from_file = SMALFile.from_file(file_path)
                 parent_app.print_success(f"Successfully loaded machine definition from file: {file_path}.", omit_heading=True)
-                parent_app.cache_machine(file_path, machine_from_file)
+                persistence.add_machine(machine_from_file, overwrite=overwrite, save=True)
+                persistence.add_machine_path(machine_from_file.name, file_path, overwrite=overwrite, save=True)
                 return machine_from_file
             except FileNotFoundError:
                 parent_app.print_error(f"File not found: {file_path}")

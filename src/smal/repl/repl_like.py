@@ -29,10 +29,6 @@ class REPLLike(Protocol):
         """Set the active machine for the REPL."""
         ...
 
-    def cache_machine(self, fp: Path, machine: StateMachine) -> None:
-        """Cache the machine object for the given path."""
-        ...
-
     def get_machine_by_name(self, name: str) -> StateMachine | None:
         """Get the machine object for the given name."""
         ...
@@ -47,14 +43,6 @@ class REPLLike(Protocol):
 
     def get_active_machine(self) -> StateMachine | None:
         """Get the active machine for the REPL."""
-        ...
-
-    def get_cached_machines(self) -> dict[str, StateMachine]:
-        """Get the cached machines for the REPL."""
-        ...
-
-    def get_machine_path(self, name: str) -> Path | None:
-        """Get the path for the given machine name."""
         ...
 
     def print_msg(self, message: str) -> None:

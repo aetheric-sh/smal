@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.completers import module_completer
 from smal.repl.helpers import echo_table, get_parent_app, get_persistence
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ _load_parser.add_argument(
     "-n",
     "--name",
     type=str,
+    completer=module_completer,
     help="Optional name for the module. If not provided, the module's filename (without extension) will be used as the name.",
 )
 _load_parser.add_argument(

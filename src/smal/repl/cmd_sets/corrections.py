@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.completers import correction_completer
 from smal.repl.helpers import echo_table, get_parent_app, get_persistence
 from smal.utilities.corrections import ALL_CORRECTIONS
 
@@ -19,7 +20,7 @@ _corrections_parser.add_subparsers(title="subcommand", help="subcommand help")
 _list_parser = cmd2.Cmd2ArgumentParser()
 
 _enable_parser = cmd2.Cmd2ArgumentParser()
-_enable_parser.add_argument("name", type=str, help="The name of the correction to enable, or 'all' to enable all.")
+_enable_parser.add_argument("name", type=str, completer=correction_completer, help="The name of the correction to enable, or 'all' to enable all.")
 
 
 class EnableArgs(BaseModel):
@@ -29,7 +30,7 @@ class EnableArgs(BaseModel):
 
 
 _disable_parser = cmd2.Cmd2ArgumentParser()
-_disable_parser.add_argument("name", type=str, help="The name of the correction to disable, or 'all' to disable all.")
+_disable_parser.add_argument("name", type=str, completer=correction_completer, help="The name of the correction to disable, or 'all' to disable all.")
 
 
 class DisableArgs(BaseModel):

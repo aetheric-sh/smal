@@ -9,7 +9,8 @@ import cmd2
 from pydantic import BaseModel
 
 from smal.diagramming.generation import generate_state_machine_svg
-from smal.repl.helpers import get_parent_app
+from smal.repl.completers import machine_completer
+from smal.repl.helpers import get_parent_app, get_persistence
 
 if TYPE_CHECKING:
     import argparse
@@ -21,6 +22,7 @@ _diagram_parser.add_argument(
     "-m",
     "--machine",
     type=str,
+    completer=machine_completer,
     help="The name of the state machine to generate a diagram for, or a path to a SMAL file. If not provided, the active machine will be used.",
 )
 _diagram_parser.add_argument("-o", "--open", action="store_true", help="Open the generated diagram after creation.")
@@ -66,17 +68,18 @@ class DiagramCmdSet(cmd2.CommandSet):
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
         console = parent_app.get_console()
+        persistence = get_persistence()
         if parsed_args.machine is None:
             active_machine = parent_app.get_active_machine()
             if active_machine is None:
                 parent_app.print_error("No active machine found. Please specify a loaded machine name or path to a SMAL file.")
                 return
-            smal_path = parent_app.get_machine_path(active_machine.name)
+            smal_path = persistence.machine_paths.get(active_machine.name)
             if smal_path is None:
                 parent_app.print_error(f"Could not find the path for the active machine: {active_machine.name}")
                 return
         else:
-            cached_path = parent_app.get_machine_path(parsed_args.machine)
+            cached_path = persistence.machine_paths.get(parsed_args.machine)
             if cached_path is not None:
                 smal_path = cached_path
             else:

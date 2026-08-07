@@ -22,7 +22,6 @@ from smal.schemas.transition import Transition, TransitionMapShorthand
 from smal.schemas.utilities import IdentifierValidationMixin, SemverValidationMixin
 from smal.utilities import constants as SMALConstants
 from smal.utilities.corrections import ALL_CORRECTIONS
-from smal.utilities.persistence import SMALPersistence
 from smal.utilities.rules import ALL_RULES
 
 
@@ -353,10 +352,19 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
             _context (Any): The validation context provided by Pydantic, which is not used in this method but is required by the signature.
 
         """
-        persistence = SMALPersistence.load() if SMALPersistence.DEFAULT_PATH.exists() else SMALPersistence()
+        from smal.utilities.persistence import SMALPersistence, get_loading_settings
+
+        # If a persistence file is currently being deserialized, reuse its rules/corrections settings instead of
+        # calling `SMALPersistence.load()` again, which would try to deserialize this very machine and recurse forever.
+        loading_settings = get_loading_settings()
+        if loading_settings is not None:
+            rules_settings, corrections_settings = loading_settings
+        else:
+            persistence = SMALPersistence.load() if SMALPersistence.DEFAULT_PATH.exists() else SMALPersistence()
+            rules_settings, corrections_settings = persistence.rules, persistence.corrections
         # Apply all corrections before validating
         for correction in ALL_CORRECTIONS:
-            correction_enabled = persistence.corrections.get(correction.name, True)
+            correction_enabled = corrections_settings.get(correction.name, True)
             if not correction_enabled:
                 logging.info("Skipping correction '%s' because it is disabled in persistence settings.", correction.name)
                 continue
@@ -375,7 +383,7 @@ class StateMachine(IdentifierValidationMixin, SemverValidationMixin, BaseModel):
         # Precompute least common ancestors
         # Evaluate all rules to validate
         for rule in ALL_RULES:
-            rule_enabled = persistence.rules.get(rule.name, True)
+            rule_enabled = rules_settings.get(rule.name, True)
             if not rule_enabled:
                 logging.info("Skipping rule '%s' because it is disabled in persistence settings.", rule.name)
                 continue

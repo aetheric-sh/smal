@@ -2,14 +2,13 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from pathlib import Path  # noqa: TC003 - Pydantic requires this at runtime for type validation
 from typing import TYPE_CHECKING
 
 import cmd2
 from pydantic import BaseModel
 
-from smal.repl.helpers import get_parent_app, parse_key_value, parse_params
-from smal.repl.target_module import TargetModule
+from smal.repl.completers import module_completer
+from smal.repl.helpers import get_parent_app, get_persistence, parse_key_value, parse_params
 
 if TYPE_CHECKING:
     import argparse
@@ -19,7 +18,7 @@ _msg_parser.add_subparsers(title="subcommand", help="subcommand help")
 
 _send_parser = cmd2.Cmd2ArgumentParser()
 _send_parser.add_argument("content", type=str, help="The content of the message to send to the actively connected SMAL device.")
-_send_parser.add_argument("-m", "--module", type=TargetModule, help="The target module to use for sending the message.")
+_send_parser.add_argument("-m", "--module", type=str, completer=module_completer, help="The target module to use for sending the message.")
 _send_parser.add_argument(
     "-p",
     "--param",
@@ -33,7 +32,7 @@ class SendArgs(BaseModel):
     """Model describing the arguments to the send command."""
 
     content: str
-    module: Path | None = None
+    module: str | None = None
     param: list[tuple[str, str]] | None = None
 
 
@@ -69,11 +68,16 @@ class MsgCmdSet(cmd2.CommandSet):
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
         active_connection = parent_app.get_active_connection()
+        persistence = get_persistence()
         if active_connection is None:
             parent_app.print_error("No active connection found. Please connect to a device first using the `connect` command.")
             return
         if parsed_args.module is not None:
-            parent_app.set_active_module(parsed_args.module)
+            module_path = persistence.modules.get(parsed_args.module)
+            if module_path is None:
+                parent_app.print_error(f"Module '{parsed_args.module}' not found in persistence. Please load the module first using the `module load` command.")
+                return
+            parent_app.set_active_module(module_path)
         active_module = parent_app.get_active_module()
         if active_module is None:
             parent_app.print_error(

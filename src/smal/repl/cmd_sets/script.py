@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
+from smal.repl.completers import script_completer
 from smal.repl.helpers import echo_table, get_parent_app, get_persistence, parse_key_value, parse_params
 from smal.schemas.smal_script import SMALScript, SMALScriptCommand
 from smal.utilities import constants as SMALConstants
@@ -38,7 +39,7 @@ class LoadArgs(BaseModel):
 
 
 _delete_parser = cmd2.Cmd2ArgumentParser()
-_delete_parser.add_argument("script_name", type=str, help="The name of the script to delete, or all if 'all' is given.")
+_delete_parser.add_argument("script_name", type=str, completer=script_completer, help="The name of the script to delete, or all if 'all' is given.")
 
 
 class DeleteArgs(BaseModel):
@@ -64,7 +65,7 @@ class CreateArgs(BaseModel):
 
 
 _run_parser = cmd2.Cmd2ArgumentParser()
-_run_parser.add_argument("script_name", type=str, help="The name of the script to run.")
+_run_parser.add_argument("script_name", type=str, completer=script_completer, help="The name of the script to run.")
 
 
 class RunArgs(BaseModel):
@@ -76,7 +77,7 @@ class RunArgs(BaseModel):
 _list_parser = cmd2.Cmd2ArgumentParser()
 
 _view_parser = cmd2.Cmd2ArgumentParser()
-_view_parser.add_argument("script_name", type=str, help="The name of the script to view.")
+_view_parser.add_argument("script_name", type=str, completer=script_completer, help="The name of the script to view.")
 
 
 class ViewArgs(BaseModel):

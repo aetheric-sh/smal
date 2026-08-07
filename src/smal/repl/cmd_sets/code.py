@@ -12,7 +12,8 @@ from pydantic import BaseModel
 from smal.codegen import MacroRegistry, TemplateRegistry
 from smal.codegen.code_generator import SMALCodeGenerator
 from smal.repl.cmd_sets.validate import JinjaTemplateValidator
-from smal.repl.helpers import echo_table, get_parent_app
+from smal.repl.completers import machine_completer, template_completer
+from smal.repl.helpers import echo_table, get_parent_app, get_persistence
 from smal.schemas.state_machine import SMALFile
 
 if TYPE_CHECKING:
@@ -20,18 +21,18 @@ if TYPE_CHECKING:
 
 _code_parser = cmd2.Cmd2ArgumentParser()
 _code_parser.add_subparsers(title="subcommand", help="subcommand help")
-
-
 _generate_parser = cmd2.Cmd2ArgumentParser()
 _generate_parser.add_argument(
     "template",
     type=str,
+    completer=template_completer,
     help="Name of the builtin SMAL template to generate, or the filepath to a custom, SMAL-compliant Jinja2 template to generate.",
 )
 _generate_parser.add_argument(
     "-m",
     "--machine",
     type=str,
+    completer=machine_completer,
     default=None,
     help="Name of the SMAL state machine to generate code for, or a path to the SMAL file. If not provided, the active machine will be used.",
 )
@@ -102,6 +103,7 @@ class CodeCmdSet(cmd2.CommandSet):
         except Exception as e:
             raise RuntimeError("Failed to get parent REPL application.") from e
         console = parent_app.get_console()
+        persistence = get_persistence()
         # Validate output directory existence and writability
         if not parsed_args.output_dir.exists():
             parsed_args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -113,9 +115,9 @@ class CodeCmdSet(cmd2.CommandSet):
             if active_machine is None:
                 parent_app.print_error("No active machine found. Please specify a machine or set an active machine.")
                 return
-            smal_path = parent_app.get_machine_path(active_machine.name)
+            smal_path = persistence.machine_paths.get(active_machine.name)
         else:
-            cached_path = parent_app.get_machine_path(parsed_args.machine)
+            cached_path = persistence.machine_paths.get(parsed_args.machine)
             if cached_path is not None:
                 smal_path = cached_path
             else:
