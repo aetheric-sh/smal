@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.5.2 (2026-08-07)
+
+### Bug Fixes
+
+- Scripting fixes ([#38](https://github.com/aetheric-sh/smal/pull/38),
+  [`9029aac`](https://github.com/aetheric-sh/smal/commit/9029aace6ba6af210c56d94db92e42f6e99e09f5))
+
+* Scripting works
+
+* Standardize tables
+
+* Fix ruff
+
+* Update README.md
+
+* Add line
+
+---------
+
+Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
+
+
 ## v0.5.1 (2026-08-07)
 
 ### Bug Fixes
