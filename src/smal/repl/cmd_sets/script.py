@@ -33,9 +33,60 @@ PYTHON_SCRIPT_FILE_EXTENSION = ".py"
 class PythonScriptFn(Protocol):
     """Protocol for a Python-based SMAL script's entrypoint function."""
 
-    def __call__(self, device: ConnectedDevice, *args: Any, **kwargs: Any) -> None:
+    def __call__(self, device: ConnectedDevice, logger: SMALScriptLogger, *args: Any, **kwargs: Any) -> None:
         """Execute this script against the actively connected SMAL device."""
         ...
+
+
+class SMALScriptLogger:
+    """Logging facility passed to Python scripts so they can log to the same console as SMAL itself."""
+
+    def __init__(self, parent_app: REPLLike, script_name: str) -> None:
+        """Initialize the logger for a given script.
+
+        Args:
+            parent_app (REPLLike): The parent REPL application whose console the script should log to.
+            script_name (str): The name of the script, used as a prefix on logged messages.
+
+        """
+        self._parent_app = parent_app
+        self._prefix = f"[cyan]\\[{script_name}][/cyan]"
+
+    def info(self, message: str) -> None:
+        """Log an informational message.
+
+        Args:
+            message (str): The message to log.
+
+        """
+        self._parent_app.print_msg(f"{self._prefix} {message}")
+
+    def success(self, message: str) -> None:
+        """Log a success message.
+
+        Args:
+            message (str): The message to log.
+
+        """
+        self._parent_app.print_success(message, prefix=self._prefix)
+
+    def warning(self, message: str) -> None:
+        """Log a warning message.
+
+        Args:
+            message (str): The message to log.
+
+        """
+        self._parent_app.print_warning(message, prefix=self._prefix)
+
+    def error(self, message: str) -> None:
+        """Log an error message.
+
+        Args:
+            message (str): The message to log.
+
+        """
+        self._parent_app.print_error(message, prefix=self._prefix)
 
 
 _script_parser = cmd2.Cmd2ArgumentParser()
@@ -48,7 +99,7 @@ _load_parser.add_argument(
     completer=cmd2.Cmd.path_complete,
     help=(
         f"The path to a {SMALConstants.SMAL_SCRIPT_FILE_EXTENSION} script file, a Python script defining "
-        "`smal_script(device, ...)`, or a directory containing either."
+        "`smal_script(device, logger, ...)`, or a directory containing either."
     ),
 )
 _load_parser.add_argument("-o", "--overwrite", action="store_true", help="Overwrite the existing script if it already exists in persistence.")
@@ -332,7 +383,7 @@ class ScriptCmdSet(SMALCmdSet):
 
         Args:
             name (str): The name the script is cached under, for messaging purposes.
-            filepath (Path): The path to the Python script file defining `smal_script(device, ...)`.
+            filepath (Path): The path to the Python script file defining `smal_script(device, logger, ...)`.
             parent_app (REPLLike): The parent REPL application.
             **extra_kwargs (Any): Additional keyword arguments to pass to the script's `smal_script` function.
 
@@ -347,8 +398,9 @@ class ScriptCmdSet(SMALCmdSet):
             parent_app.print_error(f"Failed to load Python script '{name}' from '{filepath}': {e}")
             return
         parent_app.print_success(f"Running Python script '{name}' from '{filepath}'.", omit_heading=True)
+        logger = SMALScriptLogger(parent_app, name)
         try:
-            script_fn(active_connection.device, **extra_kwargs)
+            script_fn(active_connection.device, logger, **extra_kwargs)
         except Exception as e:  # noqa: BLE001 - Catching blind exceptions here to provide a user-friendly error message in the REPL.
             parent_app.print_error(f"Error while running Python script '{name}': {e}")
 
@@ -448,7 +500,7 @@ class ScriptCmdSet(SMALCmdSet):
         """Load a Python-based SMAL script from a file, caching its path in persistence under its filename stem.
 
         Args:
-            filepath (Path): The path to the Python script file. Must define a `smal_script(device, ...)` function.
+            filepath (Path): The path to the Python script file. Must define a `smal_script(device, logger, ...)` function.
             overwrite (bool): Whether to overwrite an existing cached Python script with the same name.
             persistence (SMALPersistence): The persistence object to save the script's path to.
             parent_app (REPLLike): The parent REPL application for printing messages.
