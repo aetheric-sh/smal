@@ -31,14 +31,6 @@ class ConnectedDevice(Protocol):
         ...
 
 
-class ConnectFn(Protocol):
-    """Protocol for the connect function, which accepts arbitrary default params."""
-
-    def __call__(self, **kwargs: object) -> ConnectedDevice | None:
-        """Connect to an arbitrary device."""
-        ...
-
-
 @dataclass
 class DeviceConnection:
     """Dataclass defining a connection (or lackthereof) to an arbitrary device."""

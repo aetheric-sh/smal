@@ -9,7 +9,7 @@ from __future__ import annotations  # Until Python 3.14
 import argparse
 from pathlib import Path
 from time import sleep
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 import cmd2
 from pydantic import BaseModel
@@ -22,20 +22,9 @@ from smal.schemas.smal_script import SMALScript, SMALScriptCommand
 from smal.utilities import constants as SMALConstants
 
 if TYPE_CHECKING:
-    from smal.repl.connection import ConnectedDevice
     from smal.repl.repl_like import REPLLike
+    from smal.repl.target_api import PythonScriptFn
     from smal.utilities.persistence import SMALPersistence
-
-PYTHON_SCRIPT_FILE_EXTENSION = ".py"
-
-
-@runtime_checkable
-class PythonScriptFn(Protocol):
-    """Protocol for a Python-based SMAL script's entrypoint function."""
-
-    def __call__(self, device: ConnectedDevice, logger: SMALScriptLogger, *args: Any, **kwargs: Any) -> None:
-        """Execute this script against the actively connected SMAL device."""
-        ...
 
 
 class SMALScriptLogger:
@@ -212,11 +201,11 @@ class ScriptCmdSet(SMALCmdSet):
         persistence = get_persistence()
         if parsed_args.filepath.is_dir():
             with parent_app.console.status(f"[bold blue]Searching for SMAL and Python scripts under {parsed_args.filepath}...[/bold blue]"):
-                script_extensions = (SMALConstants.SMAL_SCRIPT_FILE_EXTENSION, PYTHON_SCRIPT_FILE_EXTENSION)
+                script_extensions = (SMALConstants.SMAL_SCRIPT_FILE_EXTENSION, SMALConstants.PYTHON_SCRIPT_FILE_EXTENSION)
                 script_files = sorted(p for ext in script_extensions for p in parsed_args.filepath.rglob(f"*{ext}") if p.is_file())
             if not script_files:
                 parent_app.print_warning(
-                    f"No scripts (`{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}` or `{PYTHON_SCRIPT_FILE_EXTENSION}`) found under directory:"
+                    f"No scripts (`{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}` or `{SMALConstants.PYTHON_SCRIPT_FILE_EXTENSION}`) found under directory:"
                     f" {parsed_args.filepath}",
                 )
                 return
@@ -237,12 +226,12 @@ class ScriptCmdSet(SMALCmdSet):
         """
         if filepath.suffix == SMALConstants.SMAL_SCRIPT_FILE_EXTENSION:
             self._load_script_from_file(filepath, overwrite, persistence, parent_app)
-        elif filepath.suffix == PYTHON_SCRIPT_FILE_EXTENSION:
+        elif filepath.suffix == SMALConstants.PYTHON_SCRIPT_FILE_EXTENSION:
             self._load_python_script_from_file(filepath, overwrite, persistence, parent_app)
         else:
             parent_app.print_error(
                 f"Unsupported script file type '{filepath.suffix}' for '{filepath}'."
-                f" Expected '{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}' or '{PYTHON_SCRIPT_FILE_EXTENSION}'.",
+                f" Expected '{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}' or '{SMALConstants.PYTHON_SCRIPT_FILE_EXTENSION}'.",
             )
 
     @cmd2.as_subcommand_to("script", "delete", _delete_parser, help="Delete a script from persistence by name, or all if 'all' is given.")

@@ -3,7 +3,7 @@
 from __future__ import annotations  # Until Python 3.14
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 import cmd2
 from pydantic import BaseModel
@@ -19,7 +19,6 @@ from smal.schemas.state_machine import SMALFile
 if TYPE_CHECKING:
     import argparse
 
-    from smal.repl.connection import ConnectedDevice
     from smal.repl.target_module import TargetModule
     from smal.schemas.state_machine import StateMachine
 
@@ -73,15 +72,6 @@ class BoilerplateArgs(BaseModel):
     lang: str = "c"
     filename: str | None = None
     force: bool = False
-
-
-@runtime_checkable
-class HarvestFn(Protocol):
-    """Protocol for the harvest function, which accepts a machine name and arbitrary default params."""
-
-    def __call__(self, name: str, connected_device: ConnectedDevice, **kwargs: Any) -> bytearray:
-        """Harvest debug data for the given machine name."""
-        ...
 
 
 class DebugCmdSet(SMALCmdSet):

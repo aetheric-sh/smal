@@ -25,16 +25,17 @@ from smal.repl.cmd_sets import (
     ScriptCmdSet,
     ValidateCmdSet,
 )
-from smal.repl.connection import ConnectFn, DeviceConnection
+from smal.repl.connection import DeviceConnection
 from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params, reset_persistence_cache
-from smal.repl.target_module import SendMsgFn, TargetModule
+from smal.repl.repl_logger import SMALLogger
+from smal.repl.target_module import TargetModule
 from smal.utilities import constants as SMALConstants
 from smal.utilities.persistence import SMALPersistence
 
 if TYPE_CHECKING:
     import argparse
 
-    from smal.repl.cmd_sets.debug import HarvestFn
+    from smal.repl.target_api import ConnectFn, HarvestFn, SendMsgFn
     from smal.schemas.state_machine import StateMachine
 
 _connect_parser = cmd2.Cmd2ArgumentParser()
@@ -117,6 +118,7 @@ class SMALREPL(cmd2.Cmd):
         self._active_connection: DeviceConnection | None = None  # Placeholder for the active connection object
         self._active_module: TargetModule | None = None  # Placeholder for the active module
         self._console = Console()
+        self._logger = SMALLogger(self._console)
         self.register_command_set(CodeCmdSet())
         self.register_command_set(CorrectionsCmdSet())
         self.register_command_set(DebugCmdSet())
@@ -341,6 +343,16 @@ class SMALREPL(cmd2.Cmd):
 
         """
         return self._console
+
+    @property
+    def logger(self) -> SMALLogger:
+        """Get the leveled logger for the REPL.
+
+        Returns:
+            SMALLogger: The leveled logger, which mirrors records to both the terminal and a persistent log file.
+
+        """
+        return self._logger
 
     def print_error(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print an error message to the console.

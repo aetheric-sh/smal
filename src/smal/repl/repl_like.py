@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from rich.console import Console
 
     from smal.repl.connection import DeviceConnection
+    from smal.repl.repl_logger import SMALLogger
     from smal.repl.target_module import TargetModule
     from smal.schemas.state_machine import StateMachine
 
@@ -39,6 +40,11 @@ class REPLLike(Protocol):
     @property
     def console(self) -> Console:
         """Get the console for the REPL."""
+        ...
+
+    @property
+    def logger(self) -> SMALLogger:
+        """Get the leveled logger for the REPL."""
         ...
 
     def set_active_machine(self, machine: StateMachine) -> None:

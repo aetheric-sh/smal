@@ -13,6 +13,7 @@ REPL_NAME: Final[str] = f"{APP_NAME_ABBREV}".lower()
 
 SMAL_FILE_EXTENSION: Final[str] = f".{APP_NAME_ABBREV.lower()}"
 SMAL_SCRIPT_FILE_EXTENSION: Final[str] = f"{SMAL_FILE_EXTENSION}scr"
+PYTHON_SCRIPT_FILE_EXTENSION: Final[str] = ".py"
 
 
 class SupportedFileExtensions(str, Enum):
