@@ -22,12 +22,21 @@ from smal.repl.cmd_sets import (
     MachineCmdSet,
     ModuleCmdSet,
     MsgCmdSet,
+    PersistenceCmdSet,
     RulesCmdSet,
     ScriptCmdSet,
     ValidateCmdSet,
 )
 from smal.repl.connection import DeviceConnection
-from smal.repl.helpers import echo_list, get_persistence, import_external_fn_from_file, parse_key_value, parse_params, reset_persistence_cache
+from smal.repl.helpers import (
+    echo_list,
+    get_fn_from_module,
+    get_persistence,
+    import_external_module_from_file,
+    parse_key_value,
+    parse_params,
+    reset_persistence_cache,
+)
 from smal.repl.repl_logger import SMALLogger
 from smal.repl.target_module import TargetModule
 from smal.utilities import constants as SMALConstants
@@ -131,6 +140,7 @@ class SMALREPL(cmd2.Cmd):
         self.register_command_set(MachineCmdSet())
         self.register_command_set(ModuleCmdSet())
         self.register_command_set(MsgCmdSet())
+        self.register_command_set(PersistenceCmdSet())
         self.register_command_set(RulesCmdSet())
         self.register_command_set(ScriptCmdSet())
         self.register_command_set(ValidateCmdSet())
@@ -437,13 +447,20 @@ class SMALREPL(cmd2.Cmd):
         if not module_file.is_file():
             self.print_error(f"Module file not found: {module_file}")
             return
-        self._active_module = module_file
-        connect_fn: ConnectFn = import_external_fn_from_file(module_file, "smal_connect_module", "connect")
-        harvest_fn: HarvestFn = import_external_fn_from_file(module_file, "smal_harvest_module", "harvest")
+        # The module's top-level code is only executed once here (via a single import), and `_active_module` is
+        # only reassigned once the module has been fully validated below — so a malformed module (e.g. missing
+        # `harvest`) leaves the previously active module (if any) intact instead of corrupting it into a bare Path.
+        try:
+            fn_module = import_external_module_from_file(module_file, "smal_target_module")
+            connect_fn: ConnectFn = get_fn_from_module(fn_module, module_file, "connect")
+            harvest_fn: HarvestFn = get_fn_from_module(fn_module, module_file, "harvest")
+        except (ImportError, AttributeError, TypeError) as e:
+            self.print_error(f"Failed to load module {module_file}: {e}")
+            return
         send_msg_fn: SendMsgFn | None = None
         # send_msg is an optional function, so we can ignore if it's not present
         with contextlib.suppress(AttributeError):
-            send_msg_fn = import_external_fn_from_file(module_file, "smal_send_msg_module", "send_msg")
+            send_msg_fn = get_fn_from_module(fn_module, module_file, "send_msg")
         self._active_module = TargetModule(filepath=module_file, connect_fn=connect_fn, harvest_fn=harvest_fn, send_msg_fn=send_msg_fn)
         self.print_success(f"Active module set to: {module_file}", omit_heading=True)
 

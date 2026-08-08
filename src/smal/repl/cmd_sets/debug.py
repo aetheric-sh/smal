@@ -112,14 +112,16 @@ class DebugCmdSet(SMALCmdSet):
         if parent_app.active_machine is None:
             parent_app.print_error("No active machine found. Please load a machine definition first with the `machine load` command.")
             return
-        if parent_app.active_module is not None:
-            harvest_fn = parent_app.active_module.harvest_fn
-        elif parsed_args.module is not None:
+        if parsed_args.module is not None:
+            # An explicitly-provided module path takes precedence over any already-active module, so `-m` reliably
+            # switches modules instead of being silently ignored whenever a module happens to already be active.
             parent_app.set_active_module(parsed_args.module)
             if parent_app.active_module is None:
                 raise RuntimeError(f"Failed to set active module to {parsed_args.module}.")
             active_module: TargetModule = parent_app.active_module
             harvest_fn = active_module.harvest_fn
+        elif parent_app.active_module is not None:
+            harvest_fn = parent_app.active_module.harvest_fn
         else:
             parent_app.print_error(
                 "No active module found. Please set a module first with the `module set` command or provide a module file path with the `--module` option.",

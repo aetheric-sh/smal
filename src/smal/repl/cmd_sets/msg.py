@@ -104,4 +104,8 @@ def send_message(parent_app: REPLLike, content: str, module: str | None = None, 
     if send_msg_fn is None:
         parent_app.print_error(f"The active module '{parent_app.active_module.filepath}' does not support a sending messages.")
         return None
-    return send_msg_fn(parent_app.active_connection.device, content, **extra_kwargs)
+    try:
+        return send_msg_fn(parent_app.active_connection.device, content, **extra_kwargs)
+    except Exception as e:  # noqa: BLE001 - Catching all exceptions to provide user feedback in the REPL.
+        parent_app.print_error(f"Error during send_msg function execution: {e}")
+        return None

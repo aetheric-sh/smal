@@ -62,13 +62,15 @@ class DeviceConnection:
             DeviceConnection | None: The established device connection if successful, otherwise None.
 
         """
-        if target_module is not None:
-            connect_fn = target_module.connect_fn
-        elif fn_module_path is not None:
+        if fn_module_path is not None:
+            # An explicitly-provided module path takes precedence over any already-active module, so `-m` reliably
+            # switches modules instead of being silently ignored whenever a module happens to already be active.
             parent_app.set_active_module(fn_module_path)
             if parent_app.active_module is None:
                 raise RuntimeError(f"Failed to set active module to {fn_module_path}.")
             connect_fn = parent_app.active_module.connect_fn
+        elif target_module is not None:
+            connect_fn = target_module.connect_fn
         else:
             raise ValueError(
                 "Cannot create device connection without target module. "

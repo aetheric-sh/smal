@@ -10,6 +10,7 @@ from .diagram import DiagramCmdSet
 from .machine import MachineCmdSet
 from .module import ModuleCmdSet
 from .msg import MsgCmdSet
+from .persistence import PersistenceCmdSet
 from .rules import RulesCmdSet
 from .script import ScriptCmdSet
 from .validate import ValidateCmdSet
