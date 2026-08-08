@@ -62,6 +62,20 @@ class SMALLogger:
         file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
         self._logger.addHandler(file_handler)
 
+        self._handlers = [console_handler, file_handler]
+
+    def close(self) -> None:
+        """Detach this logger's handlers from the root logger and close them.
+
+        Without this, the `FileHandler` keeps its log file open for the lifetime of the process, and any
+        code that constructs a new `SMALLogger` (e.g. tests, or a future REPL restart) would otherwise keep
+        stacking duplicate handlers onto the shared root logger.
+        """
+        for handler in self._handlers:
+            self._logger.removeHandler(handler)
+            handler.close()
+        self._handlers = []
+
     def debug(self, message: str, *args: object, **kwargs: object) -> None:
         """Log a debug-level message."""
         self._logger.debug(message, *args, **kwargs)

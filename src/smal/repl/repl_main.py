@@ -136,6 +136,15 @@ class SMALREPL(cmd2.Cmd):
         self.register_command_set(ValidateCmdSet())
         self._update_prompt()
 
+    def postloop(self) -> None:
+        """Dispose of the logger's handlers once the command loop exits, regardless of how it stopped.
+
+        Unlike `do_exit`/`do_EOF`, this hook runs no matter which command (or exception) ended the loop, so
+        it's the one place that reliably closes the log file handle before the process exits.
+        """
+        self._logger.close()
+        super().postloop()
+
     def postcmd(self, stop: bool, statement: cmd2.Statement | str) -> bool:
         """Refresh the prompt after each command so it reflects the current connection/machine state.
 
