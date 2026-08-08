@@ -209,10 +209,9 @@ class ScriptCmdSet(SMALCmdSet):
         if not parsed_args.filepath.exists():
             parent_app.print_error(f"Script file '{parsed_args.filepath}' does not exist.")
             return
-        console = parent_app.get_console()
         persistence = get_persistence()
         if parsed_args.filepath.is_dir():
-            with console.status(f"[bold blue]Searching for SMAL and Python scripts under {parsed_args.filepath}...[/bold blue]"):
+            with parent_app.console.status(f"[bold blue]Searching for SMAL and Python scripts under {parsed_args.filepath}...[/bold blue]"):
                 script_extensions = (SMALConstants.SMAL_SCRIPT_FILE_EXTENSION, PYTHON_SCRIPT_FILE_EXTENSION)
                 script_files = sorted(p for ext in script_extensions for p in parsed_args.filepath.rglob(f"*{ext}") if p.is_file())
             if not script_files:
@@ -388,8 +387,7 @@ class ScriptCmdSet(SMALCmdSet):
             **extra_kwargs (Any): Additional keyword arguments to pass to the script's `smal_script` function.
 
         """
-        active_connection = parent_app.get_active_connection()
-        if active_connection is None or not active_connection.is_connected:
+        if parent_app.active_connection is None or not parent_app.active_connection.is_connected:
             parent_app.print_error("No active connection found. Please connect to a device first using the `connect` command.")
             return
         try:
@@ -400,7 +398,7 @@ class ScriptCmdSet(SMALCmdSet):
         parent_app.print_success(f"Running Python script '{name}' from '{filepath}'.", omit_heading=True)
         logger = SMALScriptLogger(parent_app, name)
         try:
-            script_fn(active_connection.device, logger, **extra_kwargs)
+            script_fn(parent_app.active_connection.device, logger, **extra_kwargs)
         except Exception as e:  # noqa: BLE001 - Catching blind exceptions here to provide a user-friendly error message in the REPL.
             parent_app.print_error(f"Error while running Python script '{name}': {e}")
 

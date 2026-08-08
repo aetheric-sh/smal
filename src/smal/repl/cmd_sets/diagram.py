@@ -65,16 +65,14 @@ class DiagramCmdSet(SMALCmdSet):
         """
         parsed_args = DiagramArgs.model_validate(vars(args))
         parent_app = self.parent_app
-        console = parent_app.get_console()
         persistence = get_persistence()
         if parsed_args.machine is None:
-            active_machine = parent_app.get_active_machine()
-            if active_machine is None:
+            if parent_app.active_machine is None:
                 parent_app.print_error("No active machine found. Please specify a loaded machine name or path to a SMAL file.")
                 return
-            smal_path = persistence.machine_paths.get(active_machine.name)
+            smal_path = persistence.machine_paths.get(parent_app.active_machine.name)
             if smal_path is None:
-                parent_app.print_error(f"Could not find the path for the active machine: {active_machine.name}")
+                parent_app.print_error(f"Could not find the path for the active machine: {parent_app.active_machine.name}")
                 return
         else:
             cached_path = persistence.machine_paths.get(parsed_args.machine)
@@ -87,8 +85,8 @@ class DiagramCmdSet(SMALCmdSet):
                     return
         if not parsed_args.output_dir.exists():
             parsed_args.output_dir.mkdir(parents=True, exist_ok=True)
-            console.print(f"Created previously non-existent output directory for diagram: [bold cyan]{parsed_args.output_dir}[/bold cyan]")
-        with console.status(f"Generating state machine diagram in [cyan]{parsed_args.output_dir}[/cyan]", spinner="dots"):
+            parent_app.console.print(f"Created previously non-existent output directory for diagram: [bold cyan]{parsed_args.output_dir}[/bold cyan]")
+        with parent_app.console.status(f"Generating state machine diagram in [cyan]{parsed_args.output_dir}[/cyan]", spinner="dots"):
             out_path = generate_state_machine_svg(
                 smal_path,
                 parsed_args.output_dir,

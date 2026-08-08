@@ -87,12 +87,11 @@ class MachineCmdSet(SMALCmdSet):
         """
         parsed_args = LoadArgs.model_validate(vars(args))
         parent_app = self.parent_app
-        console = parent_app.get_console()
         if not parsed_args.file.exists():
             parent_app.print_error(f"File or directory not found: {parsed_args.file}")
             return
         if parsed_args.file.is_dir():
-            with console.status(f"[bold blue]Searching for SMAL machine definitions under {parsed_args.file}...[/bold blue]"):
+            with parent_app.console.status(f"[bold blue]Searching for SMAL machine definitions under {parsed_args.file}...[/bold blue]"):
                 machine_files = sorted(p for ext in SMALConstants.SupportedFileExtensions.all() for p in parsed_args.file.rglob(f"*{ext}") if p.is_file())
             if not machine_files:
                 parent_app.print_warning(f"No SMAL machine definition files found under directory: {parsed_args.file}")
@@ -204,14 +203,13 @@ class MachineCmdSet(SMALCmdSet):
             SMALFile | None: The loaded SMALFile object if successful, or None if an error occurred.
 
         """
-        console = parent_app.get_console()
         persistence = get_persistence()
         machine = next((m for m, p in persistence.machine_paths.items() if p == file_path), None)
         if machine and not overwrite:
             parent_app.set_active_machine(machine)
             parent_app.print_success(f"Successfully loaded '{machine.name}' machine definition from cache.", omit_heading=True)
             return machine
-        with console.status(f"[bold blue]Loading machine definition from file {file_path}...[/bold blue]"):
+        with parent_app.console.status(f"[bold blue]Loading machine definition from file {file_path}...[/bold blue]"):
             try:
                 machine_from_file = SMALFile.from_file(file_path)
                 parent_app.print_success(f"Successfully loaded machine definition from file: {file_path}.", omit_heading=True)

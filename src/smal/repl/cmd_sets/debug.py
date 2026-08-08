@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     import argparse
 
     from smal.repl.connection import ConnectedDevice
+    from smal.repl.target_module import TargetModule
     from smal.schemas.state_machine import StateMachine
 
 _debug_parser = cmd2.Cmd2ArgumentParser()
@@ -115,45 +116,41 @@ class DebugCmdSet(SMALCmdSet):
         """
         parsed_args = RunArgs.model_validate(vars(args))
         parent_app = self.parent_app
-        console = parent_app.get_console()
-        active_connection = parent_app.get_active_connection()
-        if active_connection is None:
+        if parent_app.active_connection is None:
             parent_app.print_error("No active connection found. Please connect to a device first with the `connect` command.")
             return
-        active_machine = parent_app.get_active_machine()
-        if active_machine is None:
+        if parent_app.active_machine is None:
             parent_app.print_error("No active machine found. Please load a machine definition first with the `machine load` command.")
             return
-        active_module = parent_app.get_active_module()
-        if active_module is not None:
-            harvest_fn = active_module.harvest_fn
+        if parent_app.active_module is not None:
+            harvest_fn = parent_app.active_module.harvest_fn
         elif parsed_args.module is not None:
             parent_app.set_active_module(parsed_args.module)
-            active_module = parent_app.get_active_module()
-            if active_module is None:
+            if parent_app.active_module is None:
                 raise RuntimeError(f"Failed to set active module to {parsed_args.module}.")
+            active_module: TargetModule = parent_app.active_module
             harvest_fn = active_module.harvest_fn
         else:
             parent_app.print_error(
                 "No active module found. Please set a module first with the `module set` command or provide a module file path with the `--module` option.",
             )
             return
-        console.print(f"[bold blue] Harvesting data from machine '{active_machine.name}'...[/bold blue]")
+        parent_app.console.print(f"[bold blue] Harvesting data from machine '{parent_app.active_machine.name}'...[/bold blue]")
         extra_kwargs: dict[str, Any] = parse_params(parsed_args.param or [])
         try:
-            raw_data = harvest_fn(active_machine.name, active_connection.device, **extra_kwargs)
+            raw_data = harvest_fn(parent_app.active_machine.name, parent_app.active_connection.device, **extra_kwargs)
         except Exception as e:  # noqa: BLE001 - Catching all exceptions to provide user feedback in the REPL.
             parent_app.print_error(f"Error during harvest function execution: {e}")
             return
-        with console.status(f"Deserializing debug entries: [bold cyan]{len(raw_data)} bytes[/bold cyan]"):
+        with parent_app.console.status(f"Deserializing debug entries: [bold cyan]{len(raw_data)} bytes[/bold cyan]"):
             try:
                 entries = SMALDebugEntry.deserialize_entries_from_bytes(raw_data)
             except ValueError:
                 parent_app.print_error("Failed to deserialize debug entries from the harvested data.")
                 return
         parent_app.print_success(f"Successfully harvested and deserialized {len(entries)} debug entries.")
-        console.print()
-        _display_entries(entries, active_machine)
+        parent_app.console.print()
+        _display_entries(entries, parent_app.active_machine)
 
     @cmd2.as_subcommand_to("debug", "boilerplate", _boilerplate_parser, help="Generate boilerplate debugging code for a new project utilizing SMAL.")
     def debug_boilerplate(self, args: argparse.Namespace) -> None:
@@ -168,7 +165,6 @@ class DebugCmdSet(SMALCmdSet):
         """
         parsed_args = BoilerplateArgs.model_validate(vars(args))
         parent_app = self.parent_app
-        console = parent_app.get_console()
         # Validate output directory existence and writability
         if not parsed_args.output_dir.exists():
             parsed_args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -182,7 +178,7 @@ class DebugCmdSet(SMALCmdSet):
             parent_app.print_error(f"No debug boilerplate templates found for language: {args.lang}")
             return
         for tmpl in boilerplate_templates:
-            console.print(f"Generating debug boilerplate code for [cyan]{args.lang}[/cyan] using template: [bold cyan]{tmpl.name}[/bold cyan]")
+            parent_app.console.print(f"Generating debug boilerplate code for [cyan]{args.lang}[/cyan] using template: [bold cyan]{tmpl.name}[/bold cyan]")
             _env, btmpl, smal_tmpl = generator.load_builtin_template(tmpl.name)
             sanitized_fn = Path(args.filename).stem if args.filename else None
             fn = f"{sanitized_fn}{tmpl.output_extension}" if sanitized_fn else f"{smal_tmpl.name}{smal_tmpl.output_extension}"

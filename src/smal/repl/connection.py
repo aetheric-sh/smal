@@ -74,10 +74,9 @@ class DeviceConnection:
             connect_fn = target_module.connect_fn
         elif fn_module_path is not None:
             parent_app.set_active_module(fn_module_path)
-            target_module = parent_app.get_active_module()
-            if target_module is None:
+            if parent_app.active_module is None:
                 raise RuntimeError(f"Failed to set active module to {fn_module_path}.")
-            connect_fn = target_module.connect_fn
+            connect_fn = parent_app.active_module.connect_fn
         else:
             raise ValueError(
                 "Cannot create device connection without target module. "
@@ -90,7 +89,9 @@ class DeviceConnection:
         if connected_device is None:
             return None
         if not isinstance(connected_device, ConnectedDevice):
-            raise TypeError(f"'connect' in module {fn_module_path} did not return a ConnectedDevice.")
+            raise TypeError(
+                f"'connect' in module {parent_app.active_module.filepath if parent_app.active_module else fn_module_path} did not return a ConnectedDevice."
+            )
         return cls(name=connected_device.get_name(), device=connected_device)
 
     def disconnect(self, **kwargs: Any) -> bool:

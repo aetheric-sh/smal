@@ -69,12 +69,19 @@ class SMALPersistence(BaseModel):
     )
 
     @staticmethod
-    def clean() -> None:
-        """Clean the persistence data by deleting the persistence file and its application directory."""
+    def clean(del_dir: bool = False) -> None:
+        """Clean the persistence data by deleting all files in the application directory, and optionally the directory itself."""
         app_dir = SMALPersistence.DEFAULT_PATH.parent
         if app_dir.exists():
-            shutil.rmtree(app_dir)
-            logging.debug("Persistence data cleaned by removing directory %s", app_dir)
+            for item in app_dir.iterdir():
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+            logging.debug("Persistence data cleaned by removing files in directory %s", app_dir)
+            if del_dir:
+                app_dir.rmdir()
+                logging.debug("Persistence data cleaned by removing directory %s", app_dir)
 
     @classmethod
     def load(cls, path: Path | str = DEFAULT_PATH) -> SMALPersistence:

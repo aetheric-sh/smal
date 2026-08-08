@@ -50,7 +50,6 @@ class ValidateCmdSet(SMALCmdSet):
         """
         parsed_args = ValidateArgs.model_validate(vars(args))
         parent_app = self.parent_app
-        console = parent_app.get_console()
         if parsed_args.file.suffix in SMALConstants.SupportedFileExtensions.all():
             try:
                 file_data = parsed_args.file.read_text()
@@ -59,14 +58,14 @@ class ValidateCmdSet(SMALCmdSet):
                 rules_to_reenable: list[str] = []
                 if not parsed_args.enforce_rules:
                     rules_to_reenable = [rule.name for rule in ALL_RULES if persistence.is_rule_enabled(rule.name)]
-                    console.print(f"Temporarily disabling {len(rules_to_reenable)} rules for validation...")
+                    parent_app.console.print(f"Temporarily disabling {len(rules_to_reenable)} rules for validation...")
                     for rule_name in rules_to_reenable:
                         persistence.enable_rule(rule_name, False, write_to_file=False)
                     persistence.save()
                 SMALFile.model_validate(model_data)
                 parent_app.print_success(f"'{parsed_args.file}' is a valid SMAL file!", prefix="✅")
                 if rules_to_reenable:
-                    console.print(f"Re-enabling {len(rules_to_reenable)} rules after validation...")
+                    parent_app.console.print(f"Re-enabling {len(rules_to_reenable)} rules after validation...")
                     for rule_name in rules_to_reenable:
                         persistence.enable_rule(rule_name, True, write_to_file=False)
                     persistence.save()
@@ -75,7 +74,7 @@ class ValidateCmdSet(SMALCmdSet):
                 parent_app.print_error(f"Invalid SMAL file: {e}", prefix="❌")
                 return
         if parsed_args.file.suffix in JinjaTemplateValidator.VALID_EXTENSIONS:
-            with console.status("Jinja2 codegen template detected. Validating", spinner="dots"):
+            with parent_app.console.status("Jinja2 codegen template detected. Validating", spinner="dots"):
                 validator = JinjaTemplateValidator(parsed_args.file)
                 validation_result = validator.validate()
                 validation_result.echo_report(parsed_args.file)

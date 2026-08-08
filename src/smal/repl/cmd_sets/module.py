@@ -118,14 +118,13 @@ class ModuleCmdSet(SMALCmdSet):
 
         """
         parent_app = self.parent_app
-        active_module = parent_app.get_active_module()
-        if active_module is None:
+        if parent_app.active_module is None:
             parent_app.print_warning("No active module. Load one with the `module load` command.", omit_heading=True)
         else:
             echo_table(
                 "Active Module Info",
                 ["Hook Name", "Signature", "Address"],
-                active_module.info,
+                parent_app.active_module.info,
                 col_metadata={
                     "Hook Name": {"style": "cyan"},
                     "Signature": {"style": "green"},
@@ -133,7 +132,7 @@ class ModuleCmdSet(SMALCmdSet):
                 },
                 show_lines=True,
             )
-            parent_app.print_msg(f"[bold cyan]Module Location: {active_module.filepath}[/bold cyan]")
+            parent_app.print_msg(f"[bold cyan]Module Location: {parent_app.active_module.filepath}[/bold cyan]")
 
     @cmd2.as_subcommand_to("module", "switch", _switch_parser, help="Switch to a different cached module.")
     def module_switch(self, args: argparse.Namespace) -> None:
