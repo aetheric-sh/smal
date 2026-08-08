@@ -453,6 +453,17 @@ class SMALREPL(cmd2.Cmd):
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
             self.print_error(f"Error occurred while disconnecting from device {device_name}: {e}.")
 
+    def _persist_history(self) -> None:
+        """Persist command history to disk, recreating the parent directory if `clean --del-dir` removed it.
+
+        cmd2 registers this method with `atexit` unconditionally, so if the application data directory was
+        deleted (e.g. via the `clean` command) before the REPL exits, the write would otherwise fail with
+        FileNotFoundError.
+        """
+        if self.persistent_history_file:
+            Path(self.persistent_history_file).parent.mkdir(parents=True, exist_ok=True)
+        super()._persist_history()
+
     def _persist_aliases(self) -> None:
         """Mirror the current in-memory aliases to persistence so they're restored on the next session."""
         persistence = get_persistence()
