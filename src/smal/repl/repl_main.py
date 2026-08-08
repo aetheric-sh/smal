@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from rich.console import Console
 
 from smal.repl.cmd_sets import (
+    AliasCmdSet,
     CodeCmdSet,
     CorrectionsCmdSet,
     DebugCmdSet,
@@ -26,7 +27,7 @@ from smal.repl.cmd_sets import (
     ValidateCmdSet,
 )
 from smal.repl.connection import DeviceConnection
-from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params, reset_persistence_cache
+from smal.repl.helpers import echo_list, get_persistence, import_external_fn_from_file, parse_key_value, parse_params, reset_persistence_cache
 from smal.repl.repl_logger import SMALLogger
 from smal.repl.target_module import TargetModule
 from smal.utilities import constants as SMALConstants
@@ -114,11 +115,15 @@ class SMALREPL(cmd2.Cmd):
         # (and is cleared along with everything else by the `clean` command). Callers may override this.
         kwargs.setdefault("persistent_history_file", str(SMALPersistence.DEFAULT_PATH.parent / "history.dat"))
         super().__init__(*args, **kwargs)
+        # Restore aliases persisted by a previous session's `alias save` so they're immediately usable.
+        for name, tokens in get_persistence().aliases.items():
+            self.aliases[name] = " ".join(tokens)
         self._active_machine: StateMachine | None = None  # Placeholder for the active machine object
         self._active_connection: DeviceConnection | None = None  # Placeholder for the active connection object
         self._active_module: TargetModule | None = None  # Placeholder for the active module
         self._console = Console()
         self._logger = SMALLogger(self._console)
+        self.register_command_set(AliasCmdSet())
         self.register_command_set(CodeCmdSet())
         self.register_command_set(CorrectionsCmdSet())
         self.register_command_set(DebugCmdSet())
@@ -134,6 +139,9 @@ class SMALREPL(cmd2.Cmd):
     def postcmd(self, stop: bool, statement: cmd2.Statement | str) -> bool:
         """Refresh the prompt after each command so it reflects the current connection/machine state.
 
+        Also persists aliases after any `alias` command (e.g. `alias create`/`alias delete`), so changes to
+        `self.aliases` survive across sessions without requiring an explicit save step.
+
         Args:
             stop (bool): Whether the command loop should stop.
             statement (cmd2.Statement | str): The statement that was executed.
@@ -143,6 +151,8 @@ class SMALREPL(cmd2.Cmd):
 
         """
         self._update_prompt()
+        if getattr(statement, "command", None) == "alias":
+            self._persist_aliases()
         return super().postcmd(stop, statement)
 
     @cmd2.with_argparser(_cinfo_parser)
@@ -442,6 +452,12 @@ class SMALREPL(cmd2.Cmd):
                     self.print_error(f"Failed to disconnect from device {device_name}.")
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
             self.print_error(f"Error occurred while disconnecting from device {device_name}: {e}.")
+
+    def _persist_aliases(self) -> None:
+        """Mirror the current in-memory aliases to persistence so they're restored on the next session."""
+        persistence = get_persistence()
+        persistence.aliases = {name: value.split() for name, value in self.aliases.items()}
+        persistence.save()
 
     def _update_prompt(self) -> None:
         """Update the prompt with the active connection, machine, and module."""

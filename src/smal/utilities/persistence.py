@@ -39,6 +39,10 @@ class SMALPersistence(BaseModel):
 
     DEFAULT_PATH: ClassVar[Path] = Path(user_data_dir(appname="smal", appauthor=False)) / "persistence.json"
 
+    aliases: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="A dictionary mapping command alias names to their corresponding values.",
+    )
     rules: dict[str, bool] = Field(
         default_factory=lambda: dict.fromkeys([r.name for r in ALL_RULES], True),
         description="A dictionary mapping rule names to their enabled/disabled status.",

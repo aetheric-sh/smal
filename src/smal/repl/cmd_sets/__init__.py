@@ -2,6 +2,7 @@
 
 # ruff: noqa: F401 - Unused imports
 
+from .aliases import AliasCmdSet
 from .code import CodeCmdSet
 from .corrections import CorrectionsCmdSet
 from .debug import DebugCmdSet
