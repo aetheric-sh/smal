@@ -11,8 +11,8 @@ from smal.codegen.target_primitive import get_target_primitive
 from smal.schemas.bit_field import BitField  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.enumeration import Enumeration  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.utilities import IdentifierValidationMixin, PrimitiveValidationMixin
+from smal.codegen.primitives.smal_primitive import SMALPrimitive
 from smal.utilities import constants as SMALConstants
-from smal.utilities.smal_primitive import SMALPrimitive
 
 
 class StructField(IdentifierValidationMixin, PrimitiveValidationMixin, BaseModel):

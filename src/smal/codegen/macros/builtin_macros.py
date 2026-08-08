@@ -32,7 +32,7 @@ class SMALMacro:
             str: The import path for this macro, which can be used to load the macro's template file.
 
         """
-        return f"macros/{self.filename}"
+        return f"macros/{self.lang}/{self.filename}"
 
     @cached_property
     def signature(self) -> str:

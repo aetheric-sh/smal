@@ -31,14 +31,6 @@ class ConnectedDevice(Protocol):
         ...
 
 
-class ConnectFn(Protocol):
-    """Protocol for the connect function, which accepts arbitrary default params."""
-
-    def __call__(self, **kwargs: object) -> ConnectedDevice | None:
-        """Connect to an arbitrary device."""
-        ...
-
-
 @dataclass
 class DeviceConnection:
     """Dataclass defining a connection (or lackthereof) to an arbitrary device."""
@@ -70,13 +62,14 @@ class DeviceConnection:
             DeviceConnection | None: The established device connection if successful, otherwise None.
 
         """
-        if target_module is not None:
-            connect_fn = target_module.connect_fn
-        elif fn_module_path is not None:
+        if fn_module_path is not None:
+            # An explicitly-provided module path takes precedence over any already-active module, so `-m` reliably
+            # switches modules instead of being silently ignored whenever a module happens to already be active.
             parent_app.set_active_module(fn_module_path)
-            target_module = parent_app.get_active_module()
-            if target_module is None:
+            if parent_app.active_module is None:
                 raise RuntimeError(f"Failed to set active module to {fn_module_path}.")
+            connect_fn = parent_app.active_module.connect_fn
+        elif target_module is not None:
             connect_fn = target_module.connect_fn
         else:
             raise ValueError(
@@ -90,7 +83,9 @@ class DeviceConnection:
         if connected_device is None:
             return None
         if not isinstance(connected_device, ConnectedDevice):
-            raise TypeError(f"'connect' in module {fn_module_path} did not return a ConnectedDevice.")
+            raise TypeError(
+                f"'connect' in module {parent_app.active_module.filepath if parent_app.active_module else fn_module_path} did not return a ConnectedDevice."
+            )
         return cls(name=connected_device.get_name(), device=connected_device)
 
     def disconnect(self, **kwargs: Any) -> bool:

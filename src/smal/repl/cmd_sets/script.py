@@ -9,7 +9,7 @@ from __future__ import annotations  # Until Python 3.14
 import argparse
 from pathlib import Path
 from time import sleep
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 import cmd2
 from pydantic import BaseModel
@@ -22,24 +22,18 @@ from smal.schemas.smal_script import SMALScript, SMALScriptCommand
 from smal.utilities import constants as SMALConstants
 
 if TYPE_CHECKING:
-    from smal.repl.connection import ConnectedDevice
     from smal.repl.repl_like import REPLLike
+    from smal.repl.target_api import PythonScriptFn
     from smal.utilities.persistence import SMALPersistence
-
-PYTHON_SCRIPT_FILE_EXTENSION = ".py"
-
-
-@runtime_checkable
-class PythonScriptFn(Protocol):
-    """Protocol for a Python-based SMAL script's entrypoint function."""
-
-    def __call__(self, device: ConnectedDevice, logger: SMALScriptLogger, *args: Any, **kwargs: Any) -> None:
-        """Execute this script against the actively connected SMAL device."""
-        ...
 
 
 class SMALScriptLogger:
-    """Logging facility passed to Python scripts so they can log to the same console as SMAL itself."""
+    """Logging facility passed to Python scripts so they can log to the same console as SMAL itself.
+
+    Every call is also mirrored to the REPL's `SMALLogger` (unstyled, prefixed with the script name), so script
+    activity is captured in the persistent log file alongside the rest of SMAL's logging, not just printed to
+    the terminal.
+    """
 
     def __init__(self, parent_app: REPLLike, script_name: str) -> None:
         """Initialize the logger for a given script.
@@ -50,6 +44,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app = parent_app
+        self._script_name = script_name
         self._prefix = f"[cyan]\\[{script_name}][/cyan]"
 
     def info(self, message: str) -> None:
@@ -60,6 +55,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app.print_msg(f"{self._prefix} {message}")
+        self._parent_app.logger.info("[%s] %s", self._script_name, message)
 
     def success(self, message: str) -> None:
         """Log a success message.
@@ -69,6 +65,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app.print_success(message, prefix=self._prefix)
+        self._parent_app.logger.info("[%s] %s", self._script_name, message)
 
     def warning(self, message: str) -> None:
         """Log a warning message.
@@ -78,6 +75,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app.print_warning(message, prefix=self._prefix)
+        self._parent_app.logger.warning("[%s] %s", self._script_name, message)
 
     def error(self, message: str) -> None:
         """Log an error message.
@@ -87,6 +85,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app.print_error(message, prefix=self._prefix)
+        self._parent_app.logger.error("[%s] %s", self._script_name, message)
 
 
 _script_parser = cmd2.Cmd2ArgumentParser()
@@ -209,15 +208,14 @@ class ScriptCmdSet(SMALCmdSet):
         if not parsed_args.filepath.exists():
             parent_app.print_error(f"Script file '{parsed_args.filepath}' does not exist.")
             return
-        console = parent_app.get_console()
         persistence = get_persistence()
         if parsed_args.filepath.is_dir():
-            with console.status(f"[bold blue]Searching for SMAL and Python scripts under {parsed_args.filepath}...[/bold blue]"):
-                script_extensions = (SMALConstants.SMAL_SCRIPT_FILE_EXTENSION, PYTHON_SCRIPT_FILE_EXTENSION)
+            with parent_app.console.status(f"[bold blue]Searching for SMAL and Python scripts under {parsed_args.filepath}...[/bold blue]"):
+                script_extensions = (SMALConstants.SMAL_SCRIPT_FILE_EXTENSION, SMALConstants.PYTHON_SCRIPT_FILE_EXTENSION)
                 script_files = sorted(p for ext in script_extensions for p in parsed_args.filepath.rglob(f"*{ext}") if p.is_file())
             if not script_files:
                 parent_app.print_warning(
-                    f"No scripts (`{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}` or `{PYTHON_SCRIPT_FILE_EXTENSION}`) found under directory:"
+                    f"No scripts (`{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}` or `{SMALConstants.PYTHON_SCRIPT_FILE_EXTENSION}`) found under directory:"
                     f" {parsed_args.filepath}",
                 )
                 return
@@ -238,12 +236,12 @@ class ScriptCmdSet(SMALCmdSet):
         """
         if filepath.suffix == SMALConstants.SMAL_SCRIPT_FILE_EXTENSION:
             self._load_script_from_file(filepath, overwrite, persistence, parent_app)
-        elif filepath.suffix == PYTHON_SCRIPT_FILE_EXTENSION:
+        elif filepath.suffix == SMALConstants.PYTHON_SCRIPT_FILE_EXTENSION:
             self._load_python_script_from_file(filepath, overwrite, persistence, parent_app)
         else:
             parent_app.print_error(
                 f"Unsupported script file type '{filepath.suffix}' for '{filepath}'."
-                f" Expected '{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}' or '{PYTHON_SCRIPT_FILE_EXTENSION}'.",
+                f" Expected '{SMALConstants.SMAL_SCRIPT_FILE_EXTENSION}' or '{SMALConstants.PYTHON_SCRIPT_FILE_EXTENSION}'.",
             )
 
     @cmd2.as_subcommand_to("script", "delete", _delete_parser, help="Delete a script from persistence by name, or all if 'all' is given.")
@@ -388,8 +386,7 @@ class ScriptCmdSet(SMALCmdSet):
             **extra_kwargs (Any): Additional keyword arguments to pass to the script's `smal_script` function.
 
         """
-        active_connection = parent_app.get_active_connection()
-        if active_connection is None or not active_connection.is_connected:
+        if parent_app.active_connection is None or not parent_app.active_connection.is_connected:
             parent_app.print_error("No active connection found. Please connect to a device first using the `connect` command.")
             return
         try:
@@ -400,7 +397,7 @@ class ScriptCmdSet(SMALCmdSet):
         parent_app.print_success(f"Running Python script '{name}' from '{filepath}'.", omit_heading=True)
         logger = SMALScriptLogger(parent_app, name)
         try:
-            script_fn(active_connection.device, logger, **extra_kwargs)
+            script_fn(parent_app.active_connection.device, logger, **extra_kwargs)
         except Exception as e:  # noqa: BLE001 - Catching blind exceptions here to provide a user-friendly error message in the REPL.
             parent_app.print_error(f"Error while running Python script '{name}': {e}")
 

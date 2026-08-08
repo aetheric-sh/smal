@@ -14,27 +14,39 @@ from pydantic import BaseModel
 from rich.console import Console
 
 from smal.repl.cmd_sets import (
+    AliasCmdSet,
     CodeCmdSet,
     CorrectionsCmdSet,
     DebugCmdSet,
     DiagramCmdSet,
+    LogCmdSet,
     MachineCmdSet,
     ModuleCmdSet,
     MsgCmdSet,
+    PersistenceCmdSet,
     RulesCmdSet,
     ScriptCmdSet,
     ValidateCmdSet,
 )
-from smal.repl.connection import ConnectFn, DeviceConnection
-from smal.repl.helpers import echo_list, import_external_fn_from_file, parse_key_value, parse_params, reset_persistence_cache
-from smal.repl.target_module import SendMsgFn, TargetModule
+from smal.repl.connection import DeviceConnection
+from smal.repl.helpers import (
+    echo_list,
+    get_fn_from_module,
+    get_persistence,
+    import_external_module_from_file,
+    parse_key_value,
+    parse_params,
+    reset_persistence_cache,
+)
+from smal.repl.repl_logger import SMALLogger
+from smal.repl.target_module import TargetModule
 from smal.utilities import constants as SMALConstants
 from smal.utilities.persistence import SMALPersistence
 
 if TYPE_CHECKING:
     import argparse
 
-    from smal.repl.cmd_sets.debug import HarvestFn
+    from smal.repl.target_api import ConnectFn, HarvestFn, SendMsgFn
     from smal.schemas.state_machine import StateMachine
 
 _connect_parser = cmd2.Cmd2ArgumentParser()
@@ -81,7 +93,16 @@ class DisconnectArgs(BaseModel):
 
 _clean_parser = cmd2.Cmd2ArgumentParser()
 _clean_parser.add_argument(
-    "-y", "--yes", action="store_true", help="Automatically confirm the cleaning of the application data directory without prompting for confirmation."
+    "-y",
+    "--yes",
+    action="store_true",
+    help="Automatically confirm the removal of all files within the application data directory without prompting for confirmation.",
+)
+_clean_parser.add_argument(
+    "-d",
+    "--del-dir",
+    action="store_true",
+    help="Delete the application data directory itself after cleaning its contents.",
 )
 
 
@@ -89,6 +110,7 @@ class CleanArgs(BaseModel):
     """Model describing the arguments to the clean command."""
 
     yes: bool = False
+    del_dir: bool = False
 
 
 class SMALREPL(cmd2.Cmd):
@@ -103,24 +125,43 @@ class SMALREPL(cmd2.Cmd):
         # (and is cleared along with everything else by the `clean` command). Callers may override this.
         kwargs.setdefault("persistent_history_file", str(SMALPersistence.DEFAULT_PATH.parent / "history.dat"))
         super().__init__(*args, **kwargs)
+        # Restore aliases persisted by a previous session's `alias save` so they're immediately usable.
+        for name, tokens in get_persistence().aliases.items():
+            self.aliases[name] = " ".join(tokens)
         self._active_machine: StateMachine | None = None  # Placeholder for the active machine object
         self._active_connection: DeviceConnection | None = None  # Placeholder for the active connection object
         self._active_module: TargetModule | None = None  # Placeholder for the active module
-        self.console = Console()
+        self._console = Console()
+        self._logger = SMALLogger(self._console)
+        self.register_command_set(AliasCmdSet())
         self.register_command_set(CodeCmdSet())
         self.register_command_set(CorrectionsCmdSet())
         self.register_command_set(DebugCmdSet())
         self.register_command_set(DiagramCmdSet())
+        self.register_command_set(LogCmdSet())
         self.register_command_set(MachineCmdSet())
         self.register_command_set(ModuleCmdSet())
         self.register_command_set(MsgCmdSet())
+        self.register_command_set(PersistenceCmdSet())
         self.register_command_set(RulesCmdSet())
         self.register_command_set(ScriptCmdSet())
         self.register_command_set(ValidateCmdSet())
         self._update_prompt()
 
+    def postloop(self) -> None:
+        """Dispose of the logger's handlers once the command loop exits, regardless of how it stopped.
+
+        Unlike `do_exit`/`do_EOF`, this hook runs no matter which command (or exception) ended the loop, so
+        it's the one place that reliably closes the log file handle before the process exits.
+        """
+        self._logger.close()
+        super().postloop()
+
     def postcmd(self, stop: bool, statement: cmd2.Statement | str) -> bool:
         """Refresh the prompt after each command so it reflects the current connection/machine state.
+
+        Also persists aliases after any `alias` command (e.g. `alias create`/`alias delete`), so changes to
+        `self.aliases` survive across sessions without requiring an explicit save step.
 
         Args:
             stop (bool): Whether the command loop should stop.
@@ -131,7 +172,46 @@ class SMALREPL(cmd2.Cmd):
 
         """
         self._update_prompt()
+        if getattr(statement, "command", None) == "alias":
+            self._persist_aliases()
         return super().postcmd(stop, statement)
+
+    @cmd2.with_argparser(_cinfo_parser)
+    def do_cinfo(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
+        """Display information about the current device connection.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments (not used in this command).
+
+        """
+        if self._active_connection is None or not self._active_connection.is_connected:
+            self.console.print("[bold red]No active device connection.[/bold red]")
+            return
+        self.console.print(f"[bold green]Active device connection:[/bold green] {self._active_connection.name}")
+        self.console.print("[bold magenta]Connection details:[/bold magenta]")
+        self.console.print(self._active_connection.connection_details_str or "[bold yellow]No connection details available.[/bold yellow]")
+
+    @cmd2.with_argparser(_clean_parser)
+    def do_clean(self, args: argparse.Namespace) -> None:
+        """Clean the SMAL persisted application data directory.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments containing the confirmation flag.
+
+        """
+        parsed_args = CleanArgs.model_validate(vars(args))
+        app_dir = SMALPersistence.DEFAULT_PATH.parent
+        if not app_dir.exists():
+            self.console.print("[bold yellow]Nothing to clean — no application data directory found.[/bold yellow]")
+            return
+        if not parsed_args.yes:
+            confirmation = self.read_input(cmd2.stylize(f"Are you sure you want to delete the application data directory at {app_dir}? [y/N] ", "bold yellow"))
+            if confirmation.strip().lower() not in {"y", "yes"}:
+                self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
+                return
+        SMALPersistence.clean(del_dir=parsed_args.del_dir)
+        reset_persistence_cache()
+        self.console.print(f"[bold green]Removed application data directory: {app_dir}[/bold green]")
 
     @cmd2.with_argparser(_connect_parser)
     def do_connect(self, args: argparse.Namespace) -> None:
@@ -163,21 +243,6 @@ class SMALREPL(cmd2.Cmd):
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
             self.print_error(f"{e}")
 
-    @cmd2.with_argparser(_cinfo_parser)
-    def do_cinfo(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused method argument
-        """Display information about the current device connection.
-
-        Args:
-            args (argparse.Namespace): The parsed command-line arguments (not used in this command).
-
-        """
-        if self._active_connection is None or not self._active_connection.is_connected:
-            self.console.print("[bold red]No active device connection.[/bold red]")
-            return
-        self.console.print(f"[bold green]Active device connection:[/bold green] {self._active_connection.name}")
-        self.console.print("[bold magenta]Connection details:[/bold magenta]")
-        self.console.print(self._active_connection.connection_details_str or "[bold yellow]No connection details available.[/bold yellow]")
-
     @cmd2.with_argparser(_disconnect_parser)
     def do_disconnect(self, args: argparse.Namespace) -> None:
         """Disconnect from the active device connection, if there is one.
@@ -194,27 +259,32 @@ class SMALREPL(cmd2.Cmd):
             return
         self._disconnect_from_device(**extra_kwargs)
 
-    @cmd2.with_argparser(_clean_parser)
-    def do_clean(self, args: argparse.Namespace) -> None:
-        """Clean the SMAL persisted application data directory.
+    def do_EOF(self, arg: str) -> bool:  # noqa: ARG002 - Unused method argument
+        """Exit the REPL on EOF (Ctrl+D).
 
         Args:
-            args (argparse.Namespace): The parsed command-line arguments containing the confirmation flag.
+            arg (str): Unused argument.
+
+        Returns:
+            bool: True if the REPL should exit, False otherwise.
 
         """
-        parsed_args = CleanArgs.model_validate(vars(args))
-        app_dir = SMALPersistence.DEFAULT_PATH.parent
-        if not app_dir.exists():
-            self.console.print("[bold yellow]Nothing to clean — no application data directory found.[/bold yellow]")
-            return
-        if not parsed_args.yes:
-            confirmation = self.read_input(cmd2.stylize(f"Are you sure you want to delete the application data directory at {app_dir}? [y/N] ", "bold yellow"))
-            if confirmation.strip().lower() not in {"y", "yes"}:
-                self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
-                return
-        SMALPersistence.clean()
-        reset_persistence_cache()
-        self.console.print(f"[bold green]Removed application data directory: {app_dir}[/bold green]")
+        self.console.print("\n[bold blue] EOF (Ctrl+D) detected, exiting SMAL REPL...[/bold blue]")
+        self._disconnect_from_device()
+        return True
+
+    def do_exit(self, arg: str) -> bool:  # noqa: ARG002 - Unused method argument
+        """Exit the REPL.
+
+        Args:
+            arg (str): Unused argument.
+
+        Returns:
+            bool: True if the REPL should exit, False otherwise.
+
+        """
+        self._disconnect_from_device()
+        return True
 
     def do_graphviz(self, arg: str) -> None:  # noqa: ARG002 - Unused method argument
         """Check for Graphviz installation and provide installation instructions if not found.
@@ -265,43 +335,18 @@ class SMALREPL(cmd2.Cmd):
                     echo_list("Please install Graphviz manually from", ["https://graphviz.org/download/"], tab_size=4, bold_header=False)
             echo_list("Once installed, verify your installation with", ["[code]dot -V[/code]"], tab_size=4, bold_header=False)
 
-    def do_exit(self, arg: str) -> bool:  # noqa: ARG002 - Unused method argument
-        """Exit the REPL.
-
-        Args:
-            arg (str): Unused argument.
+    @property
+    def active_connection(self) -> DeviceConnection | None:
+        """Get the currently active device connection.
 
         Returns:
-            bool: True if the REPL should exit, False otherwise.
+            DeviceConnection | None: The currently active device connection, or None if no connection is active.
 
         """
-        self._disconnect_from_device()
-        return True
+        return self._active_connection
 
-    def do_EOF(self, arg: str) -> bool:  # noqa: ARG002 - Unused method argument
-        """Exit the REPL on EOF (Ctrl+D).
-
-        Args:
-            arg (str): Unused argument.
-
-        Returns:
-            bool: True if the REPL should exit, False otherwise.
-
-        """
-        self.console.print("\n[bold blue] EOF (Ctrl+D) detected, exiting SMAL REPL...[/bold blue]")
-        self._disconnect_from_device()
-        return True
-
-    def get_console(self) -> Console:
-        """Get the rich console for the REPL.
-
-        Returns:
-            Console: The rich console object.
-
-        """
-        return self.console
-
-    def get_active_machine(self) -> StateMachine | None:
+    @property
+    def active_machine(self) -> StateMachine | None:
         """Get the currently active state machine.
 
         Returns:
@@ -310,23 +355,47 @@ class SMALREPL(cmd2.Cmd):
         """
         return self._active_machine
 
-    def set_active_machine(self, machine: StateMachine) -> None:
-        """Set the currently active state machine.
-
-        Args:
-            machine (StateMachine): The state machine to set as active.
-
-        """
-        self._active_machine = machine
-
-    def get_active_connection(self) -> DeviceConnection | None:
-        """Get the currently active device connection.
+    @property
+    def active_module(self) -> TargetModule | None:
+        """Get the currently active module for the REPL.
 
         Returns:
-            DeviceConnection | None: The currently active device connection, or None if no connection is active.
+            TargetModule | None: The currently active module, or None if no module is active.
 
         """
-        return self._active_connection
+        return self._active_module
+
+    @property
+    def console(self) -> Console:
+        """Get the rich console for the REPL.
+
+        Returns:
+            Console: The rich console object.
+
+        """
+        return self._console
+
+    @property
+    def logger(self) -> SMALLogger:
+        """Get the leveled logger for the REPL.
+
+        Returns:
+            SMALLogger: The leveled logger, which mirrors records to both the terminal and a persistent log file.
+
+        """
+        return self._logger
+
+    def print_error(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
+        """Print an error message to the console.
+
+        Args:
+            message (str): The error message to print.
+            prefix (str | None): An optional prefix for the message. If provided, it will be displayed before the message.
+            omit_heading (bool): If True, the "Error: " heading will be omitted from the message.
+
+        """
+        msg = f"{prefix + ' ' if prefix else ''}[bold red]{'Error: ' if not omit_heading else ''}{message}[/bold red]"
+        self.console.print(msg)
 
     def print_msg(self, message: str) -> None:
         """Print a message to the console.
@@ -361,17 +430,14 @@ class SMALREPL(cmd2.Cmd):
         msg = f"{prefix + ' ' if prefix else ''}[bold yellow]{'Warning: ' if not omit_heading else ''}{message}[/bold yellow]"
         self.console.print(msg)
 
-    def print_error(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
-        """Print an error message to the console.
+    def set_active_machine(self, machine: StateMachine) -> None:
+        """Set the currently active state machine.
 
         Args:
-            message (str): The error message to print.
-            prefix (str | None): An optional prefix for the message. If provided, it will be displayed before the message.
-            omit_heading (bool): If True, the "Error: " heading will be omitted from the message.
+            machine (StateMachine): The state machine to set as active.
 
         """
-        msg = f"{prefix + ' ' if prefix else ''}[bold red]{'Error: ' if not omit_heading else ''}{message}[/bold red]"
-        self.console.print(msg)
+        self._active_machine = machine
 
     def set_active_module(self, module_file: Path) -> None:
         """Set the active module for the REPL.
@@ -383,24 +449,22 @@ class SMALREPL(cmd2.Cmd):
         if not module_file.is_file():
             self.print_error(f"Module file not found: {module_file}")
             return
-        self._active_module = module_file
-        connect_fn: ConnectFn = import_external_fn_from_file(module_file, "smal_connect_module", "connect")
-        harvest_fn: HarvestFn = import_external_fn_from_file(module_file, "smal_harvest_module", "harvest")
+        # The module's top-level code is only executed once here (via a single import), and `_active_module` is
+        # only reassigned once the module has been fully validated below — so a malformed module (e.g. missing
+        # `harvest`) leaves the previously active module (if any) intact instead of corrupting it into a bare Path.
+        try:
+            fn_module = import_external_module_from_file(module_file, "smal_target_module")
+            connect_fn: ConnectFn = get_fn_from_module(fn_module, module_file, "connect")
+            harvest_fn: HarvestFn = get_fn_from_module(fn_module, module_file, "harvest")
+        except (ImportError, AttributeError, TypeError) as e:
+            self.print_error(f"Failed to load module {module_file}: {e}")
+            return
         send_msg_fn: SendMsgFn | None = None
         # send_msg is an optional function, so we can ignore if it's not present
         with contextlib.suppress(AttributeError):
-            send_msg_fn = import_external_fn_from_file(module_file, "smal_send_msg_module", "send_msg")
+            send_msg_fn = get_fn_from_module(fn_module, module_file, "send_msg")
         self._active_module = TargetModule(filepath=module_file, connect_fn=connect_fn, harvest_fn=harvest_fn, send_msg_fn=send_msg_fn)
         self.print_success(f"Active module set to: {module_file}", omit_heading=True)
-
-    def get_active_module(self) -> TargetModule | None:
-        """Get the currently active module for the REPL.
-
-        Returns:
-            TargetModule | None: The currently active module, or None if no module is active.
-
-        """
-        return self._active_module
 
     def _disconnect_from_device(self, **kwargs: Any) -> None:
         if self._active_connection is None or not self._active_connection.is_connected:
@@ -416,6 +480,23 @@ class SMALREPL(cmd2.Cmd):
                     self.print_error(f"Failed to disconnect from device {device_name}.")
         except Exception as e:  # noqa: BLE001 - Broad exception caught for user-facing error handling
             self.print_error(f"Error occurred while disconnecting from device {device_name}: {e}.")
+
+    def _persist_history(self) -> None:
+        """Persist command history to disk, recreating the parent directory if `clean --del-dir` removed it.
+
+        cmd2 registers this method with `atexit` unconditionally, so if the application data directory was
+        deleted (e.g. via the `clean` command) before the REPL exits, the write would otherwise fail with
+        FileNotFoundError.
+        """
+        if self.persistent_history_file:
+            Path(self.persistent_history_file).parent.mkdir(parents=True, exist_ok=True)
+        super()._persist_history()
+
+    def _persist_aliases(self) -> None:
+        """Mirror the current in-memory aliases to persistence so they're restored on the next session."""
+        persistence = get_persistence()
+        persistence.aliases = {name: value.split() for name, value in self.aliases.items()}
+        persistence.save()
 
     def _update_prompt(self) -> None:
         """Update the prompt with the active connection, machine, and module."""

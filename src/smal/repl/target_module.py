@@ -7,32 +7,36 @@ from __future__ import annotations  # Until Python 3.14
 
 import inspect
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from smal.repl.cmd_sets.debug import HarvestFn
-    from smal.repl.connection import ConnectedDevice, ConnectFn
+    from smal.repl.target_api import ConnectFn, HarvestFn, SendMsgFn
 
 
-@runtime_checkable
-class SendMsgFn(Protocol):
-    """Protocol describing a function that sends a message to the actively connected SMAL device."""
+@dataclass(frozen=True)
+class TargetModule:
+    """Dataclass describing a target module for the SMAL REPL."""
 
-    def __call__(self, device: ConnectedDevice, content: str | dict | bytes, **kwargs: Any) -> Any:
-        """Send a message to the actively connected SMAL device.
+    filepath: Path
+    connect_fn: ConnectFn
+    harvest_fn: HarvestFn
+    send_msg_fn: SendMsgFn | None = None
 
-        Args:
-            device (ConnectedDevice): The actively connected SMAL device.
-            content (str | dict | bytes): The content of the message to send.
-            **kwargs: Additional keyword arguments to pass to the send function.
+    @property
+    def info(self) -> list[list[str]]:
+        """Get all information about the target module.
 
         Returns:
-            Any: The response from the device after sending the message, if any.
+            list[list[str]]: The information about the target module as a list of lists, where each inner list contains the hook name, signature, and address.
 
         """
-        ...
+        return [
+            [fn.__name__, _format_signature_multiline(_get_callable_signature(fn)), str(fn)]
+            for fn in [self.connect_fn, self.harvest_fn, self.send_msg_fn]
+            if fn is not None
+        ]
 
 
 def _get_callable_signature(fn: object) -> inspect.Signature | None:
@@ -72,27 +76,3 @@ def _format_signature_multiline(signature: inspect.Signature | None, max_single_
     if not ret:
         return args_block
     return f"{args_block}\n-> {ret}"
-
-
-@dataclass(frozen=True)
-class TargetModule:
-    """Dataclass describing a target module for the SMAL REPL."""
-
-    filepath: Path
-    connect_fn: ConnectFn
-    harvest_fn: HarvestFn
-    send_msg_fn: SendMsgFn | None = None
-
-    @property
-    def info(self) -> list[list[str]]:
-        """Get all information about the target module.
-
-        Returns:
-            list[list[str]]: The information about the target module as a list of lists, where each inner list contains the hook name, signature, and address.
-
-        """
-        return [
-            [fn.__name__, _format_signature_multiline(_get_callable_signature(fn)), str(fn)]
-            for fn in [self.connect_fn, self.harvest_fn, self.send_msg_fn]
-            if fn is not None
-        ]

@@ -86,8 +86,7 @@ def send_message(parent_app: REPLLike, content: str, module: str | None = None, 
         Any: The response from the device after sending the message, if any.
 
     """
-    active_connection = parent_app.get_active_connection()
-    if active_connection is None:
+    if parent_app.active_connection is None:
         parent_app.print_error("No active connection found. Please connect to a device first using the `connect` command.")
         return None
     if module is not None:
@@ -96,14 +95,17 @@ def send_message(parent_app: REPLLike, content: str, module: str | None = None, 
             parent_app.print_error(f"Module '{module}' not found in persistence. Please load the module first using the `module load` command.")
             return None
         parent_app.set_active_module(module_path)
-    active_module = parent_app.get_active_module()
-    if active_module is None:
+    if parent_app.active_module is None:
         parent_app.print_error(
             "No active module found. Please load a module first using the `module load` command or provide one to this command with the `-m` option.",
         )
         return None
-    send_msg_fn = active_module.send_msg_fn
+    send_msg_fn = parent_app.active_module.send_msg_fn
     if send_msg_fn is None:
-        parent_app.print_error(f"The active module '{active_module.filepath}' does not support a sending messages.")
+        parent_app.print_error(f"The active module '{parent_app.active_module.filepath}' does not support a sending messages.")
         return None
-    return send_msg_fn(active_connection.device, content, **extra_kwargs)
+    try:
+        return send_msg_fn(parent_app.active_connection.device, content, **extra_kwargs)
+    except Exception as e:  # noqa: BLE001 - Catching all exceptions to provide user feedback in the REPL.
+        parent_app.print_error(f"Error during send_msg function execution: {e}")
+        return None

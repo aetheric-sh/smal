@@ -9,8 +9,9 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
-from smal.codegen import MacroRegistry, TemplateRegistry
 from smal.codegen.code_generator import SMALCodeGenerator
+from smal.codegen.macros import MacroRegistry
+from smal.codegen.templates import TemplateRegistry
 from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.cmd_sets.validate import JinjaTemplateValidator
 from smal.repl.completers import machine_completer, template_completer
@@ -100,7 +101,6 @@ class CodeCmdSet(SMALCmdSet):
         """
         parsed_args = GenerateArgs.model_validate(vars(args))
         parent_app = self.parent_app
-        console = parent_app.get_console()
         persistence = get_persistence()
         # Validate output directory existence and writability
         if not parsed_args.output_dir.exists():
@@ -109,11 +109,10 @@ class CodeCmdSet(SMALCmdSet):
             parent_app.print_error(f"Output path exists but is not a directory: {parsed_args.output_dir}")
             return
         if parsed_args.machine is None:
-            active_machine = parent_app.get_active_machine()
-            if active_machine is None:
+            if parent_app.active_machine is None:
                 parent_app.print_error("No active machine found. Please specify a machine or set an active machine.")
                 return
-            machine = active_machine
+            machine = parent_app.active_machine
         else:
             cached_machine = persistence.machines.get(parsed_args.machine)
             if cached_machine is None:
@@ -127,7 +126,7 @@ class CodeCmdSet(SMALCmdSet):
         if TemplateRegistry.has_template(parsed_args.template):
             # Generate the code using the built-in template
             try:
-                with console.status(
+                with parent_app.console.status(
                     f"Generating code from {machine.name} using built-in template: [bold cyan]{parsed_args.template}[/bold cyan]",
                     spinner="dots",
                 ):
@@ -138,11 +137,11 @@ class CodeCmdSet(SMALCmdSet):
                         out_filename=parsed_args.filename,
                         force=parsed_args.force,
                     )
-                console.print(
+                parent_app.console.print(
                     f"[green]Code successfully generated from builtin template {parsed_args.template}: [bold cyan]{generated_filepath}[/bold cyan][/green]",
                 )
             except ValueError as e:
-                console.print(f"[red]Failed to generate code from builtin template {parsed_args.template} due to rendering error: {e}[/red]")
+                parent_app.console.print(f"[red]Failed to generate code from builtin template {parsed_args.template} due to rendering error: {e}[/red]")
         # If the user selected a custom template
         else:
             custom_template_path = Path(parsed_args.template)
@@ -162,7 +161,7 @@ class CodeCmdSet(SMALCmdSet):
                 return
             # Generate the custom code
             try:
-                with console.status(
+                with parent_app.console.status(
                     f"Generating code from {machine.name} using custom template: [bold cyan]{custom_template_path}[/bold cyan]", spinner="dots"
                 ):
                     generated_filepath = generate_code_cmd_custom(
@@ -172,12 +171,12 @@ class CodeCmdSet(SMALCmdSet):
                         out_filename=parsed_args.filename,
                         force=parsed_args.force,
                     )
-                console.print(
+                parent_app.console.print(
                     f"[green]Code successfully generated from custom template [bold yellow]{custom_template_path.name}[/bold yellow]:"
                     f" [bold cyan]{generated_filepath}[/bold cyan][/green]",
                 )
             except ValueError as e:
-                console.print(f"[red]Failed to generate code from custom template {custom_template_path} due to rendering error: {e}[/red]")
+                parent_app.console.print(f"[red]Failed to generate code from custom template {custom_template_path} due to rendering error: {e}[/red]")
 
     @cmd2.as_subcommand_to("code", "macros", _macros_parser, help="List all Jinja2 macros provided by SMAL that are usable by external templates.")
     def code_macros(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused argument

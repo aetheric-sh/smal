@@ -44,6 +44,8 @@ where = ["src"]
 smal = [
     "codegen/templates/*.j2",
     "codegen/templates/**/*.j2",
+    "codegen/macros/*.j2",
+    "codegen/macros/**/*.j2",
 ]
 
 [tool.semantic_release]

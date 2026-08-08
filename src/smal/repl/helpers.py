@@ -19,6 +19,7 @@ from smal.utilities.persistence import SMALPersistence
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from types import ModuleType
 
 console = Console()
 
@@ -150,7 +151,6 @@ def get_parent_app(cmd_set: cmd2.CommandSet) -> REPLLike:
         cmd_set (cmd2.CommandSet): The command set for which to retrieve the parent application.
 
     Raises:
-        AttributeError: If the command set does not have a '_cmd' attribute, indicating it is not registered to a parent application.
         RuntimeError: If the command set is not attached to a parent application.
         TypeError: If the parent application is not of type REPLLike.
 
@@ -158,8 +158,6 @@ def get_parent_app(cmd_set: cmd2.CommandSet) -> REPLLike:
         REPLLike: The parent application of the command set.
 
     """
-    if not hasattr(cmd_set, "_cmd"):
-        raise AttributeError("Unable to access parent application; '_cmd' attribute is missing.")
     try:
         parent_app = cmd_set._cmd  # noqa: SLF001 - Accessing protected member _cmd is necessary to get the parent application of a cmd2.CommandSet.
     except cmd2.exceptions.CommandSetRegistrationError as e:
@@ -169,8 +167,69 @@ def get_parent_app(cmd_set: cmd2.CommandSet) -> REPLLike:
     return parent_app
 
 
+def import_external_module_from_file(module_path: Path, module_name: str) -> ModuleType:
+    """Import and execute a Python module from a file path.
+
+    Args:
+        module_path (Path): The file path to the module.
+        module_name (str): The name to assign to the imported module (and to register it under in `sys.modules`).
+
+    Raises:
+        FileNotFoundError: If the module path does not exist or is not a file.
+        ImportError: If the module cannot be imported or loaded.
+
+    Returns:
+        ModuleType: The imported (and already-executed) module.
+
+    """
+    if not module_path.is_file():
+        raise FileNotFoundError(f"Module path {module_path} does not exist or is not a file.")
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load module from {module_path}.")
+    fn_module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = fn_module
+    try:
+        spec.loader.exec_module(fn_module)
+    except ModuleNotFoundError as e:
+        raise ImportError(f"Could not load module from {module_path}: {e}") from e
+    except ImportError as e:
+        raise ImportError(f"Could not load module from {module_path}: {e}") from e
+    return fn_module
+
+
+def get_fn_from_module(fn_module: ModuleType, module_path: Path, fn_name: str) -> object:
+    """Get and validate a callable attribute from an already-imported module.
+
+    Args:
+        fn_module (ModuleType): The module to look up the function on, as returned by `import_external_module_from_file`.
+        module_path (Path): The file path the module was loaded from, used only to produce descriptive error messages.
+        fn_name (str): The name of the function to look up.
+
+    Raises:
+        AttributeError: If the module does not have the specified function.
+        TypeError: If the specified function is not callable.
+
+    Returns:
+        object: The requested function.
+
+    """
+    if not hasattr(fn_module, fn_name):
+        raise AttributeError(f"Module {module_path} does not have a '{fn_name}' function.")
+    extern_fn = getattr(fn_module, fn_name)
+    if not callable(extern_fn):
+        raise TypeError(f"'{fn_name}' in module {module_path} is not callable.")
+    # TODO: Validate the signature of the function
+    return extern_fn
+
+
 def import_external_fn_from_file(module_path: Path, module_name: str, fn_name: str) -> object:
-    """Import an external function from a given file path.
+    """Import a single external function from a given file path.
+
+    For loading multiple functions out of the same file (e.g. a target module's `connect`/`harvest`/`send_msg`
+    hooks), prefer calling `import_external_module_from_file` once and `get_fn_from_module` per function instead —
+    this function executes the module's top-level code from scratch on every call, so calling it repeatedly
+    against the same file re-runs that code (and any side effects it has) once per call.
 
     Args:
         module_path (Path): The file path to the module containing the function.
@@ -187,26 +246,8 @@ def import_external_fn_from_file(module_path: Path, module_name: str, fn_name: s
         object: The imported function.
 
     """
-    if not module_path.is_file():
-        raise FileNotFoundError(f"Module path {module_path} does not exist or is not a file.")
-    spec = importlib.util.spec_from_file_location(module_name, module_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load module from {module_path}.")
-    fn_module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = fn_module
-    try:
-        spec.loader.exec_module(fn_module)
-    except ModuleNotFoundError as e:
-        raise ImportError(f"Could not load module from {module_path}: {e}") from e
-    except ImportError as e:
-        raise ImportError(f"Could not load module from {module_path}: {e}") from e
-    if not hasattr(fn_module, fn_name):
-        raise AttributeError(f"Module {module_path} does not have a '{fn_name}' function.")
-    extern_fn = getattr(fn_module, fn_name)
-    if not callable(extern_fn):
-        raise TypeError(f"'{fn_name}' in module {module_path} is not callable.")
-    # TODO: Validate the signature of the function
-    return extern_fn
+    fn_module = import_external_module_from_file(module_path, module_name)
+    return get_fn_from_module(fn_module, module_path, fn_name)
 
 
 def parse_params(params: list[tuple[str, Any]]) -> dict[str, Any]:

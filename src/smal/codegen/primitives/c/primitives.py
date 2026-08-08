@@ -4,7 +4,7 @@ from __future__ import annotations  # Until Python 3.14
 
 from typing import Final
 
-from smal.utilities.smal_primitive import SMALPrimitive
+from smal.codegen.primitives.smal_primitive import SMALPrimitive
 
 SMAL_PRIMITIVE_DECODER_RING: Final[dict[SMALPrimitive, str]] = {
     SMALPrimitive.BOOL: "uint8_t",
