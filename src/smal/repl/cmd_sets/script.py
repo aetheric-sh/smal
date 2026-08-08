@@ -28,7 +28,12 @@ if TYPE_CHECKING:
 
 
 class SMALScriptLogger:
-    """Logging facility passed to Python scripts so they can log to the same console as SMAL itself."""
+    """Logging facility passed to Python scripts so they can log to the same console as SMAL itself.
+
+    Every call is also mirrored to the REPL's `SMALLogger` (unstyled, prefixed with the script name), so script
+    activity is captured in the persistent log file alongside the rest of SMAL's logging, not just printed to
+    the terminal.
+    """
 
     def __init__(self, parent_app: REPLLike, script_name: str) -> None:
         """Initialize the logger for a given script.
@@ -39,6 +44,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app = parent_app
+        self._script_name = script_name
         self._prefix = f"[cyan]\\[{script_name}][/cyan]"
 
     def info(self, message: str) -> None:
@@ -49,6 +55,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app.print_msg(f"{self._prefix} {message}")
+        self._parent_app.logger.info("[%s] %s", self._script_name, message)
 
     def success(self, message: str) -> None:
         """Log a success message.
@@ -58,6 +65,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app.print_success(message, prefix=self._prefix)
+        self._parent_app.logger.info("[%s] %s", self._script_name, message)
 
     def warning(self, message: str) -> None:
         """Log a warning message.
@@ -67,6 +75,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app.print_warning(message, prefix=self._prefix)
+        self._parent_app.logger.warning("[%s] %s", self._script_name, message)
 
     def error(self, message: str) -> None:
         """Log an error message.
@@ -76,6 +85,7 @@ class SMALScriptLogger:
 
         """
         self._parent_app.print_error(message, prefix=self._prefix)
+        self._parent_app.logger.error("[%s] %s", self._script_name, message)
 
 
 _script_parser = cmd2.Cmd2ArgumentParser()
