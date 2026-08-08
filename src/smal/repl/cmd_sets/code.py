@@ -9,8 +9,9 @@ from typing import TYPE_CHECKING
 import cmd2
 from pydantic import BaseModel
 
-from smal.codegen import MacroRegistry, TemplateRegistry
 from smal.codegen.code_generator import SMALCodeGenerator
+from smal.codegen.macros import MacroRegistry
+from smal.codegen.templates import TemplateRegistry
 from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.cmd_sets.validate import JinjaTemplateValidator
 from smal.repl.completers import machine_completer, template_completer

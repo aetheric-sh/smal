@@ -16,7 +16,7 @@ class SMALCodeGenerator:
 
     def __init__(self) -> None:
         """Initialize the SMALCodeGenerator."""
-        self._internal_loader = PackageLoader("smal", "codegen/templates")
+        self._internal_loader = PackageLoader("smal", "codegen")
 
     def _build_env(self, external_template_dir: str | Path | None = None) -> Environment:
         if external_template_dir:
@@ -48,7 +48,7 @@ class SMALCodeGenerator:
         env = self._build_env()
         smal_tmpl = TemplateRegistry.get(template_name)
         # Jinja2 template names always use forward slashes, regardless of OS.
-        filepath = f"{smal_tmpl.lang}/{smal_tmpl.filename}"
+        filepath = f"templates/{smal_tmpl.lang}/{smal_tmpl.filename}"
         tmpl = env.get_template(filepath)
         return env, tmpl, smal_tmpl
 

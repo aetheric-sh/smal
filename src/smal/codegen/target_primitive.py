@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from smal.utilities import constants as SMALConstants
 
 if TYPE_CHECKING:
-    from smal.utilities.smal_primitive import SMALPrimitive
+    from smal.codegen.primitives.smal_primitive import SMALPrimitive
 
 
 @dataclass

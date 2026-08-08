@@ -7,7 +7,7 @@ from typing import ClassVar
 import semver
 from pydantic import field_validator
 
-from smal.utilities.smal_primitive import SMALPrimitive
+from smal.codegen.primitives.smal_primitive import SMALPrimitive
 
 
 class IdentifierValidationMixin:
