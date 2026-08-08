@@ -44,6 +44,7 @@ class SMALLogger:
         """
         log_path = Path(log_path)
         log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._log_path = log_path
 
         self._logger = logging.getLogger()
         # The logger's own level acts as a gate before any handler is consulted, so it must be at least as
@@ -63,6 +64,16 @@ class SMALLogger:
         self._logger.addHandler(file_handler)
 
         self._handlers = [console_handler, file_handler]
+
+    @property
+    def log_path(self) -> Path:
+        """Get the filepath this logger writes persistent log records to.
+
+        Returns:
+            Path: The filepath passed to (or defaulted by) `__init__`.
+
+        """
+        return self._log_path
 
     def close(self) -> None:
         """Detach this logger's handlers from the root logger and close them.

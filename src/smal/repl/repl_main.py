@@ -19,6 +19,7 @@ from smal.repl.cmd_sets import (
     CorrectionsCmdSet,
     DebugCmdSet,
     DiagramCmdSet,
+    LogCmdSet,
     MachineCmdSet,
     ModuleCmdSet,
     MsgCmdSet,
@@ -137,6 +138,7 @@ class SMALREPL(cmd2.Cmd):
         self.register_command_set(CorrectionsCmdSet())
         self.register_command_set(DebugCmdSet())
         self.register_command_set(DiagramCmdSet())
+        self.register_command_set(LogCmdSet())
         self.register_command_set(MachineCmdSet())
         self.register_command_set(ModuleCmdSet())
         self.register_command_set(MsgCmdSet())

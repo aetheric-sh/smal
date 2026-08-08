@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import platform
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -50,6 +53,9 @@ class ImportArgs(BaseModel):
 
     filepath: Path
     yes: bool = False
+
+
+_open_parser = cmd2.Cmd2ArgumentParser()
 
 
 class PersistenceCmdSet(SMALCmdSet):
@@ -123,3 +129,27 @@ class PersistenceCmdSet(SMALCmdSet):
         for name, tokens in imported.aliases.items():
             self._cmd.aliases[name] = " ".join(tokens)
         parent_app.print_success(f"Imported application data from '{parsed_args.filepath}'.", omit_heading=True)
+
+    @cmd2.as_subcommand_to("persistence", "open", _open_parser, help="Open SMAL's application data directory in the OS file explorer.")
+    def persistence_open(self, args: argparse.Namespace) -> None:  # noqa: ARG002 - Unused argument
+        """Open SMAL's application data directory in the OS's native file explorer.
+
+        Args:
+            args (argparse.Namespace): The parsed command-line arguments.
+
+        """
+        parent_app = self.parent_app
+        app_dir = SMALPersistence.DEFAULT_PATH.parent
+        app_dir.mkdir(parents=True, exist_ok=True)
+        system = platform.system()
+        try:
+            if system == "Windows":
+                os.startfile(app_dir)  # noqa: S606 - Fixed, non-user-controlled application data path.
+            elif system == "Darwin":
+                subprocess.run(["open", str(app_dir)], check=True)
+            else:
+                subprocess.run(["xdg-open", str(app_dir)], check=True)
+        except (OSError, subprocess.CalledProcessError) as e:
+            parent_app.print_error(f"Failed to open a file explorer at {app_dir}: {e}")
+            return
+        parent_app.print_success(f"Opened application data directory: {app_dir}", omit_heading=True)

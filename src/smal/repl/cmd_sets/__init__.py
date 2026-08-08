@@ -7,6 +7,7 @@ from .code import CodeCmdSet
 from .corrections import CorrectionsCmdSet
 from .debug import DebugCmdSet
 from .diagram import DiagramCmdSet
+from .log import LogCmdSet
 from .machine import MachineCmdSet
 from .module import ModuleCmdSet
 from .msg import MsgCmdSet
