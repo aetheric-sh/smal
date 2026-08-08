@@ -1,6 +1,32 @@
 # CHANGELOG
 
 
+## v0.5.8 (2026-08-08)
+
+### Bug Fixes
+
+- General cleanup ([#44](https://github.com/aetheric-sh/smal/pull/44),
+  [`4f70fdc`](https://github.com/aetheric-sh/smal/commit/4f70fdcb9824005e2c7ff9ea3100eb1297b231e4))
+
+* Clean up codegen
+
+* Clean up REPLLike interface
+
+* Get logging implemented
+
+* Add aliases
+
+* Fix persistent history error
+
+* properly clean up logger on close
+
+* forward script logging to log file as well
+
+* Add module test, persistence export and import, various bugfixes
+
+* Add log view and persistence open cmds
+
+
 ## v0.5.7 (2026-08-07)
 
 ### Bug Fixes
