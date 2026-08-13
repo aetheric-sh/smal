@@ -10,7 +10,7 @@ from typing import Any, ClassVar, TypeAlias
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing_extensions import Self
+from typing import Self
 
 from smal.schemas.action import Action
 from smal.schemas.command import Command  # noqa: TC001 - Move application import to TYPE_CHECKING block

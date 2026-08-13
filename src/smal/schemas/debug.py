@@ -8,7 +8,7 @@ from enum import Enum, IntFlag
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import Self
+from typing import Self
 
 if TYPE_CHECKING:
     from smal.schemas.state_machine import StateMachine

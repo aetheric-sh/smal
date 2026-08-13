@@ -2,7 +2,7 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Final
 
@@ -16,7 +16,7 @@ SMAL_SCRIPT_FILE_EXTENSION: Final[str] = f"{SMAL_FILE_EXTENSION}scr"
 PYTHON_SCRIPT_FILE_EXTENSION: Final[str] = ".py"
 
 
-class SupportedFileExtensions(str, Enum):
+class SupportedFileExtensions(StrEnum):
     """Enumeration of supported file extensions for SMAL files."""
 
     SMAL = SMAL_FILE_EXTENSION
@@ -54,7 +54,7 @@ class SupportedFileExtensions(str, Enum):
         return {sfe.value for sfe in cls}
 
 
-class SupportedCodeLangs(str, Enum):
+class SupportedCodeLangs(StrEnum):
     """Enumeration of supported code generation languages for SMAL files."""
 
     C = "c"

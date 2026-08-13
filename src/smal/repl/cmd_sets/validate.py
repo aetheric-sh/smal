@@ -3,7 +3,7 @@
 from __future__ import annotations  # Until Python 3.14
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -105,7 +105,7 @@ class TemplateMacroRef:
     col: int
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     """Enumeration of validation issue severity levels, with associated colors for console output."""
 
     ERROR = "error"

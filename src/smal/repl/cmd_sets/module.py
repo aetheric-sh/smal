@@ -113,7 +113,7 @@ class ModuleCmdSet(SMALCmdSet):
             args (argparse.Namespace): The parsed command-line arguments.
 
         """
-        handler = args.cmd2_handler.get()
+        handler = getattr(args, "cmd2_subcommand_func", None)
         if handler is not None:
             handler(args)
         else:
