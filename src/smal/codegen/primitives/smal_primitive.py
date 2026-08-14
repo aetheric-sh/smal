@@ -2,10 +2,10 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from enum import Enum
+from enum import StrEnum
 
 
-class SMALPrimitive(str, Enum):
+class SMALPrimitive(StrEnum):
     """Enumeration of SMAL-standard primitive types. To be mapped to each target language (C, C++, Rust)."""
 
     UINT8 = "uint8"

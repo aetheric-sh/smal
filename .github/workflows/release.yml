@@ -36,7 +36,7 @@ jobs:
         id: version
         env:
           GH_TOKEN: "none"  # Prevent accidental pushes during detection
-        run: uv run semantic-release -v version --no-changelog --no-commit --no-tag
+        run: uvx --from python-semantic-release==9.21.1 semantic-release -v version --no-changelog --no-commit --no-tag
 
       - name: Build Python distributions
         run: uv build -o dist --clear
@@ -113,8 +113,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uv run semantic-release -v --strict version
-          uv run semantic-release publish
+          uvx --from python-semantic-release==9.21.1 semantic-release -v --strict version
+          uvx --from python-semantic-release==9.21.1 semantic-release publish
 
     outputs:
       released: ${{ steps.release.outputs.released }}

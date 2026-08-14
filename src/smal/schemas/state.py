@@ -3,17 +3,16 @@
 from __future__ import annotations  # Until Python 3.14
 
 import logging
-from enum import Enum
+from enum import StrEnum
 from functools import cached_property
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
-from typing_extensions import Self
 
 from smal.schemas.utilities import IdentifierValidationMixin
 
 
-class StateType(str, Enum):
+class StateType(StrEnum):
     """Enumeration of possible state types in a state machine, including both behavioral states and pseudostates."""
 
     # Behavioral states

@@ -5,7 +5,7 @@ from __future__ import annotations  # Until Python 3.14
 from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing_extensions import Self
+from typing import Self
 
 from smal.codegen.target_primitive import get_target_primitive
 from smal.schemas.bit_field import BitField  # noqa: TC001 - Pydantic requires this at runtime for type validation
