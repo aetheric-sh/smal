@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.0 (2026-08-14)
+
+### Features
+
+- Update to Python 3.11+ ([#45](https://github.com/aetheric-sh/smal/pull/45),
+  [`1e5af6d`](https://github.com/aetheric-sh/smal/commit/1e5af6df6b61a7d2848eea5a9cbcba95daee9816))
+
+
 ## v0.5.8 (2026-08-08)
 
 ### Bug Fixes
