@@ -149,12 +149,12 @@ class ModuleCmdSet(SMALCmdSet):
         else:
             echo_table(
                 "Active Module Info",
-                ["Hook Name", "Signature", "Address"],
+                ["Info Type", "Name", "Details"],
                 parent_app.active_module.info,
                 col_metadata={
-                    "Hook Name": {"style": "cyan"},
-                    "Signature": {"style": "green"},
-                    "Address": {"style": "yellow"},
+                    "Info Type": {"style": "cyan"},
+                    "Name": {"style": "green"},
+                    "Details": {"style": "yellow"},
                 },
                 show_lines=True,
             )

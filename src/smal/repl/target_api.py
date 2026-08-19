@@ -5,7 +5,6 @@ from __future__ import annotations  # Until Python 3.14
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
     from smal.repl.connection import ConnectedDevice
     from smal.repl.repl_logger import SMALLogger
 
@@ -53,18 +52,4 @@ class PythonScriptFn(Protocol):
 
     def __call__(self, device: ConnectedDevice, logger: SMALLogger, *args: Any, **kwargs: Any) -> None:
         """Execute this script against the actively connected SMAL device."""
-        ...
-
-
-@runtime_checkable
-class RegisterCmdSetFn(Protocol):
-    """Protocol for a function that registers command sets with the actively connected SMAL device."""
-
-    def __call__(self, **kwargs: Any) -> list[SMALCmdSet]:
-        """Get a list of externally-provided command sets to register with SMAL.
-
-        Returns:
-            list[SMALCmdSet]: The list of externally-provided command sets to register with SMAL.
-
-        """
         ...

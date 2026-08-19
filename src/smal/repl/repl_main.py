@@ -135,8 +135,9 @@ class SMALREPL(cmd2.Cmd):
         self._active_module: TargetModule | None = None  # Placeholder for the active module
         self._console = Console()
         self._logger = SMALLogger(self._console)
+        self._repl_name = SMALConstants.REPL_NAME
         self._module_cmd_sets: dict[Path, list[SMALCmdSet]] = {}
-        self._utilizes_state_machines = True
+        self._module_metadata: dict[str, Any] = {}
         self.register_command_set(AliasCmdSet())
         self.register_command_set(CodeCmdSet())
         self.register_command_set(CorrectionsCmdSet())
@@ -472,13 +473,12 @@ class SMALREPL(cmd2.Cmd):
             fn_module = import_external_module_from_file(module_file, "smal_target_module")
             connect_fn: ConnectFn = get_fn_from_module(fn_module, module_file, "connect")
             harvest_fn: HarvestFn = get_fn_from_module(fn_module, module_file, "harvest")
-            self._utilizes_state_machines: bool = get_variable_from_module(
-                fn_module,
-                module_file,
-                "_SMAL_UTILIZES_STATE_MACHINES",
-                default_value=True,
-                raise_on_missing=False,
-            )
+            for cmd_set in self._module_cmd_sets.get(module_file, []):
+                self.unregister_command_set(cmd_set)
+            self._module_cmd_sets[module_file] = get_variable_from_module(fn_module, module_file, "CMD_SETS", default_value=[], raise_on_missing=False)
+            self._module_metadata = get_variable_from_module(fn_module, module_file, "SMAL_METADATA", default_value={}, raise_on_missing=False)
+            self._repl_name = self._module_metadata.get("repl_name", SMALConstants.REPL_NAME)
+            self._utilizes_state_machines = self._module_metadata.get("utilizes_state_machines", True)
         except (ImportError, AttributeError, TypeError) as e:
             self.print_error(f"Failed to load module {module_file}: {e}")
             return
@@ -495,20 +495,11 @@ class SMALREPL(cmd2.Cmd):
         self._active_module = TargetModule(filepath=module_file, connect_fn=connect_fn, harvest_fn=harvest_fn, send_msg_fn=send_msg_fn)
         # registering external cmd sets is optional, so we can ignore it if it's not present
         with contextlib.suppress(AttributeError):
-            register_external_cmd_sets_fn = get_fn_from_module(fn_module, module_file, "register_external_cmd_sets")
-            if register_external_cmd_sets_fn is not None:
-                external_cmd_sets = register_external_cmd_sets_fn()
-                if not isinstance(external_cmd_sets, list):
-                    raise TypeError(f"Expected a list of command sets from register_external_cmd_sets, but got {type(external_cmd_sets).__name__}.")
-                if module_file not in self._module_cmd_sets:
-                    self._module_cmd_sets[module_file] = []
-                else:
-                    self._module_cmd_sets[module_file].clear()
-                for cmd_set in external_cmd_sets:
-                    if not isinstance(cmd_set, SMALCmdSet):
-                        raise TypeError(f"Expected an instance of SMALCmdSet, but got {type(cmd_set).__name__}.")
-                    self._module_cmd_sets[module_file].append(cmd_set)
-                    self.register_command_set(cmd_set)
+            external_cmd_sets = self._module_cmd_sets.get(module_file, [])
+            for external_cmd_set in external_cmd_sets:
+                if not isinstance(external_cmd_set, SMALCmdSet):
+                    raise TypeError(f"Expected an instance of SMALCmdSet, but got {type(external_cmd_set).__name__}.")
+                self.register_command_set(external_cmd_set)
         self.print_success(f"Active module set to: {module_file}", omit_heading=True)
 
     def _disconnect_from_device(self, **kwargs: Any) -> None:
@@ -549,7 +540,7 @@ class SMALREPL(cmd2.Cmd):
         stylized_machine_str = cmd2.stylize(self._active_machine.name, "bold green") if self._active_machine else cmd2.stylize("null", "bold red")
         stylized_module_str = cmd2.stylize(self._active_module.filepath.name, "bold green") if self._active_module else cmd2.stylize("null", "bold red")
         machine_str = f"|mach:{stylized_machine_str}" if self._utilizes_state_machines else ""
-        self.prompt = f"{SMALConstants.REPL_NAME}[conn:{stylized_connection_str}{machine_str}|mod:{stylized_module_str}]> "
+        self.prompt = f"{self._repl_name}[conn:{stylized_connection_str}{machine_str}|mod:{stylized_module_str}]> "
 
 
 def main() -> None:
