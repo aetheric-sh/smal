@@ -223,6 +223,30 @@ def get_fn_from_module(fn_module: ModuleType, module_path: Path, fn_name: str) -
     return extern_fn
 
 
+def get_variable_from_module(fn_module: ModuleType, module_path: Path, var_name: str, default_value: Any = None, raise_on_missing: bool = True) -> object:
+    """Get and validate a variable attribute from an already-imported module.
+
+    Args:
+        fn_module (ModuleType): The module to look up the variable on, as returned by `import_external_module_from_file`.
+        module_path (Path): The file path the module was loaded from, used only to produce descriptive error messages.
+        var_name (str): The name of the variable to look up.
+        default_value (Any): The default value to return if the variable is not found.
+        raise_on_missing (bool): If True, an AttributeError will be raised when the variable is not found. If False, the default_value will be returned instead.
+
+    Raises:
+        AttributeError: If the module does not have the specified variable and raise_on_missing is True.
+
+    Returns:
+        object: The requested variable.
+
+    """
+    if not hasattr(fn_module, var_name):
+        if raise_on_missing:
+            raise AttributeError(f"Module {module_path} does not have a '{var_name}' variable.")
+        return default_value
+    return getattr(fn_module, var_name, default_value)
+
+
 def import_external_fn_from_file(module_path: Path, module_name: str, fn_name: str) -> object:
     """Import a single external function from a given file path.
 

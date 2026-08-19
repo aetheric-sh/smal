@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from smal.repl.target_api import ConnectFn, HarvestFn, SendMsgFn
+    from smal.repl.target_api import ConnectFn, HarvestFn, RegisterCmdSetFn, SendMsgFn
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,8 @@ class TargetModule:
     connect_fn: ConnectFn
     harvest_fn: HarvestFn
     send_msg_fn: SendMsgFn | None = None
+    register_cmdsets_fn: RegisterCmdSetFn | None = None
+    utilities_state_machines: bool = True  # Derived from _SMAL_UTILIZES_STATE_MACHINES variable defined within module.
 
     @property
     def info(self) -> list[list[str]]:
@@ -34,7 +36,7 @@ class TargetModule:
         """
         return [
             [fn.__name__, _format_signature_multiline(_get_callable_signature(fn)), str(fn)]
-            for fn in [self.connect_fn, self.harvest_fn, self.send_msg_fn]
+            for fn in [self.connect_fn, self.harvest_fn, self.send_msg_fn, self.register_cmdsets_fn]
             if fn is not None
         ]
 

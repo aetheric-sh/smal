@@ -28,11 +28,13 @@ from smal.repl.cmd_sets import (
     ScriptCmdSet,
     ValidateCmdSet,
 )
+from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.connection import DeviceConnection
 from smal.repl.helpers import (
     echo_list,
     get_fn_from_module,
     get_persistence,
+    get_variable_from_module,
     import_external_module_from_file,
     parse_key_value,
     parse_params,
@@ -133,6 +135,8 @@ class SMALREPL(cmd2.Cmd):
         self._active_module: TargetModule | None = None  # Placeholder for the active module
         self._console = Console()
         self._logger = SMALLogger(self._console)
+        self._module_cmd_sets: dict[Path, list[SMALCmdSet]] = {}
+        self._utilizes_state_machines = True
         self.register_command_set(AliasCmdSet())
         self.register_command_set(CodeCmdSet())
         self.register_command_set(CorrectionsCmdSet())
@@ -376,6 +380,18 @@ class SMALREPL(cmd2.Cmd):
         return self._console
 
     @property
+    def module_cmd_sets(self) -> list[SMALCmdSet]:
+        """Get the list of module command sets registered with the REPL.
+
+        Returns:
+            list[SMALCmdSet]: The list of module command sets.
+
+        """
+        if self.active_module is None:
+            return []
+        return self._module_cmd_sets.get(self.active_module.filepath, [])
+
+    @property
     def logger(self) -> SMALLogger:
         """Get the leveled logger for the REPL.
 
@@ -456,14 +472,43 @@ class SMALREPL(cmd2.Cmd):
             fn_module = import_external_module_from_file(module_file, "smal_target_module")
             connect_fn: ConnectFn = get_fn_from_module(fn_module, module_file, "connect")
             harvest_fn: HarvestFn = get_fn_from_module(fn_module, module_file, "harvest")
+            self._utilizes_state_machines: bool = get_variable_from_module(
+                fn_module,
+                module_file,
+                "_SMAL_UTILIZES_STATE_MACHINES",
+                default_value=True,
+                raise_on_missing=False,
+            )
         except (ImportError, AttributeError, TypeError) as e:
             self.print_error(f"Failed to load module {module_file}: {e}")
             return
+        # We first de-register existing cmd sets from the previously active module, if any
+        if self._active_module is not None:
+            previous_module_file = self._active_module.filepath
+            if previous_module_file in self._module_cmd_sets:
+                for cmd_set in self._module_cmd_sets[previous_module_file]:
+                    self.unregister_command_set(cmd_set)
         send_msg_fn: SendMsgFn | None = None
         # send_msg is an optional function, so we can ignore if it's not present
         with contextlib.suppress(AttributeError):
             send_msg_fn = get_fn_from_module(fn_module, module_file, "send_msg")
         self._active_module = TargetModule(filepath=module_file, connect_fn=connect_fn, harvest_fn=harvest_fn, send_msg_fn=send_msg_fn)
+        # registering external cmd sets is optional, so we can ignore it if it's not present
+        with contextlib.suppress(AttributeError):
+            register_external_cmd_sets_fn = get_fn_from_module(fn_module, module_file, "register_external_cmd_sets")
+            if register_external_cmd_sets_fn is not None:
+                external_cmd_sets = register_external_cmd_sets_fn()
+                if not isinstance(external_cmd_sets, list):
+                    raise TypeError(f"Expected a list of command sets from register_external_cmd_sets, but got {type(external_cmd_sets).__name__}.")
+                if module_file not in self._module_cmd_sets:
+                    self._module_cmd_sets[module_file] = []
+                else:
+                    self._module_cmd_sets[module_file].clear()
+                for cmd_set in external_cmd_sets:
+                    if not isinstance(cmd_set, SMALCmdSet):
+                        raise TypeError(f"Expected an instance of SMALCmdSet, but got {type(cmd_set).__name__}.")
+                    self._module_cmd_sets[module_file].append(cmd_set)
+                    self.register_command_set(cmd_set)
         self.print_success(f"Active module set to: {module_file}", omit_heading=True)
 
     def _disconnect_from_device(self, **kwargs: Any) -> None:
@@ -503,7 +548,8 @@ class SMALREPL(cmd2.Cmd):
         stylized_connection_str = self._active_connection.connection_info_str if self._active_connection else cmd2.stylize("disconnected", "bold red")
         stylized_machine_str = cmd2.stylize(self._active_machine.name, "bold green") if self._active_machine else cmd2.stylize("null", "bold red")
         stylized_module_str = cmd2.stylize(self._active_module.filepath.name, "bold green") if self._active_module else cmd2.stylize("null", "bold red")
-        self.prompt = f"{SMALConstants.REPL_NAME}[conn:{stylized_connection_str}|mach:{stylized_machine_str}|mod:{stylized_module_str}]> "
+        machine_str = f"|mach:{stylized_machine_str}" if self._utilizes_state_machines else ""
+        self.prompt = f"{SMALConstants.REPL_NAME}[conn:{stylized_connection_str}{machine_str}|mod:{stylized_module_str}]> "
 
 
 def main() -> None:

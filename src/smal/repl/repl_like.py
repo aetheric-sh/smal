@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
     from rich.console import Console
 
+    from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
     from smal.repl.connection import DeviceConnection
     from smal.repl.repl_logger import SMALLogger
     from smal.repl.target_module import TargetModule
@@ -45,6 +46,11 @@ class REPLLike(Protocol):
     @property
     def logger(self) -> SMALLogger:
         """Get the leveled logger for the REPL."""
+        ...
+
+    @property
+    def module_cmd_sets(self) -> list[SMALCmdSet]:
+        """Get the list of externally-provided SMAL command sets for the current module, if any."""
         ...
 
     def set_active_machine(self, machine: StateMachine) -> None:
