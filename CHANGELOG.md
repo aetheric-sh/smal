@@ -1,6 +1,32 @@
 # CHANGELOG
 
 
+## v0.6.1 (2026-08-20)
+
+### Bug Fixes
+
+- Implement support for external command sets ([#46](https://github.com/aetheric-sh/smal/pull/46),
+  [`3022627`](https://github.com/aetheric-sh/smal/commit/3022627be4e5ea875a82116fec00aafec251022c))
+
+* Implement external command sets
+
+* Update info
+
+* Fix up some metadata
+
+* Further metadata fixesz
+
+* Add optional init param to SMALREPL
+
+* Allow module load on init
+
+* Add default category to all SMALCmdSets
+
+---------
+
+Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
+
+
 ## v0.6.0 (2026-08-14)
 
 ### Features
