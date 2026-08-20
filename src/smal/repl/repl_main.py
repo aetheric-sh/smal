@@ -121,7 +121,7 @@ class SMALREPL(cmd2.Cmd):
     prompt = f"{SMALConstants.REPL_NAME}> "
     intro = f"Welcome to the {SMALConstants.APP_NAME_FULL} REPL. Type ? to list commands."
 
-    def __init__(self, *args: Any, module_metadata: dict[str, Any] | None = None, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, module_metadata: dict[str, Any] | None = None, module_load_on_init: str | Path | None = None, **kwargs: Any) -> None:
         """Initialize the SMAL REPL."""
         # Persist command history across sessions alongside the rest of SMAL's app data, so it survives restarts
         # (and is cleared along with everything else by the `clean` command). Callers may override this.
@@ -150,6 +150,8 @@ class SMALREPL(cmd2.Cmd):
         self.register_command_set(RulesCmdSet())
         self.register_command_set(ScriptCmdSet())
         self.register_command_set(ValidateCmdSet())
+        if module_load_on_init is not None:
+            self.set_active_module(module_load_on_init)
         self._update_prompt()
 
     def postloop(self) -> None:
