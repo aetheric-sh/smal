@@ -5,13 +5,14 @@ This is for command sets beneath the REPL main entrypoint to interact with the R
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from rich.console import Console
 
+    from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
     from smal.repl.connection import DeviceConnection
     from smal.repl.repl_logger import SMALLogger
     from smal.repl.target_module import TargetModule
@@ -47,12 +48,21 @@ class REPLLike(Protocol):
         """Get the leveled logger for the REPL."""
         ...
 
+    @property
+    def module_cmd_sets(self) -> list[SMALCmdSet]:
+        """Get the list of externally-provided SMAL command sets for the current module, if any."""
+        ...
+
     def set_active_machine(self, machine: StateMachine) -> None:
         """Set the active machine for the REPL."""
         ...
 
     def set_active_module(self, module_file: Path) -> None:
         """Set the active module for the REPL."""
+        ...
+
+    def set_module_metadata(self, metadata: dict[str, Any]) -> None:
+        """Set the module metadata for the REPL."""
         ...
 
     def print_error(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:

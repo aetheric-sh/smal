@@ -6,8 +6,8 @@ This is the python file that contains target-specific implementations for data h
 from __future__ import annotations  # Until Python 3.14
 
 import inspect
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from smal.repl.target_api import ConnectFn, HarvestFn, SendMsgFn
 
 
-@dataclass(frozen=True)
+@dataclass
 class TargetModule:
     """Dataclass describing a target module for the SMAL REPL."""
 
@@ -23,20 +23,24 @@ class TargetModule:
     connect_fn: ConnectFn
     harvest_fn: HarvestFn
     send_msg_fn: SendMsgFn | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)  # Derived from the SMAL_METADATA variable defined within the target module.
 
     @property
     def info(self) -> list[list[str]]:
         """Get all information about the target module.
 
         Returns:
-            list[list[str]]: The information about the target module as a list of lists, where each inner list contains the hook name, signature, and address.
+            list[list[str]]: The information about the target module as a list of lists, where each inner list contains the info type, data label, and details.
 
         """
-        return [
-            [fn.__name__, _format_signature_multiline(_get_callable_signature(fn)), str(fn)]
+        fn_info = [
+            ["API Hook", fn.__name__, _format_signature_multiline(_get_callable_signature(fn))]
             for fn in [self.connect_fn, self.harvest_fn, self.send_msg_fn]
             if fn is not None
         ]
+        metadata_info = [["Metadata", key, str(value)] for key, value in self.metadata.items()]
+        location = [["Metadata", "Module Location", str(self.filepath)]]
+        return fn_info + metadata_info + location
 
 
 def _get_callable_signature(fn: object) -> inspect.Signature | None:
