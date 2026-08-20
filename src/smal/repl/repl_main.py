@@ -495,7 +495,9 @@ class SMALREPL(cmd2.Cmd):
             for cmd_set in self._module_cmd_sets.get(module_file, []):
                 self.unregister_command_set(cmd_set)
             self._module_cmd_sets[module_file] = get_variable_from_module(fn_module, module_file, "CMD_SETS", default_value=[], raise_on_missing=False)
-            self._module_metadata = get_variable_from_module(fn_module, module_file, "SMAL_METADATA", default_value={}, raise_on_missing=False)
+            mmd = get_variable_from_module(fn_module, module_file, "SMAL_METADATA", default_value={}, raise_on_missing=False)
+            if mmd:
+                self.set_module_metadata(mmd)
         except (ImportError, AttributeError, TypeError) as e:
             self.print_error(f"Failed to load module {module_file}: {e}")
             return
@@ -518,6 +520,10 @@ class SMALREPL(cmd2.Cmd):
                     raise TypeError(f"Expected an instance of SMALCmdSet, but got {type(external_cmd_set).__name__}.")
                 self.register_command_set(external_cmd_set)
         self.print_success(f"Active module set to: {module_file}", omit_heading=True)
+
+    def set_module_metadata(self, metadata: dict[str, Any]) -> None:
+        """Set the module metadata for the REPL."""
+        self._module_metadata = metadata
 
     def _disconnect_from_device(self, **kwargs: Any) -> None:
         if self._active_connection is None or not self._active_connection.is_connected:

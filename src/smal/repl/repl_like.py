@@ -5,7 +5,7 @@ This is for command sets beneath the REPL main entrypoint to interact with the R
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -59,6 +59,10 @@ class REPLLike(Protocol):
 
     def set_active_module(self, module_file: Path) -> None:
         """Set the active module for the REPL."""
+        ...
+
+    def set_module_metadata(self, metadata: dict[str, Any]) -> None:
+        """Set the module metadata for the REPL."""
         ...
 
     def print_error(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
