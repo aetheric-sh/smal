@@ -2,7 +2,7 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import cmd2
 
@@ -18,6 +18,8 @@ class SMALCmdSet(cmd2.CommandSet):
     Provides a `parent_app` property so subcommand handlers don't each need to repeat the
     boilerplate of fetching and validating the parent REPL application via `get_parent_app`.
     """
+
+    DEFAULT_CATEGORY: ClassVar[str] = "SMAL"
 
     @property
     def parent_app(self) -> REPLLike:
