@@ -135,7 +135,6 @@ class SMALREPL(cmd2.Cmd):
         self._active_module: TargetModule | None = None  # Placeholder for the active module
         self._console = Console()
         self._logger = SMALLogger(self._console)
-        self._repl_name = SMALConstants.REPL_NAME
         self._module_cmd_sets: dict[Path, list[SMALCmdSet]] = {}
         self._module_metadata: dict[str, Any] = {}
         self.register_command_set(AliasCmdSet())
@@ -381,6 +380,16 @@ class SMALREPL(cmd2.Cmd):
         return self._console
 
     @property
+    def logger(self) -> SMALLogger:
+        """Get the leveled logger for the REPL.
+
+        Returns:
+            SMALLogger: The leveled logger, which mirrors records to both the terminal and a persistent log file.
+
+        """
+        return self._logger
+
+    @property
     def module_cmd_sets(self) -> list[SMALCmdSet]:
         """Get the list of module command sets registered with the REPL.
 
@@ -393,14 +402,24 @@ class SMALREPL(cmd2.Cmd):
         return self._module_cmd_sets.get(self.active_module.filepath, [])
 
     @property
-    def logger(self) -> SMALLogger:
-        """Get the leveled logger for the REPL.
+    def repl_name(self) -> str:
+        """Get the name of the REPL.
 
         Returns:
-            SMALLogger: The leveled logger, which mirrors records to both the terminal and a persistent log file.
+            str: The name of the REPL.
 
         """
-        return self._logger
+        return self._module_metadata.get("repl_name", SMALConstants.REPL_NAME)
+
+    @property
+    def utilizes_state_machines(self) -> bool:
+        """Get whether or not the REPL utilizes state machines.
+
+        Returns:
+            bool: True if the REPL utilizes state machines, False otherwise.
+
+        """
+        return self._module_metadata.get("utilizes_state_machines", True)
 
     def print_error(self, message: str, prefix: str | None = None, omit_heading: bool = False) -> None:
         """Print an error message to the console.
@@ -477,8 +496,6 @@ class SMALREPL(cmd2.Cmd):
                 self.unregister_command_set(cmd_set)
             self._module_cmd_sets[module_file] = get_variable_from_module(fn_module, module_file, "CMD_SETS", default_value=[], raise_on_missing=False)
             self._module_metadata = get_variable_from_module(fn_module, module_file, "SMAL_METADATA", default_value={}, raise_on_missing=False)
-            self._repl_name = self._module_metadata.get("repl_name", SMALConstants.REPL_NAME)
-            self._utilizes_state_machines = self._module_metadata.get("utilizes_state_machines", True)
         except (ImportError, AttributeError, TypeError) as e:
             self.print_error(f"Failed to load module {module_file}: {e}")
             return
@@ -539,8 +556,8 @@ class SMALREPL(cmd2.Cmd):
         stylized_connection_str = self._active_connection.connection_info_str if self._active_connection else cmd2.stylize("disconnected", "bold red")
         stylized_machine_str = cmd2.stylize(self._active_machine.name, "bold green") if self._active_machine else cmd2.stylize("null", "bold red")
         stylized_module_str = cmd2.stylize(self._active_module.filepath.name, "bold green") if self._active_module else cmd2.stylize("null", "bold red")
-        machine_str = f"|mach:{stylized_machine_str}" if self._utilizes_state_machines else ""
-        self.prompt = f"{self._repl_name}[conn:{stylized_connection_str}{machine_str}|mod:{stylized_module_str}]> "
+        machine_str = f"|mach:{stylized_machine_str}" if self.utilizes_state_machines else ""
+        self.prompt = f"{self.repl_name}[conn:{stylized_connection_str}{machine_str}|mod:{stylized_module_str}]> "
 
 
 def main() -> None:
