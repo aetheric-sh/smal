@@ -215,7 +215,17 @@ class SMALREPL(cmd2.Cmd):
             if confirmation.strip().lower() not in {"y", "yes"}:
                 self.console.print("[bold yellow]Cancelled — application data directory was not removed.[/bold yellow]")
                 return
-        SMALPersistence.clean(del_dir=parsed_args.del_dir)
+        # The logger's FileHandler keeps smal.log open for the lifetime of the REPL session, which would
+        # otherwise make its unlink() in SMALPersistence.clean() fail (most visibly on Windows, where open
+        # files can't be deleted). Close it first, then reopen a fresh logger so logging keeps working
+        # afterward. Unless the whole directory is going away, preserve the log file itself rather than
+        # wiping it — a `clean` of just the persisted data shouldn't cost the user their log history.
+        self._logger.close()
+        try:
+            exclude = None if parsed_args.del_dir else {self._logger.log_path.name}
+            SMALPersistence.clean(del_dir=parsed_args.del_dir, exclude=exclude)
+        finally:
+            self._logger = SMALLogger(self._console)
         reset_persistence_cache()
         self.console.print(f"[bold green]Removed application data directory: {app_dir}[/bold green]")
 
