@@ -73,11 +73,22 @@ class SMALPersistence(BaseModel):
     )
 
     @staticmethod
-    def clean(del_dir: bool = False) -> None:
-        """Clean the persistence data by deleting all files in the application directory, and optionally the directory itself."""
+    def clean(del_dir: bool = False, exclude: set[str] | None = None) -> None:
+        """Clean the persistence data by deleting all files in the application directory, and optionally the directory itself.
+
+        Args:
+            del_dir (bool): Whether to also remove the application directory itself after clearing its contents. Defaults to False.
+            exclude (set[str] | None): Names of entries directly within the application directory to leave untouched (e.g. an
+                actively open log file the caller wants to preserve). Ignored when del_dir is True, since the directory itself
+                is removed regardless. Defaults to None.
+
+        """
         app_dir = SMALPersistence.DEFAULT_PATH.parent
+        exclude = exclude if exclude and not del_dir else set()
         if app_dir.exists():
             for item in app_dir.iterdir():
+                if item.name in exclude:
+                    continue
                 if item.is_file():
                     item.unlink()
                 elif item.is_dir():
