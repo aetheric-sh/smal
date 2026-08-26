@@ -1,30 +1,27 @@
 # CHANGELOG
 
 
+## v0.6.2 (2026-08-26)
+
+### Bug Fixes
+
+- Apply gitpython fix ([#50](https://github.com/aetheric-sh/smal/pull/50),
+  [`26a49be`](https://github.com/aetheric-sh/smal/commit/26a49bebcde731db46664b56328d7ac92c7ba2a2))
+
+- Properly handle log file handle during persistence clean
+  ([#47](https://github.com/aetheric-sh/smal/pull/47),
+  [`7cd5085`](https://github.com/aetheric-sh/smal/commit/7cd5085b7c9887f56642e001dd259b8d779e1d2d))
+
+- Update python-semantic-release to 10.6.1 ([#49](https://github.com/aetheric-sh/smal/pull/49),
+  [`054284a`](https://github.com/aetheric-sh/smal/commit/054284a2a6c3798472ce33193a3e982654c4bac6))
+
+
 ## v0.6.1 (2026-08-20)
 
 ### Bug Fixes
 
 - Implement support for external command sets ([#46](https://github.com/aetheric-sh/smal/pull/46),
   [`3022627`](https://github.com/aetheric-sh/smal/commit/3022627be4e5ea875a82116fec00aafec251022c))
-
-* Implement external command sets
-
-* Update info
-
-* Fix up some metadata
-
-* Further metadata fixesz
-
-* Add optional init param to SMALREPL
-
-* Allow module load on init
-
-* Add default category to all SMALCmdSets
-
----------
-
-Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
 
 
 ## v0.6.0 (2026-08-14)
@@ -41,24 +38,6 @@ Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
 
 - General cleanup ([#44](https://github.com/aetheric-sh/smal/pull/44),
   [`4f70fdc`](https://github.com/aetheric-sh/smal/commit/4f70fdcb9824005e2c7ff9ea3100eb1297b231e4))
-
-* Clean up codegen
-
-* Clean up REPLLike interface
-
-* Get logging implemented
-
-* Add aliases
-
-* Fix persistent history error
-
-* properly clean up logger on close
-
-* forward script logging to log file as well
-
-* Add module test, persistence export and import, various bugfixes
-
-* Add log view and persistence open cmds
 
 
 ## v0.5.7 (2026-08-07)
@@ -79,28 +58,6 @@ Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
 - Update send_msg api ([#42](https://github.com/aetheric-sh/smal/pull/42),
   [`3690138`](https://github.com/aetheric-sh/smal/commit/369013867ce98e023a251a933530c4bf032216a8))
 
-* Add automatic -y to clean
-
-* Fix some dead code around machine caching
-
-* Remove duplicate module completer code
-
-fix double msg parsing on msg send
-
-* remove dead code
-
-fix redundant persistence I/O
-
-* add persistent command history
-
-* add confirmation before deleting scripts
-
-* abstract out duplicate code
-
-* clean up prompt
-
-* Added support for python scripting
-
 
 ## v0.5.5 (2026-08-07)
 
@@ -108,10 +65,6 @@ fix redundant persistence I/O
 
 - Msg fixes ([#41](https://github.com/aetheric-sh/smal/pull/41),
   [`70a1191`](https://github.com/aetheric-sh/smal/commit/70a1191c6b7411fa519fe29e35084059f9a574a4))
-
-* Fix type annotation on SendArgs
-
-* update version
 
 
 ## v0.5.4 (2026-08-07)
@@ -121,16 +74,6 @@ fix redundant persistence I/O
 - Codegen fixes ([#40](https://github.com/aetheric-sh/smal/pull/40),
   [`b540472`](https://github.com/aetheric-sh/smal/commit/b540472487f4ac19f9a2459c2a0268b341ddecb1))
 
-* Update codegen and add actions
-
-* Fix ruff
-
-* Add newline to macro file
-
-* Add EOF to launch.json
-
-* Remove EOF from macro
-
 
 ## v0.5.3 (2026-08-07)
 
@@ -138,10 +81,6 @@ fix redundant persistence I/O
 
 - Module cmd enhancements ([#39](https://github.com/aetheric-sh/smal/pull/39),
   [`8a97159`](https://github.com/aetheric-sh/smal/commit/8a97159a7acaef07bdf0997688f29f69b5c85d67))
-
-* Enhance module info with callback signatures
-
-* Add completers to REPL params and cleanup
 
 
 ## v0.5.2 (2026-08-07)
@@ -151,20 +90,6 @@ fix redundant persistence I/O
 - Scripting fixes ([#38](https://github.com/aetheric-sh/smal/pull/38),
   [`9029aac`](https://github.com/aetheric-sh/smal/commit/9029aace6ba6af210c56d94db92e42f6e99e09f5))
 
-* Scripting works
-
-* Standardize tables
-
-* Fix ruff
-
-* Update README.md
-
-* Add line
-
----------
-
-Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
-
 
 ## v0.5.1 (2026-08-07)
 
@@ -172,10 +97,6 @@ Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
 
 - Add scripting support ([#37](https://github.com/aetheric-sh/smal/pull/37),
   [`4f3e872`](https://github.com/aetheric-sh/smal/commit/4f3e87264cbe75373ed63cbc25492f1281471f0d))
-
-* Fixed all ruff issues
-
-* Fix ruff line length
 
 - Bump CI to fix GH outage
   ([`a3fef11`](https://github.com/aetheric-sh/smal/commit/a3fef11dbceced9dc8fdb23e274becc57af7639b))
@@ -199,8 +120,6 @@ Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
 - Update debug boilerplate header template ([#35](https://github.com/aetheric-sh/smal/pull/35),
   [`a1fd0ec`](https://github.com/aetheric-sh/smal/commit/a1fd0ec40a2fa1acce5b378ddbab9ba8a28b6f32))
 
-* update uv lock
-
 
 ## v0.4.5 (2026-04-29)
 
@@ -208,14 +127,6 @@ Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
 
 - Add debug boilerplate codegen for C ([#34](https://github.com/aetheric-sh/smal/pull/34),
   [`895cb41`](https://github.com/aetheric-sh/smal/commit/895cb413a13d1830d2f59834298765d3e8838a0b))
-
-* Add debug boilerplate codegen for C
-
-* generate boilerplate based on pydantic schemas
-
-* Fix typo
-
-* More typos
 
 
 ## v0.4.4 (2026-04-10)
@@ -226,10 +137,6 @@ Co-authored-by: Jonathan-Bailey-Bose <Jonathan_Bailey@bose.com>
   ([#33](https://github.com/aetheric-sh/smal/pull/33),
   [`af61988`](https://github.com/aetheric-sh/smal/commit/af619888ffa85cca750126994dba71a488e37cd8))
 
-fix incorrect str interpolation
-
-* done
-
 
 ## v0.4.3 (2026-04-10)
 
@@ -237,16 +144,6 @@ fix incorrect str interpolation
 
 - Updates to the debug CLI command ([#32](https://github.com/aetheric-sh/smal/pull/32),
   [`a3d5847`](https://github.com/aetheric-sh/smal/commit/a3d5847b8522b59ac19b102371f8de8d80010c3e))
-
-* arbitrary harvest commands work now
-
-* fixed output escaping
-
-* update version
-
-* improve timestamp logging
-
-* done
 
 
 ## v0.4.2 (2026-04-09)
@@ -256,12 +153,6 @@ fix incorrect str interpolation
 - Some minor bugfixes to debug command ([#31](https://github.com/aetheric-sh/smal/pull/31),
   [`a67bb5c`](https://github.com/aetheric-sh/smal/commit/a67bb5c7bd035d2d4ee0fea3dec4721270acc0ee))
 
-* arbitrary harvest commands work now
-
-* fixed output escaping
-
-* update version
-
 
 ## v0.4.1 (2026-04-09)
 
@@ -269,20 +160,6 @@ fix incorrect str interpolation
 
 - Add the debug command ([#30](https://github.com/aetheric-sh/smal/pull/30),
   [`a04ea16`](https://github.com/aetheric-sh/smal/commit/a04ea166295de110626c9be72e5b37963964e95d))
-
-* got basic debug cmd working
-
-* make compatible with python 3.10
-
-* debug command works e2egit status!
-
-* update debug profile
-
-* add helpful message for debug script dependencies
-
-* update gitignore
-
-* ready
 
 
 ## v0.4.0 (2026-04-08)
@@ -292,38 +169,6 @@ fix incorrect str interpolation
 - Update and clean up SMAL language parsing. Many command fixes.
   ([#29](https://github.com/aetheric-sh/smal/pull/29),
   [`ed08ad6`](https://github.com/aetheric-sh/smal/commit/ed08ad69f31de7e0f39edf986bb6c79f0a57959b))
-
-* working on v2 of the language
-
-* cleanup diagram generation
-
-* remove inaccurate docstring
-
-* Fix up macros
-
-* Got simple diagram working
-
-* Fix up shorthand handling
-
-* Codegen working with simple
-
-* codegen working on substates
-
-* diagram working on substates
-
-* clean up ruff warnings and add stub
-
-* Working on template variable validation
-
-* Working on rules/corrections persistence
-
-* Rules and corrections persistence work
-
-fix up substate diagramming rendering
-
-* clean up code app
-
-* Fix up validation app
 
 
 ## v0.3.6 (2026-04-01)
@@ -342,18 +187,10 @@ fix up substate diagramming rendering
 - Minor tweaks to diagramming logic ([#27](https://github.com/aetheric-sh/smal/pull/27),
   [`9dfb93c`](https://github.com/aetheric-sh/smal/commit/9dfb93c36adf5e1a2b3bfad4114d78b3bd387432))
 
-- Hides composite root to root-level state transitions from diagramming - Actually disables the no
-  transitions to root-level initial state rule
-
 
 ## v0.3.4 (2026-04-01)
 
 ### Bug Fixes
-
-- Minor diagramming fixes ([#26](https://github.com/aetheric-sh/smal/pull/26),
-  [`adfb65f`](https://github.com/aetheric-sh/smal/commit/adfb65fefafc35bd5afab01084deed17db91403f))
-
-* update example diagram
 
 - Minor diagramming fixes ([#26](https://github.com/aetheric-sh/smal/pull/26),
   [`adfb65f`](https://github.com/aetheric-sh/smal/commit/adfb65fefafc35bd5afab01084deed17db91403f))
@@ -376,10 +213,6 @@ fix up substate diagramming rendering
   ([#24](https://github.com/aetheric-sh/smal/pull/24),
   [`fae71fa`](https://github.com/aetheric-sh/smal/commit/fae71fa54568ca093d28481a95ed13bb6ec9c67f))
 
-- Adds `corrections` to automatically correct common shorthands/issues in .smal files, similar to
-  `rules` - Automatically creates ephemeral initial state nodes in diagrams to preserve labels on
-  the user-intended initial states.
-
 
 ## v0.3.1 (2026-04-01)
 
@@ -397,40 +230,6 @@ fix up substate diagramming rendering
   ([#23](https://github.com/aetheric-sh/smal/pull/23),
   [`cac8a1a`](https://github.com/aetheric-sh/smal/commit/cac8a1abe188e80c7ece493465f8d2a6860f6fdc))
 
-* stub remaining commands
-
-* update workspace settings
-
-* Cleanup all existing schemas
-
-* remove main.py
-
-* Fix imports
-
-fix errors
-
-* Everything works but validate cmd
-
-fix validate
-
-* cleanup console styling
-
-* working on validators for states and state machines
-
-* working on implementations
-
-* Added rules engine
-
-* cleaned up cli
-
-* Added a lot of C macros
-
-* finished macros for now
-
-* remove test files
-
-* done for now, added ephemeral initial states
-
 
 ## v0.2.3 (2026-03-30)
 
@@ -438,12 +237,6 @@ fix validate
 
 - Implement substates for SMALState ([#22](https://github.com/aetheric-sh/smal/pull/22),
   [`5464b56`](https://github.com/aetheric-sh/smal/commit/5464b5652d427d7cb86443d87abef96d376ce843))
-
-* Got substates and diagramming for it working
-
-* update launch.json
-
-* revert uv lock change
 
 
 ## v0.2.2 (2026-03-30)
@@ -544,11 +337,6 @@ fix validate
   ([`09f8858`](https://github.com/aetheric-sh/smal/commit/09f8858216254fe272a4f2e27822eae84f7f7975))
 
 ### Features
-
-- Update readme.md ([#20](https://github.com/aetheric-sh/smal/pull/20),
-  [`d632baf`](https://github.com/aetheric-sh/smal/commit/d632baf968cdf7e23ef756493b613c0f11152ab4))
-
-* remove debugging line in workflow
 
 - Update readme.md ([#20](https://github.com/aetheric-sh/smal/pull/20),
   [`d632baf`](https://github.com/aetheric-sh/smal/commit/d632baf968cdf7e23ef756493b613c0f11152ab4))
