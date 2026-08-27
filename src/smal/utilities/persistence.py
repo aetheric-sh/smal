@@ -380,12 +380,12 @@ class SMALPersistence(BaseModel):
             f.write(self.model_dump_json(indent=4))
         logging.debug("Persistence data saved to %s", path)
 
-    def store_user_data(self, key: str, user_data: JsonValue | BaseModel, save: bool = False) -> None:
-        """Store user-specific persistence data.
+    def set_user_data(self, key: str, user_data: JsonValue | BaseModel, save: bool = False) -> None:
+        """Set user-specific persistence data in the persistence layer.
 
         Args:
             key (str): The key under which to store the user-specific data.
-            user_data (JsonValue | BaseModel): The user-specific data to store: a JSON-compatible value
+            user_data (JsonValue | BaseModel): The user-specific data to set: a JSON-compatible value
                 (dicts, lists, strings, numbers, bools, or None), or a pydantic model. A model is stored
                 via its `.model_dump(mode="json")`, as plain data -- :meth:`get_user_data` always returns
                 a JsonValue, not a reconstructed model instance, so re-validate it against your model type
@@ -412,7 +412,7 @@ class SMALPersistence(BaseModel):
         if save:
             self.save()
 
-    def get_user_data(self, key: str, expected_type: type[T] | None = None, default: T | JsonValue = None) -> T | JsonValue:
+    def get_user_data(self, key: str, expected_type: type[T] | None = None, default: T = None) -> T:
         """Get user-specific persistence data.
 
         Args:
@@ -420,13 +420,13 @@ class SMALPersistence(BaseModel):
             expected_type (type[T] | None): If given, a pydantic model type to validate the stored data
                 against, returning a reconstructed model instance. If None (the default), the raw stored
                 JsonValue is returned as-is.
-            default (T | JsonValue): The value to return if no data is stored under `key`. Defaults to None.
+            default (T): The value to return if no data is stored under `key`. Defaults to None.
 
         Raises:
             TypeError: If `expected_type` is given but isn't a BaseModel subclass.
 
         Returns:
-            T | JsonValue: The stored user-specific data (validated against `expected_type` if given), or
+            T: The stored user-specific data (validated against `expected_type` if given), or
                 `default` if `key` isn't present.
 
         """
