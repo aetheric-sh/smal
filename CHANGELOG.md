@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.3 (2026-08-27)
+
+### Bug Fixes
+
+- Bump version
+  ([`92bfac0`](https://github.com/aetheric-sh/smal/commit/92bfac0df4881792202eae65d24513ade3311f5e))
+
+
 ## v0.6.2 (2026-08-26)
 
 ### Bug Fixes
