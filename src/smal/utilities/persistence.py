@@ -7,10 +7,10 @@ import logging
 import shutil
 from contextvars import ContextVar
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, TypeVar
 
 from platformdirs import user_data_dir
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, JsonValue
 
 from smal.schemas.smal_script import SMALScript  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.state_machine import StateMachine  # noqa: TC001 - Pydantic requires this at runtime for type validation
@@ -21,6 +21,9 @@ from smal.utilities.rules import ALL_RULES, Rule
 # objects cached under `SMALPersistence.machines` don't have to call `SMALPersistence.load()` (which would try to
 # deserialize those same machines again) from their own `model_post_init`, causing infinite recursion.
 _loading_settings: ContextVar[tuple[dict[str, bool], dict[str, bool]] | None] = ContextVar("_loading_settings", default=None)
+
+
+T = TypeVar("T")
 
 
 def get_loading_settings() -> tuple[dict[str, bool], dict[str, bool]] | None:
@@ -70,6 +73,10 @@ class SMALPersistence(BaseModel):
     machine_paths: dict[str, Path] = Field(
         default_factory=dict,
         description="A dictionary mapping machine names to their corresponding file paths.",
+    )
+    user_persistence: dict[str, JsonValue] = Field(
+        default_factory=dict,
+        description="A dictionary for storing user-specific persistence data.",
     )
 
     @staticmethod
@@ -372,3 +379,78 @@ class SMALPersistence(BaseModel):
         with path.open("w", encoding="utf-8") as f:
             f.write(self.model_dump_json(indent=4))
         logging.debug("Persistence data saved to %s", path)
+
+    def store_user_data(self, key: str, user_data: JsonValue | BaseModel, save: bool = False) -> None:
+        """Store user-specific persistence data.
+
+        Args:
+            key (str): The key under which to store the user-specific data.
+            user_data (JsonValue | BaseModel): The user-specific data to store: a JSON-compatible value
+                (dicts, lists, strings, numbers, bools, or None), or a pydantic model. A model is stored
+                via its `.model_dump(mode="json")`, as plain data -- :meth:`get_user_data` always returns
+                a JsonValue, not a reconstructed model instance, so re-validate it against your model type
+                yourself (e.g. `MyModel.model_validate(persistence.get_user_data(key))`) if you need it back.
+            save (bool): Whether to save the updated persistence data to file after storing the data. Defaults to False.
+
+        Raises:
+            TypeError: If `user_data` isn't JSON-round-trippable.
+
+        """
+        if isinstance(user_data, BaseModel):
+            user_data = user_data.model_dump(mode="json")
+        try:
+            round_tripped = json.loads(json.dumps(user_data))
+        except TypeError as e:
+            raise TypeError(f"User data for key '{key}' must be JSON-serializable (dicts, lists, strings, numbers, bools, or None): {e}") from e
+        if round_tripped != user_data:
+            raise TypeError(
+                f"User data for key '{key}' does not round-trip through JSON unchanged; "
+                "store a JSON-safe equivalent instead (e.g. a dict via `.model_dump(mode='json')` instead of a model instance).",
+            )
+        self.user_persistence[key] = user_data
+        logging.debug("User-specific persistence data stored under key '%s'.", key)
+        if save:
+            self.save()
+
+    def get_user_data(self, key: str, expected_type: type[T] | None = None, default: T | JsonValue = None) -> T | JsonValue:
+        """Get user-specific persistence data.
+
+        Args:
+            key (str): The key under which the user-specific data is stored.
+            expected_type (type[T] | None): If given, a pydantic model type to validate the stored data
+                against, returning a reconstructed model instance. If None (the default), the raw stored
+                JsonValue is returned as-is.
+            default (T | JsonValue): The value to return if no data is stored under `key`. Defaults to None.
+
+        Raises:
+            TypeError: If `expected_type` is given but isn't a BaseModel subclass.
+
+        Returns:
+            T | JsonValue: The stored user-specific data (validated against `expected_type` if given), or
+                `default` if `key` isn't present.
+
+        """
+        if key not in self.user_persistence:
+            return default
+        raw = self.user_persistence[key]
+        if expected_type is None:
+            return raw
+        if not (isinstance(expected_type, type) and issubclass(expected_type, BaseModel)):
+            raise TypeError(f"expected_type must be a BaseModel subclass, got {expected_type!r}.")
+        return expected_type.model_validate(raw)
+
+    def delete_user_data(self, key: str, save: bool = False) -> None:
+        """Delete user-specific persistence data.
+
+        Args:
+            key (str): The key under which the user-specific data is stored.
+            save (bool): Whether to save the updated persistence data to file after deleting the data. Defaults to False.
+
+        """
+        if key in self.user_persistence:
+            del self.user_persistence[key]
+            logging.debug("User-specific persistence data deleted for key '%s'.", key)
+            if save:
+                self.save()
+        else:
+            logging.warning("Attempted to delete non-existent user-specific persistence data for key '%s'.", key)
