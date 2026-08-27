@@ -609,7 +609,7 @@ wheels = [
 
 [[package]]
 name = "smal-lang"
-version = "0.6.2"
+version = "0.6.3"
 source = { editable = "." }
 dependencies = [
     { name = "cmd2" },
