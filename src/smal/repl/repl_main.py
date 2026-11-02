@@ -133,6 +133,7 @@ class SMALREPL(cmd2.Cmd):
         self._active_machine: StateMachine | None = None  # Placeholder for the active machine object
         self._active_connection: DeviceConnection | None = None  # Placeholder for the active connection object
         self._active_module: TargetModule | None = None  # Placeholder for the active module
+        self._origin_command: str | None = None
         self._console = Console()
         self._logger = SMALLogger(self._console)
         self._module_cmd_sets: dict[Path, list[SMALCmdSet]] = {}
@@ -162,6 +163,11 @@ class SMALREPL(cmd2.Cmd):
         """
         self._logger.close()
         super().postloop()
+
+    def precmd(self, line: cmd2.Statement | str) -> cmd2.Statement | str:
+        """Capture the original command line before cmd2 dispatches it."""
+        self._origin_command = line.raw if isinstance(line, cmd2.Statement) else line
+        return super().precmd(line)
 
     def postcmd(self, stop: bool, statement: cmd2.Statement | str) -> bool:
         """Refresh the prompt after each command so it reflects the current connection/machine state.
@@ -380,6 +386,11 @@ class SMALREPL(cmd2.Cmd):
 
         """
         return self._active_module
+
+    @property
+    def origin_command(self) -> str | None:
+        """Get the raw command line currently being executed."""
+        return self._origin_command
 
     @property
     def console(self) -> Console:

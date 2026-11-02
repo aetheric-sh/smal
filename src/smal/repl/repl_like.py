@@ -39,6 +39,11 @@ class REPLLike(Protocol):
         ...
 
     @property
+    def origin_command(self) -> str | None:
+        """Get the raw command line currently being executed."""
+        ...
+
+    @property
     def console(self) -> Console:
         """Get the console for the REPL."""
         ...

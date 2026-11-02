@@ -226,7 +226,7 @@ def generate_state_machine_svg(
         )
         out_path = Path(out_path)
     except GraphvizFileExistsError as e:
-        raise FileExistsError(f"Output SVG file already exists: {out_path}. Use --force to overwrite.") from e
+        raise FileExistsError("Output SVG file already exists. Use --force to overwrite.") from e
     except ExecutableNotFound as e:
         raise ExecutableNotFound("Graphviz not found. Install via: smal install-graphviz") from e
 

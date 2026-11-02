@@ -122,6 +122,8 @@ class CodeCmdSet(SMALCmdSet):
                     return
                 cached_machine = SMALFile.from_file(cached_path)
             machine = cached_machine
+        if parent_app.origin_command is not None:
+            machine.metadata["origin_cmd"] = parent_app.origin_command
         # If the user selected a builtin template
         if TemplateRegistry.has_template(parsed_args.template):
             # Generate the code using the built-in template
@@ -264,8 +266,25 @@ def generate_code_cmd_custom(machine: SMALFile, custom_template_path: Path, out_
     """
     generator = SMALCodeGenerator()
     _env, ctmpl = generator.load_external_template(custom_template_path)
-    sanitized_out_fn = Path(out_filename).stem if out_filename else None
-    fn = f"{sanitized_out_fn}{ctmpl.output_extension}" if sanitized_out_fn else f"{ctmpl.name}{ctmpl.output_extension}"
+    file_exts = custom_template_path.suffixes
+    match len(file_exts):
+        case 0:
+            raise ValueError("Custom template path must have a file extension.")
+        case 1:
+            if file_exts[0] == ".j2":
+                raise ValueError("Custom template path must have a file extension other than .j2., e.g. .h.j2, etc.")
+            ext = file_exts[0]
+        case _:
+            if file_exts[-1] != ".j2" or file_exts[-2] == ".j2":
+                raise ValueError("Custom template path must have a .j2 extension as the last suffix.")
+            ext = file_exts[-2]
+    if out_filename:
+        output_name = Path(out_filename).stem
+    elif len(file_exts) >= 2:
+        output_name = custom_template_path.with_suffix("").stem
+    else:
+        output_name = custom_template_path.stem
+    fn = f"{output_name}{ext}"
     out_filepath = out_dir / fn
     try:
         generator.render_to_file(ctmpl, machine, out_filepath, force=force)
