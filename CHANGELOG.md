@@ -1,6 +1,18 @@
 # CHANGELOG
 
 
+## v0.6.5 (2026-11-02)
+
+### Bug Fixes
+
+- Add some enhancements and bugfixes to Code Generation
+  ([#52](https://github.com/aetheric-sh/smal/pull/52),
+  [`f22c326`](https://github.com/aetheric-sh/smal/commit/f22c3264a562f5f3a0514754cd3f0d43347fb240))
+
+- Some fixes to code generation ([#52](https://github.com/aetheric-sh/smal/pull/52),
+  [`f22c326`](https://github.com/aetheric-sh/smal/commit/f22c3264a562f5f3a0514754cd3f0d43347fb240))
+
+
 ## v0.6.4 (2026-08-27)
 
 
