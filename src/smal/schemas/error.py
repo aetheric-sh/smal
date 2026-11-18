@@ -5,41 +5,27 @@ This includes their properties, validation rules, and support for short form def
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
 
-from smal.schemas.utilities import IdentifierValidationMixin
+if TYPE_CHECKING:
+    from smal.utilities.types import Identifier
 
 
-class Error(IdentifierValidationMixin, BaseModel):
-    """Schema defining an error in a state machine."""
+class Error(BaseModel):
+    """Schema representing an error in a state machine."""
 
-    IDENTIFIER_FIELDS: ClassVar[tuple[str]] = ("name",)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")  # Not frozen: ids are auto-assigned by Machine.enforce_monotonic_ids
 
-    name: str = Field(..., description="A unique name for the error, which serves as its identifier and may be used in transitions or other contexts.")
-    id: int | None = Field(
+    name: Identifier = Field(description="Error name.")
+    id: StrictInt | None = Field(
         default=None,
         description="A unique integer identifier for the error. If not provided, it may be auto-assigned based on the order of definition or other criteria.",
     )
-    description: str | None = Field(default=None, description="Description of the error, if any.")
+    description: StrictStr | None = Field(default=None, description="Description of the error, if any.")
 
+    @model_validator(mode="before")
     @classmethod
-    def from_shorthand(cls, data: Any) -> Error:
-        """Create a Error instance from a short-hand representation in data.
-
-        Args:
-            data (Any): The input data for the error, which can be a string (error name) or a dictionary with error properties.
-
-        Raises:
-            ValueError: If the input data is not a string or a dictionary.
-
-        Returns:
-            Error: The Error instance created from the short-hand representation.
-
-        """
-        if isinstance(data, str):
-            return cls(name=data)
-        if isinstance(data, dict):
-            return cls.model_validate(data)
-        raise ValueError(f"Invalid short-hand error representation: {data!r}. Expected a string or a dictionary.")
+    def _from_shorthand(cls, data: Any) -> Any:
+        return {"name": data} if isinstance(data, str) else data

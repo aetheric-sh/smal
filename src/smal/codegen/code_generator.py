@@ -8,7 +8,7 @@ from typing import Any
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader, StrictUndefined, Template, UndefinedError, select_autoescape
 
 from smal.codegen.templates.builtin_templates import SMALTemplate, TemplateRegistry
-from smal.schemas.state_machine import SMALFile  # noqa: TC001
+from smal.schemas.machine import Machine  # noqa: TC001
 
 
 class SMALCodeGenerator:
@@ -72,12 +72,12 @@ class SMALCodeGenerator:
         tmpl = env.get_template(external_template_filepath.name)
         return env, tmpl
 
-    def render(self, template: Template, smal: SMALFile, **extra_context: Any) -> str:
+    def render(self, template: Template, smal: Machine, **extra_context: Any) -> str:
         """Render the given template using the given SMAL file, and any provided extra content.
 
         Args:
             template (Template): The jinja template to render.
-            smal (SMALFile): The SMAL file to render to the template.
+            smal (Machine): The SMAL file to render to the template.
             **extra_context (Any): Any extra content provided as kwargs to render in the template.
 
         Raises:
@@ -96,12 +96,12 @@ class SMALCodeGenerator:
                 "Consider adding definitions of these variables in the metadata of your SMAL file.",
             ) from e
 
-    def render_to_file(self, template: Template, smal: SMALFile, out_path: str | Path, force: bool = False, **extra_context: Any) -> None:
+    def render_to_file(self, template: Template, smal: Machine, out_path: str | Path, force: bool = False, **extra_context: Any) -> None:
         """Render the given template using the given SMAL file, and any provided extra content to the given filepath.
 
         Args:
             template (Template): The jinja template to render.
-            smal (SMALFile): The SMAL file to render to the template.
+            smal (Machine): The SMAL file to render to the template.
             out_path (str | Path): The output filepath to write the file content to.
             force (bool, optional): Whether or not to forcefully overwrite an existing file. Defaults to False.
             **extra_context (Any): Any extra content provided as kwargs to render in the template.

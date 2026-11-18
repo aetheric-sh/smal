@@ -2,32 +2,39 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr, model_validator
+
+from smal.utilities import expressions as SMALExpressions
+
+if TYPE_CHECKING:
+    from smal.utilities.types import Identifier
 
 
 class Action(BaseModel):
-    """Schema for the Action object in a SMAL file."""
+    """Schema representing an Action (executable step) within a state machine."""
 
-    name: str = Field(..., description="Name of the action. This will be the function name as it appears in generated code.")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
 
+    name: Identifier = Field(description="Action name.")
+    sets: dict[Identifier, StrictBool | StrictInt | StrictStr | StrictFloat] = Field(
+        default_factory=dict,
+        description=(
+            "Context variable assignments this action performs, applied in order. Values are literals or expressions over context variables, "
+            "constants and enum members, e.g. {foo: bar, attempts: 'attempts + 1'}. Used for path analysis."
+        ),
+    )
+    description: StrictStr | None = Field(default=None, description="Description of the action.")
+
+    @model_validator(mode="before")
     @classmethod
-    def from_shorthand(cls, data: Any) -> Action:
-        """Create a Action instance from a short-hand representation in data.
+    def _from_shorthand(cls, data: Any) -> Any:
+        return {"name": data} if isinstance(data, str) else data
 
-        Args:
-            data (Any): The input data for the action, which can be a string (action name) or a dictionary with action properties.
-
-        Raises:
-            ValueError: If the input data is not a string or a dictionary.
-
-        Returns:
-            Action: The Action instance created from the short-hand representation.
-
-        """
-        if isinstance(data, str):
-            return cls(name=data)
-        if isinstance(data, dict):
-            return cls.model_validate(data)
-        raise ValueError(f"Invalid short-hand action representation: {data!r}. Expected a string or a dictionary.")
+    @model_validator(mode="after")
+    def _check_set_expressions(self) -> Action:
+        for value in self.sets.values():
+            if isinstance(value, str):
+                SMALExpressions.parse(value)  # Raises ValueError on invalid syntax
+        return self

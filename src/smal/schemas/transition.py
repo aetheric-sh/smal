@@ -2,91 +2,68 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
-
-class TransitionSpecShorthand(BaseModel):
-    """Model defining the shorthand syntax for specifying transitions in a state machine. This allows users to define transitions in a more concise way."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        populate_by_name=True,  # So class can be instantiated with real variable names OR aliases
-    )
-    tgt: str = Field(..., alias="target", description="The state to transition into after executing actions in response to receiving evt while in src.")
-    actions: list[str] = Field(default_factory=list, description="The sequence of functions to invoke when evt is received while in src.")
-    tgt_entry_evt: str | None = Field(default=None, alias="on_entry", description="Event to trigger upon entering tgt, if any.")
-
-
-class TransitionMapShorthand(BaseModel):
-    """Model defining the shorthand syntax for specifying a map of transitions in a state machine.
-
-    This allows users to define transitions in a more concise way.
-    """
-
-    transitions: dict[str, dict[str, str | TransitionSpecShorthand]]
-
-    def to_transitions(self) -> list[Transition]:
-        """Convert this TransitionMapShorthand into a list of full Transition objects.
-
-        Returns:
-            list[Transition]: The list of Transition objects represented by this TransitionMapShorthand.
-
-        """
-        out: list[Transition] = []
-        for src, evt_map in self.transitions.items():
-            for evt, spec in evt_map.items():
-                if isinstance(spec, str):
-                    out.append(
-                        Transition(
-                            src=src,
-                            evt=evt,
-                            actions=[],
-                            tgt=spec,
-                            tgt_entry_evt=None,
-                        ),
-                    )
-                else:
-                    out.append(
-                        Transition(
-                            src=src,
-                            evt=evt,
-                            actions=spec.actions,
-                            tgt=spec.tgt,
-                            tgt_entry_evt=spec.tgt_entry_evt,
-                        ),
-                    )
-        return out
+if TYPE_CHECKING:
+    from smal.schemas.action import Action
+    from smal.schemas.guard import GuardRef
+    from smal.utilities.types import Identifier
 
 
 class Transition(BaseModel):
-    """Schema defining a transition between states in a state machine."""
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
-    src: str = Field(..., description="The name of the state the machine must be in in order for evt to trigger this transition.")
-    evt: str = Field(..., description="The name of the event that triggers this transition.")
-    actions: list[str] = Field(..., description="The sequence of functions to invoke when evt is received while in src.")
-    tgt: str = Field(..., description="The state to transition into after executing actions in response to receiving evt while in src.")
-    tgt_entry_evt: str | None = Field(default=None, description="Event to trigger upon entering tgt, if any.")
-    _original_src: str | None = PrivateAttr(default=None)
-    _original_tgt: str | None = PrivateAttr(default=None)
+    src: Identifier = Field(description="The source state.")
+    evt: Identifier | None = Field(
+        default=None,
+        description="Event that must be received while in src state to trigger this transition. If None, it is a completion transition.",
+    )
+    guard: GuardRef = Field(default_factory=list, description="Guard condition(s) for the transition.")
+    is_else: bool = Field(default=False, description="Fires only if no sibling guard(s) match.")
+    actions: list[Action] = Field(
+        default_factory=list,
+        description="The sequence of functions to invoke (in order of definition) when evt is received while in src.",
+    )
+    tgt: Identifier | None = Field(default=None, description="The state to transition into after executing actions in response to receiving evt while in src.")
+    tgt_entry_evt: Identifier | None = Field(default=None, description="Event to fire upon entry of tgt state.")
+    _original_src: Identifier | None = PrivateAttr(default=None)
+    _original_tgt: Identifier | None = PrivateAttr(default=None)
 
-    def __repr__(self) -> str:
-        """Get the string representing this object when it is printed.
+    @model_validator(mode="after")
+    def _check_local(self) -> Transition:
+        if self.is_else and self.guard:
+            raise ValueError("'else' transitions cannot also carry a guard predicate.")
+        if self.is_completion and self.is_internal:
+            raise ValueError("Completion transitions need a target; an internal one would loop forever.")
+        if self.is_internal and self.tgt_entry_evt:
+            raise ValueError("Internal transitions don't enter a state, so tgt_entry_evt is invalid.")
+        return self
+
+    @property
+    def is_completion(self) -> bool:
+        """Return whether or not this transition is a completion transition, e.g. a transition with no triggering event.
+
+        Completion transitions are executed automatically upon entering its defined src state, assuming its associated guard predicate holds.
 
         Returns:
-            str: The string representation of this object.
+            bool: True if this transition is a completion transition, False otherwise.
 
         """
-        return f"({self.src}, {self.evt}, [{', '.join(self.actions)}], {self.tgt}, {self.tgt_entry_evt})"
+        return self.evt is None
 
-    def __str__(self) -> str:
-        """Get the string representing this object when it is cast to a str.
+    @property
+    def is_internal(self) -> bool:
+        """Return whether or not this transition is an internal transition, e.g. a transition that has a trigger but no target state change.
+
+        Internal transitions are useful for allowing a state to react to something without disturbing itself.
 
         Returns:
-            str: The string representation of this object.
+            bool: True if this transition is internal, False otherwise.
 
         """
-        return self.__repr__()
+        return self.tgt is None
 
     @property
     def original_src(self) -> str | None:
@@ -126,17 +103,60 @@ class Transition(BaseModel):
         """
         self._original_tgt = original_tgt
 
-    @classmethod
-    def from_shorthand(cls, data: Any) -> Transition:
-        """Construct a Transition from a shorthand representation.
 
-        Args:
-            data (Any): The arbitrary data representing a transition in shorthand form, which can be a string or a dictionary.
+class ShorthandTransition(BaseModel):
+    """Model defining the shorthand syntax for specifying transitions in a state machine. This allows users to define transitions in a more concise way."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        populate_by_name=True,  # So class can be instantiated with real variable names OR aliases
+        extra="ignore",
+        frozen=True,
+    )
+    tgt: Identifier = Field(..., alias="target", description="The state to transition into after executing actions in response to receiving evt while in src.")
+    guard: GuardRef = Field(default_factory=list, description="Guard condition(s) for the transition.")
+    actions: list[Identifier] = Field(
+        default_factory=list,
+        description="The sequence of functions to invoke (in order of definition) when evt is received while in src.",
+    )
+    tgt_entry_evt: Identifier | None = Field(default=None, alias="on_entry", description="Event to trigger upon entering tgt, if any.")
+
+
+class ShorthandTransitionMap(BaseModel):
+    """Model defining the shorthand syntax for specifying a map of transitions in a state machine.
+
+    This allows users to define transitions in a more concise way.
+    """
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
+
+    transitions: dict[str, dict[Identifier, Identifier | ShorthandTransition]]
+
+    def to_transitions(self) -> list[Transition]:
+        """Convert this TransitionMapShorthand into a list of full Transition objects.
 
         Returns:
-            Transition: The constructed Transition object based on the provided shorthand representation.
+            list[Transition]: The list of Transition objects represented by this TransitionMapShorthand.
 
         """
+        out: list[Transition] = []
+        for src, evt_map in self.transitions.items():
+            for evt, sh_t in evt_map.items():
+                if isinstance(sh_t, str):
+                    # The transition is defined simply as a target state identifier
+                    out.append(Transition(src=src, evt=evt, tgt=sh_t))
+                else:
+                    # The transition is defined with a shorthand object
+                    out.append(
+                        Transition(
+                            src=src,
+                            evt=evt,
+                            guard=sh_t.guard,
+                            actions=sh_t.actions,
+                            tgt=sh_t.tgt,
+                            tgt_entry_evt=sh_t.tgt_entry_evt,
+                        ),
+                    )
+        return out
 
 
 class IllegalTransitionError(ValueError):

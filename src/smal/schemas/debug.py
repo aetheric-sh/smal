@@ -5,13 +5,12 @@ from __future__ import annotations  # Until Python 3.14
 import struct
 from dataclasses import dataclass
 from enum import Enum, IntFlag
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Literal, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Literal, Self, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Self
 
 if TYPE_CHECKING:
-    from smal.schemas.state_machine import StateMachine
+    from smal.schemas.machine import Machine
 
 METADATA_C_DATATYPE: Final[str] = "c_datatype"
 METADATA_C_PACKED: Final[str] = "packed"
@@ -222,11 +221,11 @@ class SMALDebugTransitionPayload(BaseModel):
         json_schema_extra={METADATA_C_DATATYPE: "int16_t"},
     )
 
-    def display(self, sm: StateMachine) -> str:
+    def display(self, sm: Machine) -> str:
         """Return a human-readable representation of this payload.
 
         Args:
-            sm (StateMachine): The state machine to resolve against.
+            sm (Machine): The state machine to resolve against.
 
         Returns:
             str: Human-readable representation of the payload.
@@ -293,11 +292,11 @@ class SMALDebugMessagePayload(BaseModel):
         json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
     )
 
-    def display(self, sm: StateMachine) -> str:
+    def display(self, sm: Machine) -> str:
         """Return a human-readable representation of this payload.
 
         Args:
-            sm (StateMachine): The state machine to resolve against.
+            sm (Machine): The state machine to resolve against.
 
         Returns:
             str: Human-readable representation of the payload.
@@ -356,11 +355,11 @@ class SMALDebugDataPayload(BaseModel):
         json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
     )
 
-    def display(self, sm: StateMachine) -> str:  # noqa: ARG002 - unused method argument
+    def display(self, sm: Machine) -> str:  # noqa: ARG002 - unused method argument
         """Return a human-readable representation of this payload.
 
         Args:
-            sm (StateMachine): The state machine to resolve against.
+            sm (Machine): The state machine to resolve against.
 
 
         Returns:
@@ -395,11 +394,11 @@ class SMALDebugErrorPayload(BaseModel):
         json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
     )
 
-    def display(self, sm: StateMachine) -> str:
+    def display(self, sm: Machine) -> str:
         """Return a human-readable representation of this payload.
 
         Args:
-            sm (StateMachine): The state machine to resolve against.
+            sm (Machine): The state machine to resolve against.
 
         Returns:
             str: Human-readable representation of the payload.

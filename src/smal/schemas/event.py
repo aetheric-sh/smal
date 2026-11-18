@@ -5,40 +5,26 @@ This includes their properties, validation rules, and support for short-form rep
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
-from smal.schemas.utilities import IdentifierValidationMixin
+if TYPE_CHECKING:
+    from smal.utilities.types import Identifier
 
 
-class Event(IdentifierValidationMixin, BaseModel):
+class Event(BaseModel):
     """Schema defining an event in a state machine."""
 
-    IDENTIFIER_FIELDS: ClassVar[tuple[str]] = ("name",)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
-    name: str = Field(..., description="A unique name for the event, which serves as its identifier and may be used in transitions.")
-    id: int | None = Field(
+    name: Identifier = Field(description="The name of the event.")
+    id: StrictInt | None = Field(
         default=None,
         description="A unique integer identifier for the event. If not provided, it may be auto-assigned based on the order of definition or other criteria.",
     )
 
+    @model_validator(mode="before")
     @classmethod
-    def from_shorthand(cls, data: Any) -> Event:
-        """Create an Event instance from a short-hand representation in data.
-
-        Args:
-            data (Any): The input data for the event, which can be a string (event name) or a dictionary with event properties.
-
-        Raises:
-            ValueError: If the input data is not a string or a dictionary.
-
-        Returns:
-            Event: The Event instance created from the short-hand representation.
-
-        """
-        if isinstance(data, str):
-            return cls(name=data)
-        if isinstance(data, dict):
-            return cls.model_validate(data)
-        raise ValueError(f"Invalid short-hand event representation: {data!r}. Expected a string or a dictionary.")
+    def _from_shorthand(cls, data: Any) -> Any:
+        return {"name": data} if isinstance(data, str) else data

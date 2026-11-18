@@ -12,8 +12,8 @@ from typing import ClassVar, TypeVar
 from platformdirs import user_data_dir
 from pydantic import BaseModel, Field, JsonValue
 
+from smal.schemas.machine import Machine  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.smal_script import SMALScript  # noqa: TC001 - Pydantic requires this at runtime for type validation
-from smal.schemas.state_machine import StateMachine  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.utilities.corrections import ALL_CORRECTIONS, Correction
 from smal.utilities.rules import ALL_RULES, Rule
 
@@ -66,9 +66,9 @@ class SMALPersistence(BaseModel):
         default_factory=dict,
         description="A dictionary mapping Python script names to their corresponding file paths.",
     )
-    machines: dict[str, StateMachine] = Field(
+    machines: dict[str, Machine] = Field(
         default_factory=dict,
-        description="A dictionary mapping machine names to their corresponding StateMachine objects.",
+        description="A dictionary mapping machine names to their corresponding Machine objects.",
     )
     machine_paths: dict[str, Path] = Field(
         default_factory=dict,
@@ -266,11 +266,11 @@ class SMALPersistence(BaseModel):
         else:
             logging.warning("Attempted to delete non-existent Python script '%s'.", script_name)
 
-    def add_machine(self, machine: StateMachine, overwrite: bool = False, save: bool = False) -> None:
+    def add_machine(self, machine: Machine, overwrite: bool = False, save: bool = False) -> None:
         """Add a machine to the persistence data.
 
         Args:
-            machine (StateMachine): The StateMachine object to add.
+            machine (Machine): The Machine object to add.
             overwrite (bool): Whether to overwrite an existing machine with the same name. Defaults to False.
             save (bool): Whether to save the updated persistence data to file after adding the machine. Defaults to False.
 
