@@ -38,6 +38,8 @@ class SMALCodeGenerator:
                     f"{lang}_enum_name": layer.enum_name,
                     f"{lang}_enum_count": layer.enum_count,
                     f"{lang}_enum_null": layer.enum_null,
+                    f"{lang}_primitive_datatype": layer.primitive_datatype,
+                    f"{lang}_primitive_value": layer.primitive_value,
                 },
             )
         return env

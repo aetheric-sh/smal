@@ -19,7 +19,7 @@ class Transition(BaseModel):
         default=None,
         description="Event that must be received while in src state to trigger this transition. If None, it is a completion transition.",
     )
-    guard: Guards = Field(default_factory=list, description="Guard condition(s) for the transition.")
+    guard: Guards = Field(default_factory=list, description="Guard condition(s) for the transition.")  # TODO: Make this a single guard
     is_else: bool = Field(default=False, description="Fires only if no sibling guard(s) match.")
     actions: list[Action] = Field(
         default_factory=list,

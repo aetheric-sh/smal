@@ -70,12 +70,26 @@ class MacroRegistry:
                     description="Macro that generates the declarations for all actions of a state machine in C.",
                     params=["machine"],
                 ),
+                "c_machine_guards": SMALMacro(
+                    name="c_machine_guards",
+                    filename="c_machine_guards.j2",
+                    lang="c",
+                    description="Macro that generates the declarations for all guards of a state machine in C.",
+                    params=["machine"],
+                ),
                 "c_struct": SMALMacro(
                     name="c_struct",
                     filename="c_struct.j2",
                     lang="c",
                     description="Macro that creates a C-style struct.",
                     params=["struct_spec"],
+                ),
+                "c_machine_context": SMALMacro(
+                    name="c_machine_context",
+                    filename="c_machine_context.j2",
+                    lang="c",
+                    description="Macro that creates a C-style context struct for a state machine.",
+                    params=["machine"],
                 ),
                 "c_union": SMALMacro(
                     name="c_union",

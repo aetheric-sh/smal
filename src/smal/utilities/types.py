@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 Identifier = Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_]*$")]
 """String representing an identifier."""
 
+LabeledIdentifier = Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_]*(?::[A-Za-z][A-Za-z0-9_]*)?$")]
+"""String representing an identifier with an optional label of the form <label>:<identifier>."""
+
 
 def _parse_semver(v: Any) -> semver.Version:
     if isinstance(v, semver.Version):

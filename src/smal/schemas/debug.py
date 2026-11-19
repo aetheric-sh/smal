@@ -500,6 +500,8 @@ class EnumSpec:
         storage: SMALPrimitive = SMALPrimitive.UINT32,
         flags: bool | None = None,
         prefix: str = "",
+        include_count: bool = True,
+        include_null: bool = True,
     ) -> EnumSpec:
         """Build an EnumSpec from dynamic data instead of a pre-defined python Enum.
 
@@ -509,13 +511,15 @@ class EnumSpec:
             storage (SMALPrimitive, optional): The storage type. Defaults to SMALPrimitive.UINT32.
             flags (bool | None, optional): Whether it's a flag enum. Defaults to None.
             prefix (str, optional): Prefix for members. Defaults to "".
+            include_count (bool, optional): Include count member. Defaults to True.
+            include_null (bool, optional): Include null member. Defaults to True.
 
         Returns:
             EnumSpec: The enum spec.
 
         """
         dynamic_enum = Enum(name, data)
-        return cls.build(dynamic_enum, name, storage, flags, prefix)
+        return cls.build(dynamic_enum, name, storage, flags, prefix, include_count, include_null)
 
 
 @dataclass(frozen=True)

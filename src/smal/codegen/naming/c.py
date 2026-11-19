@@ -5,12 +5,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Final
 
 from smal.codegen.primitives.language_primitive import get_language_primitive
+from smal.schemas.enumeration import Enumeration, EnumMember
 from smal.utilities import constants as SMALConstants
 from smal.utilities.types import SMALPrimitive
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from smal.codegen.naming.language_naming_layer import LanguageNamingLayer
-    from smal.schemas.debug import FieldSpec
+    from smal.schemas.debug import EnumSpec, FieldSpec
 
 
 class CLanguageNamingLayer:
@@ -73,13 +76,13 @@ class CLanguageNamingLayer:
             str: The C enum name.
 
         """
-        return f"{logical_name}_e"
+        return f"{logical_name}_t"
 
     @staticmethod
     def enum_count(logical_name: str) -> str:
         """Get the name of the member that terminates a C enum and holds its member count.
 
-        Args:
+        Args:S
             logical_name (str): The SMAL logical name of the enum.
 
         Returns:
@@ -100,6 +103,29 @@ class CLanguageNamingLayer:
 
         """
         return f"{logical_name}_null".upper()
+
+    @staticmethod
+    def primitive_datatype(t: SMALPrimitive | Enumeration) -> str:
+        """Get the C datatype for a primitive or enum."""
+        if isinstance(t, Enumeration):
+            return CLanguageNamingLayer.enum_name(t.name)
+        if isinstance(t, SMALPrimitive):
+            c_primitive = get_language_primitive(t, SMALConstants.SupportedCodeLangs.C.value)
+            return c_primitive.name
+        raise ValueError(f"Unknown type {t}")
+
+    @staticmethod
+    def primitive_value(t: SMALPrimitive | Enumeration, v: JsonValue | EnumMember, enum_specs: list[EnumSpec] | None = None) -> str:
+        if isinstance(v, EnumMember):
+            if not enum_specs:
+                raise ValueError("No enum specs")
+            spec = next((s for s in enum_specs if s.name == t.name), None)
+            if not spec:
+                raise ValueError("Enum spec not found")
+            return CLanguageNamingLayer.enum_member(v.name, prefix=spec.prefix)
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        return str(v)
 
 
 NAMING_LAYER: Final[type[LanguageNamingLayer]] = CLanguageNamingLayer

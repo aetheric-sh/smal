@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from smal.schemas.debug import FieldSpec
+    from pydantic import JsonValue
+
+    from smal.schemas.debug import EnumSpec, FieldSpec
+    from smal.schemas.enumeration import Enumeration, EnumMember
+    from smal.utilities.types import SMALPrimitive
 
 
 class LanguageNamingLayer(Protocol):
@@ -39,4 +43,14 @@ class LanguageNamingLayer(Protocol):
     @staticmethod
     def enum_null(logical_name: str) -> str:
         """Get the null member name."""
+        ...
+
+    @staticmethod
+    def primitive_datatype(smal_primitive: str | SMALPrimitive) -> str:
+        """Get the datatype for a primitive."""
+        ...
+
+    @staticmethod
+    def primitive_value(t: SMALPrimitive | Enumeration, v: JsonValue | EnumMember, enum_specs: list[EnumSpec] | None = None) -> str:
+        """Get the literal value for a primitive or enum."""
         ...

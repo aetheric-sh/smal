@@ -5,6 +5,8 @@
 {% from "macros/c/c_machine_version.j2" import c_machine_version %}
 {% from "macros/c/c_machine_state_transition_table.j2" import c_machine_state_transition_table %}
 {% from "macros/c/c_machine_actions.j2" import c_machine_actions %}
+{% from "macros/c/c_machine_guards.j2" import c_machine_guards %}
+{% from "macros/c/c_machine_context.j2" import c_machine_context %}
 {% from "macros/c/c_enum.j2" import c_enum %}
 {{ c_autogen_banner_state_machine(machine) }}
 #ifndef {{ machine.metadata.header_guard }}
@@ -27,9 +29,19 @@
 // ERRORS
 {{ c_enum(machine.errors_spec) }}
 
+// ENUMS
+{% for enum in machine.enums %}
+{{ c_enum(enum.spec) }}
+{% endfor %}
+
+{{ c_machine_context(machine) }}
+
 {{ c_machine_struct(machine) }}
 
 {{ c_machine_state_table_entry(machine, machine.longest_action_chain) }}
+
+// GUARDS
+{{ c_machine_guards(machine) }}
 
 // ACTIONS
 {{ c_machine_actions(machine) }}

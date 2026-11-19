@@ -20,6 +20,7 @@ class LanguagePrimitive:
 
     name: str
     size_bytes: int
+    struct_code: str | None
 
 
 def get_language_primitive(smal_primitive: SMALPrimitive, lang: str) -> LanguagePrimitive:
@@ -63,4 +64,10 @@ def get_language_primitive(smal_primitive: SMALPrimitive, lang: str) -> Language
         raise ValueError(
             f"Codegen language package '{lang}' does not define a size in bytes for local primitive that maps to SMAL primitive '{smal_primitive.value}'",
         )
-    return LanguagePrimitive(decoded_primitive, local_primitive_size)
+    local_primitive_struct_code: str | None = None
+    if hasattr(module, "LOCAL_STRUCT_CODES"):
+        local_primitive_struct_codes: dict[str, str] = module.LOCAL_STRUCT_CODES
+        if not isinstance(local_primitive_struct_codes, dict):
+            raise TypeError("LOCAL_STRUCT_CODES must be a dict")
+        local_primitive_struct_code = local_primitive_struct_codes.get(decoded_primitive)
+    return LanguagePrimitive(decoded_primitive, local_primitive_size, local_primitive_struct_code)

@@ -10,6 +10,7 @@ static const {{ machine.name | lower }}_state_table_entry_t {{ machine.name | lo
         if t.evt
         else (machine.name | upper) ~ "_EVENT_NULL"
     ) ~ ", " ~
+    (t.guard[0].name if t.guard else "NULL") ~ ", " ~
     "{" ~ (t.actions | map(attribute='name') | list + ["NULL"]) | join(', ') ~ "}, " ~
     (
         (machine.name | upper) ~ "_STATE_" ~ (t.tgt | upper)

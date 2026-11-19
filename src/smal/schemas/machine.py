@@ -163,6 +163,10 @@ class Machine(BaseModel):
         return EnumSpec.build_from_data(state_data, logical_name, prefix=logical_name)
 
     @cached_property
+    def enum_specs(self) -> list[EnumSpec]:
+        return [e.spec for e in self.enums]
+
+    @cached_property
     def errors_spec(self) -> EnumSpec:
         """Get the enumeration specification for this machine's errors.
 
@@ -272,6 +276,7 @@ class Machine(BaseModel):
         enforce_monotonicity_helper(self.states)
         enforce_monotonicity_helper(self.events)
         enforce_monotonicity_helper(self.errors)
+        # TODO: self.enums
         # Done
         return self
 
@@ -424,6 +429,9 @@ class Machine(BaseModel):
                     raise ValueError(f"Context variable '{c.name}' default value '{c.default_value}' is not a member of enum '{c.type}'.")
                 if c.value_constraints:
                     raise ValueError(f"Context variable '{c.name}' is an enum type, value_constraints is redundant.")
+                c.set_resolved_type(resolved)
+                resolved_value = next((v for v in resolved.values if v.name == c.default_value), None)
+                c.set_resolved_value(resolved_value)
                 continue
             try:
                 resolved.check_value(c.default_value)
@@ -433,6 +441,8 @@ class Machine(BaseModel):
                 raise ValueError(f"Context variable '{c.name}' ({resolved.value}): {exc}") from exc
             if c.value_constraints and c.default_value not in c.value_constraints:
                 raise ValueError(f"Context variable '{c.name}': default value {c.default_value!r} is not one of its value_constraints {c.value_constraints}.")
+            c.set_resolved_type(resolved)
+            c.set_resolved_value(c.default_value)
         return self
 
     def resolve_context_type(self, type_name: str) -> SMALPrimitive | Enumeration:

@@ -2,10 +2,12 @@
 
 from __future__ import annotations  # Until Python 3.14
 
+from functools import cached_property
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
 
+from smal.schemas.debug import EnumSpec
 from smal.utilities.types import Identifier, SMALPrimitive
 
 
@@ -58,6 +60,16 @@ class Enumeration(BaseModel):
             resolved[member.name] = value
             next_value = value + 1
         return resolved
+
+    @cached_property
+    def spec(self) -> EnumSpec:
+        return EnumSpec.build_from_data(
+            data=self.resolved_values,
+            name=self.name,
+            prefix=self.name,
+            include_count=True,
+            include_null=False,
+        )
 
     @model_validator(mode="after")
     def _enforce_unique_members(self) -> Enumeration:
