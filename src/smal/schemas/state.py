@@ -5,12 +5,11 @@ from __future__ import annotations  # Until Python 3.14
 import logging
 from enum import StrEnum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import Any, ClassVar, Self
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, PrivateAttr, StrictInt, StrictStr, model_validator
 
-if TYPE_CHECKING:
-    from smal.utilities.types import Identifier
+from smal.utilities.types import Identifier  # noqa: TC001 - Pydantic requires this at runtime
 
 
 class StateType(StrEnum):

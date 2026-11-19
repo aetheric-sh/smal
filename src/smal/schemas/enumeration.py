@@ -2,14 +2,11 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
 
-from smal.codegen.primitives.smal_primitive import SMALPrimitive  # noqa: TC001 - Pydantic requires this import at runtime
-
-if TYPE_CHECKING:
-    from smal.utilities.types import Identifier
+from smal.utilities.types import Identifier, SMALPrimitive
 
 
 class EnumMember(BaseModel):

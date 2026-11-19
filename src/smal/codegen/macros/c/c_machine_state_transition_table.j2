@@ -1,17 +1,25 @@
-{% macro c_machine_state_transition_table(smal) %}
-static const {{ smal.name | lower }}_state_table_entry_t {{ smal.name | lower }}_state_table[] =
+{% macro c_machine_state_transition_table(machine) %}
+static const {{ machine.name | lower }}_state_table_entry_t {{ machine.name | lower }}_state_table[] =
 {
-{% for t in smal.transitions %}
+{% for t in machine.transitions %}
 {{ (
     "{" ~
-    (smal.name | upper) ~ "_STATE_" ~ (t.src | upper) ~ ", " ~
-    (smal.name | upper) ~ "_EVENT_" ~ (t.evt | upper) ~ ", " ~
-    "{" ~ ((t.actions + ["NULL"]) | join(', ')) ~ "}, " ~
-    (smal.name | upper) ~ "_STATE_" ~ (t.tgt | upper) ~ ", " ~
+    (machine.name | upper) ~ "_STATE_" ~ (t.src | upper) ~ ", " ~
     (
-        (smal.name | upper) ~ "_EVENT_" ~ (t.tgt_entry_evt | upper)
+        (machine.name | upper) ~ "_EVENT_" ~ (t.evt | upper)
+        if t.evt
+        else (machine.name | upper) ~ "_EVENT_NULL"
+    ) ~ ", " ~
+    "{" ~ (t.actions | map(attribute='name') | list + ["NULL"]) | join(', ') ~ "}, " ~
+    (
+        (machine.name | upper) ~ "_STATE_" ~ (t.tgt | upper)
+        if t.tgt
+        else (machine.name | upper) ~ "_STATE_NULL"
+    ) ~ ", " ~
+    (
+        (machine.name | upper) ~ "_EVENT_" ~ (t.tgt_entry_evt | upper)
         if t.tgt_entry_evt
-        else (smal.name | upper) ~ "_EVENT_NULL"
+        else (machine.name | upper) ~ "_EVENT_NULL"
     ) ~
     "},"
 ) | indent(4, true) }}

@@ -11,18 +11,18 @@ from typing import TYPE_CHECKING
 from smal.utilities import constants as SMALConstants
 
 if TYPE_CHECKING:
-    from smal.codegen.primitives.smal_primitive import SMALPrimitive
+    from smal.utilities.types import SMALPrimitive
 
 
 @dataclass
-class TargetPrimitive:
-    """Dataclass representing an arbitrary primitive datatype on an arbitrary Target device."""
+class LanguagePrimitive:
+    """Dataclass representing an arbitrary primitive datatype for an arbitrary language."""
 
     name: str
     size_bytes: int
 
 
-def get_target_primitive(smal_primitive: SMALPrimitive, lang: str) -> TargetPrimitive:
+def get_language_primitive(smal_primitive: SMALPrimitive, lang: str) -> LanguagePrimitive:
     """Get the target primitive corresponding to the given SMAL primitive for the given language.
 
     Args:
@@ -39,12 +39,12 @@ def get_target_primitive(smal_primitive: SMALPrimitive, lang: str) -> TargetPrim
         ValueError: If the local primitive size for the target primitive is not defined in the codegen language package. This indicates a programmer error in the codegen package.
 
     Returns:
-        TargetPrimitive: The target primitive corresponding to the given SMAL primitive for the specified language.
+        LanguagePrimitive: The target primitive corresponding to the given SMAL primitive for the specified language.
 
     """
     if not SMALConstants.SupportedCodeLangs.is_supported_lang(lang):
         raise ValueError(f"Unsupported codegen language: {lang}. Supported languages are: {', '.join(SMALConstants.SupportedCodeLangs.all())}")
-    module = importlib.import_module(f"smal.codegen.{lang}.primitives")
+    module = importlib.import_module(f"smal.codegen.primitives.{lang}")
     if not hasattr(module, "SMAL_PRIMITIVE_DECODER_RING"):
         raise RuntimeError(f"Codegen language package '{lang}' does not properly define primitive decoder ring. This is a programmer error.")
     decoder_ring: dict[SMALPrimitive, str] = module.SMAL_PRIMITIVE_DECODER_RING
@@ -63,4 +63,4 @@ def get_target_primitive(smal_primitive: SMALPrimitive, lang: str) -> TargetPrim
         raise ValueError(
             f"Codegen language package '{lang}' does not define a size in bytes for local primitive that maps to SMAL primitive '{smal_primitive.value}'",
         )
-    return TargetPrimitive(decoded_primitive, local_primitive_size)
+    return LanguagePrimitive(decoded_primitive, local_primitive_size)

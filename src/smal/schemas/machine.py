@@ -3,46 +3,31 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from copy import deepcopy
+from functools import cached_property
 from pathlib import Path
 from typing import Annotated, Any, ClassVar, Self
 
 import yaml
-from pydantic import (
-    BaseModel,
-    BeforeValidator,
-    ConfigDict,
-    Field,
-    JsonValue,
-    PrivateAttr,
-    model_validator,
-)
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, JsonValue, PrivateAttr, StrictInt, model_validator
 
-from smal.codegen.primitives.smal_primitive import SMALPrimitive
 from smal.schemas.action import Action  # noqa: TC001 - Pydantic requires this import at runtime
 from smal.schemas.constant import Constant
 from smal.schemas.context import ContextVar  # noqa: TC001 - Pydantic requires this import at runtime
-from smal.schemas.enumeration import Enumeration  # noqa: TC001 - Pydantic requires this import at runtime
+from smal.schemas.debug import EnumSpec
+from smal.schemas.enumeration import Enumeration
 from smal.schemas.error import Error  # noqa: TC001 - Pydantic requires this import at runtime
 from smal.schemas.event import Event  # noqa: TC001 - Pydantic requires this import at runtime
-from smal.schemas.guard import Guard, GuardDef  # noqa: TC001 - Pydantic requires this import at runtime
+from smal.schemas.guard import GuardDef, GuardRef  # noqa: TC001 - Pydantic requires this import at runtime
 from smal.schemas.state import State, StateType
 from smal.schemas.transition import ShorthandTransitionMap, Transition
 from smal.utilities import constants as SMALConstants
 from smal.utilities import expressions as SMALExpressions
 from smal.utilities.corrections import ALL_CORRECTIONS
 from smal.utilities.rules import ALL_RULES
-from smal.utilities.types import Identifier, SemVer  # noqa: TC001 - Pydantic requires this import at runtime
+from smal.utilities.types import Identifier, SemVer, SMALPrimitive
 
 CONTEXT_PRIMITIVES: frozenset[SMALPrimitive] = frozenset(p for p in SMALPrimitive if p.is_integer or p.is_float or p == SMALPrimitive.BOOL)
 """The SMAL primitives a context variable may use as its type. Enums are also allowed, by their bare name."""
-
-_LEGACY_CONTEXT_TYPES: dict[str, str] = {
-    "int": "int32, or a narrower type such as uint8",
-    "uint": "uint32, or a narrower type such as uint8",
-    "float": "float32 or float64",
-    "str": "an enum or a fixed-width type, since string context variables are not supported",
-}
-"""Type names that older SMAL files used, mapped to what to write instead."""
 
 
 class Machine(BaseModel):
@@ -149,6 +134,67 @@ class Machine(BaseModel):
 
         """
         return self._adj
+
+    @cached_property
+    def longest_action_chain(self) -> int:
+        """Get the length of the longest chain of actions of any single transition in this state machine.
+
+        Returns:
+            int: The length of the longest action chain.
+
+        """
+        return max(len(t.actions) for t in self.transitions)
+
+    @cached_property
+    def states_spec(self) -> EnumSpec:
+        """Get the enumeration specification for this machine's states.
+
+        Raises:
+            ValueError: If any state has no ID.
+
+        Returns:
+            EnumSpec: The enum spec for states.
+
+        """
+        state_data: dict[str, StrictInt] = {s.name: s.id for s in self.states}
+        if any(sid is None for sid in state_data.values()):
+            raise ValueError("All states must have an ID.")
+        logical_name = f"{self.name}_state".lower()
+        return EnumSpec.build_from_data(state_data, logical_name, prefix=logical_name)
+
+    @cached_property
+    def errors_spec(self) -> EnumSpec:
+        """Get the enumeration specification for this machine's errors.
+
+        Raises:
+            ValueError: If any error has no ID.
+
+        Returns:
+            EnumSpec: The enum spec for errors.
+
+        """
+        error_data: dict[str, StrictInt] = {e.name: e.id for e in self.errors}
+        if any(eid is None for eid in error_data.values()):
+            raise ValueError("All errors must have an ID.")
+        logical_name = f"{self.name}_error".lower()
+        return EnumSpec.build_from_data(error_data, logical_name, prefix=logical_name)
+
+    @cached_property
+    def events_spec(self) -> EnumSpec:
+        """Get the enumeration specification for this machine's events.
+
+        Raises:
+            ValueError: If any event has no ID.
+
+        Returns:
+            EnumSpec: The enum spec for events.
+
+        """
+        event_data: dict[str, StrictInt] = {e.name: e.id for e in self.events}
+        if any(eid is None for eid in event_data.values()):
+            raise ValueError("All events must have an ID.")
+        logical_name = f"{self.name}_event".lower()
+        return EnumSpec.build_from_data(event_data, logical_name, prefix=logical_name)
 
     @model_validator(mode="before")
     @classmethod
@@ -413,9 +459,7 @@ class Machine(BaseModel):
             if primitive in CONTEXT_PRIMITIVES:
                 return primitive
             raise ValueError(f"Type '{type_name}' is not supported for context variables. Expected one of: {allowed}, or the name of an enum.")
-        hint = _LEGACY_CONTEXT_TYPES.get(type_name)
-        suggestion = f" Use {hint}." if hint else ""
-        raise ValueError(f"Unknown type '{type_name}'.{suggestion} Expected one of: {allowed}, or the name of an enum declared in `enums`.")
+        raise ValueError(f"Unknown type '{type_name}'. Expected one of: {allowed}, or the name of an enum declared in `enums`.")
 
     @model_validator(mode="after")
     def enforce_expressions_and_guard_references(self) -> Self:
@@ -452,7 +496,7 @@ class Machine(BaseModel):
                 if not isinstance(value, str):
                     # A literal assignment: check that it fits the variable's type
                     if isinstance(resolved, Enumeration):
-                        raise ValueError(
+                        raise TypeError(
                             f"StateMachine '{self.name}': action '{a.name}' assigns the literal {value!r} to enum variable '{var}'. "
                             f"Assign one of its members ({', '.join(resolved.resolved_values)}) instead.",
                         )
@@ -768,7 +812,7 @@ class Machine(BaseModel):
         # Variables an internal transition can change at any time, so guards that depend on them can't be decided from the path alone
         volatile = {var for t in self.transitions if t.tgt is None for a in t.actions for var in action_sets.get(a.name, {})}
 
-        def guard_value(ref: Guard, context: dict[str, Any]) -> bool | None:
+        def guard_value(ref: GuardRef, context: dict[str, Any]) -> bool | None:
             expr = guard_exprs.get(ref.name)
             if expr is None:
                 return None

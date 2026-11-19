@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal
 import cmd2
 from pydantic import BaseModel
 
-from smal.diagramming.generation import generate_state_machine_svg
+from smal.diagramming.mermaid import render_mermaid_markdown
 from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import machine_completer
 from smal.repl.helpers import get_persistence
@@ -87,12 +87,6 @@ class DiagramCmdSet(SMALCmdSet):
             parsed_args.output_dir.mkdir(parents=True, exist_ok=True)
             parent_app.console.print(f"Created previously non-existent output directory for diagram: [bold cyan]{parsed_args.output_dir}[/bold cyan]")
         with parent_app.console.status(f"Generating state machine diagram in [cyan]{parsed_args.output_dir}[/cyan]", spinner="dots"):
-            out_path = generate_state_machine_svg(
-                smal_path,
-                parsed_args.output_dir,
-                open=parsed_args.open,
-                force=parsed_args.force,
-                title=parsed_args.title,
-                graph_attr={"rankdir": parsed_args.orientation.upper()},
-            )
+            # TODO: Render mermaid markdown from the specified machine.
+            out_path = parsed_args.output_dir / "diagram.md"
         parent_app.print_success(f"Diagram generated successfully: {out_path}", prefix="✅")

@@ -4,7 +4,7 @@ from __future__ import annotations  # Until Python 3.14
 
 from typing import Final
 
-from smal.codegen.primitives.smal_primitive import SMALPrimitive
+from smal.utilities.types import SMALPrimitive
 
 SMAL_PRIMITIVE_DECODER_RING: Final[dict[SMALPrimitive, str]] = {
     SMALPrimitive.BOOL: "uint8_t",
@@ -34,4 +34,19 @@ LOCAL_PRIMITIVE_SIZES_BYTES: Final[dict[str, int]] = {
     "double": 8,
     "uint64_t": 8,
     "int64_t": 8,
+}
+
+LOCAL_STRUCT_CODES: Final[dict[str, str]] = {
+    "uint8_t": "B",
+    "int8_t": "b",
+    "uint16_t": "H",
+    "int16_t": "h",
+    "uint32_t": "I",
+    "int32_t": "i",
+    "bool": "?",
+    "uint64_t": "Q",
+    "int64_t": "q",
+    "float": "f",
+    "double": "d",
+    "uint8_t[]": "B",
 }

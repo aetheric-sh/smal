@@ -1,130 +1,20 @@
-"""Module defining the schema for the debug structures for SMAL state machines."""
+"""Module defining the schema for the debug structures for SMAL state machines, independent of any target language."""
 
-from __future__ import annotations  # Until Python 3.14
+from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
-from enum import Enum, IntFlag
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Literal, Self, TypeAlias
+from enum import Enum, Flag, IntFlag
+from typing import TYPE_CHECKING, Annotated, Any, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
+
+from smal.utilities.types import Bool, IdentifiableObject, Int16, Int32, RefTo, SMALPrimitive, UInt16, UInt32, WireType
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
     from smal.schemas.machine import Machine
-
-METADATA_C_DATATYPE: Final[str] = "c_datatype"
-METADATA_C_PACKED: Final[str] = "packed"
-
-
-@dataclass(frozen=True)
-class CStructData:
-    """Dataclass representing the data necessary to construct a C Struct."""
-
-    struct_name: str
-    fields: dict[str, tuple[str, str]]
-    packed: bool = False
-
-    @classmethod
-    def from_model(cls, model: type[BaseModel]) -> Self:
-        """Construct a CStructData from an arbitrary pydantic BaseModel.
-
-        Args:
-            model (type[BaseModel]): The pydantic BaseModel.
-
-        Raises:
-            RuntimeError: If the model does not define metadata for its C datatype.
-            RuntimeError: If any field within the model does not define metadata for its C datatype.
-
-        Returns:
-            Self: The constructed CStructData.
-
-        """
-        cls_metadata = model.model_config.get("json_schema_extra", {})
-        struct_name = cls_metadata.get(METADATA_C_DATATYPE, None)
-        if struct_name is None:
-            raise RuntimeError(f"Model '{model.__name__}' does not define a C struct name. This is a programming error.")
-        fields: dict[str, tuple[str, str]] = {}
-        for field_name, field_info in model.model_fields.items():
-            if field_info.exclude:
-                continue
-            if field_info.json_schema_extra is None:
-                raise RuntimeError("No json_schema_extra for Field. This is a programming error.")
-            dtype = field_info.json_schema_extra.get(METADATA_C_DATATYPE, None)
-            if dtype is None:
-                raise RuntimeError("Field does not define a C datatype. This is a programming error.")
-            fields[field_name] = (dtype, field_info.description or "")
-        packed = cls_metadata.get(METADATA_C_PACKED, False)
-        return cls(
-            struct_name=struct_name,
-            fields=fields,
-            packed=packed,
-        )
-
-
-CUnionData: TypeAlias = CStructData
-
-
-@dataclass(frozen=True)
-class CEnumData:
-    """Dataclass representing the data necessary to construct a C Enum."""
-
-    name: str
-    values: dict[str, Any]
-
-    @classmethod
-    def from_py_enum(cls, e: type[Enum]) -> Self:
-        """Construct a CEnumData from an arbitrary python enum, if applicable.
-
-        Args:
-            e (type[Enum]): The python enum.
-
-        Raises:
-            RuntimeError: If the given enum does not expose a method to get the C datatype.
-
-        Returns:
-            Self: The constructed CEnumData.
-
-        """
-        if not hasattr(e, METADATA_C_DATATYPE):
-            raise RuntimeError(f"Enumeration type '{e.__name__}' does not expose {METADATA_C_DATATYPE} property")
-        return cls(
-            name=e.c_datatype(),
-            values={f"SMAL_DBG_{en.name.upper()}": en.value for en in e},
-        )
-
-
-@dataclass(frozen=True)
-class CCodegenContext:
-    """Jinja2 codegen context for C data."""
-
-    enums: list[CEnumData]
-    structs: list[CStructData]
-    unions: list[CUnionData]
-    definition_order: list[str] | None = None
-
-    @property
-    def all_data(self) -> list[tuple[str, Any]]:
-        """Get all C data in a single list, ordered by definition order if provided."""
-        if self.definition_order is None:
-            enums = [("enum", e) for e in self.enums]
-            structs = [("struct", s) for s in self.structs]
-            unions = [("union", u) for u in self.unions]
-            return enums + structs + unions
-        retval: list[tuple[str, Any]] = []
-        for name in self.definition_order:
-            item = next((e for e in self.enums if name == e.name), None)
-            if item is not None:
-                retval.append(("enum", item))
-                continue
-            item = next((s for s in self.structs if name == s.struct_name), None)
-            if item is not None:
-                retval.append(("struct", item))
-                continue
-            item = next((u for u in self.unions if name == u.struct_name), None)
-            if item is not None:
-                retval.append(("union", item))
-                continue
-        return retval
 
 
 class SMALDebugEntryType(IntFlag):
@@ -171,55 +61,44 @@ class SMALDebugEntryType(IntFlag):
             types.append("ERROR")
         return ", ".join(types) if types else "NONE"
 
-    @staticmethod
-    def c_datatype() -> str:
-        """Get the C datatype of this python enum.
 
-        Returns:
-            str: The C datatype of this python enum.
+def _name_for(items: Sequence[IdentifiableObject], item_id: int) -> str | None:
+    """Get the name of the item whose id (or, if it has none, its index) is `item_id`.
 
-        """
-        return "smal_dbg_entry_type_t"
+    Args:
+        items (Sequence[IdentifiableObject]): Objects with `name` and `id` attributes, e.g. `Machine.states`.
+        item_id (int): The id to look up.
+
+    Returns:
+        str | None: The item's name, or None if no item has that id.
+
+    """
+    return next((item.name for idx, item in enumerate(items) if (idx if item.id is None else item.id) == item_id), None)
+
+
+def _label(items: Sequence[IdentifiableObject], kind: str, item_id: int) -> str:
+    """Get `name(id)` for an item, or `kind#id(id)` if it can't be resolved.
+
+    Args:
+        items (Sequence[IdentifiableObject]): Objects with `name` and `id` attributes, e.g. `Machine.states`.
+        kind (str): What the items are (e.g. "state"), used in the fallback name.
+        item_id (int): The id to look up.
+
+    Returns:
+        str: The label.
+
+    """
+    return f"{_name_for(items, item_id) or f'{kind}#{item_id}'}({item_id})"
 
 
 class SMALDebugTransitionPayload(BaseModel):
     """Payload for state transition debug entries."""
 
-    C_DATATYPE: ClassVar[str] = "smal_dbg_transition_payload_t"
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        json_schema_extra={METADATA_C_DATATYPE: C_DATATYPE, METADATA_C_PACKED: False},
-    )
-
     entry_type: Literal["transition"] = Field(default="transition", exclude=True)
-    src_state: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Source state ID or index before the transition.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    tgt_state: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Target state ID or index after the transition.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    evt: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Event ID or index that triggered the transition.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    status: int = Field(
-        ...,
-        ge=-32768,
-        le=32767,
-        description="Status of the transition (success, failure, error code, etc.).",
-        json_schema_extra={METADATA_C_DATATYPE: "int16_t"},
-    )
+    src_state: UInt16 = Field(description="Source state ID or index before the transition.")
+    tgt_state: UInt16 = Field(description="Target state ID or index after the transition.")
+    evt: UInt16 = Field(description="Event ID or index that triggered the transition.")
+    status: Int16 = Field(description="Status of the transition (success, failure, error code, etc.).")
 
     def display(self, sm: Machine) -> str:
         """Return a human-readable representation of this payload.
@@ -231,66 +110,20 @@ class SMALDebugTransitionPayload(BaseModel):
             str: Human-readable representation of the payload.
 
         """
-
-        def resolve_state_name(state_id: int) -> str:
-            for idx, state in enumerate(sm.states):
-                candidate_id = state.id if state.id is not None else idx
-                if candidate_id == state_id:
-                    return state.name
-            return f"state#{state_id}"
-
-        def resolve_event_name(event_id: int) -> str:
-            for idx, event in enumerate(sm.events):
-                candidate_id = event.id if event.id is not None else idx
-                if candidate_id == event_id:
-                    return event.name
-            return f"event#{event_id}"
-
-        def resolve_error_name(error_code: int) -> str:
-            for idx, error in enumerate(sm.errors):
-                candidate_id = error.id if error.id is not None else idx
-                if candidate_id == error_code:
-                    return error.name
-            return f"error#{error_code}"
-
-        src_name = resolve_state_name(self.src_state)
-        tgt_name = resolve_state_name(self.tgt_state)
-        evt_name = resolve_event_name(self.evt)
-        error_name = resolve_error_name(self.status) if self.status != 0 else "OK"
-        return f"{src_name}({self.src_state}) --[{evt_name}({self.evt})]--> {tgt_name}({self.tgt_state}) · {error_name}({self.status})"
+        status = "OK(0)" if self.status == 0 else _label(sm.errors, "error", self.status)
+        src_state = _label(sm.states, "state", self.src_state)
+        evt = _label(sm.events, "event", self.evt)
+        tgt_state = _label(sm.states, "state", self.tgt_state)
+        return f"{src_state} --[{evt}]--> {tgt_state} · {status}"
 
 
 class SMALDebugMessagePayload(BaseModel):
     """Payload for event/command debug entries."""
 
-    C_DATATYPE: ClassVar[str] = "smal_dbg_message_payload_t"
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        json_schema_extra={METADATA_C_DATATYPE: C_DATATYPE, METADATA_C_PACKED: False},
-    )
-
     entry_type: Literal["message"] = Field(default="message", exclude=True)
-    identifier: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Event or command ID/index.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    data_len: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Length of data associated with the event or command, in bytes.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    value: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFFFFFF,
-        description="Value associated with the event or command (parameter, status code, etc.).",
-        json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
-    )
+    identifier: UInt16 = Field(description="Event or command ID/index.")
+    data_len: UInt16 = Field(description="Length of data associated with the event or command, in bytes.")
+    value: UInt32 = Field(description="Value associated with the event or command (parameter, status code, etc.).")
 
     def display(self, sm: Machine) -> str:
         """Return a human-readable representation of this payload.
@@ -302,65 +135,21 @@ class SMALDebugMessagePayload(BaseModel):
             str: Human-readable representation of the payload.
 
         """
-
-        def resolve_command_name(command_id: int) -> str:
-            for idx, command in enumerate(sm.commands):
-                candidate_id = command.id if command.id is not None else idx
-                if candidate_id == command_id:
-                    return command.name
-            raise ValueError(f"Command ID {command_id} not found in state machine commands.")
-
-        def resolve_event_name(event_id: int) -> str:
-            for idx, event in enumerate(sm.events):
-                candidate_id = event.id if event.id is not None else idx
-                if candidate_id == event_id:
-                    return event.name
-            raise ValueError(f"Event ID {event_id} not found in state machine events.")
-
-        def resolve_message_name(identifier: int) -> str:
-            try:
-                return resolve_command_name(identifier)
-            except ValueError:
-                try:
-                    return resolve_event_name(identifier)
-                except ValueError:
-                    return f"msg#{identifier}"
-
-        msg_name = resolve_message_name(self.identifier)
-        return f"{msg_name}({self.identifier}) · data_len={self.data_len} · value={self.value:#010x}"
+        return f"{_label(sm.events, 'msg', self.identifier)} · data_len={self.data_len} · value={self.value:#010x}"
 
 
 class SMALDebugDataPayload(BaseModel):
     """Payload for data read/write debug entries."""
 
-    C_DATATYPE: ClassVar[str] = "smal_dbg_data_payload_t"
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        json_schema_extra={METADATA_C_DATATYPE: C_DATATYPE, METADATA_C_PACKED: False},
-    )
-
     entry_type: Literal["data"] = Field(default="data", exclude=True)
-    address: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFFFFFF,
-        description="Address that was read from or written to.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
-    )
-    data_len: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFFFFFF,
-        description="Length of data that was read or written, in bytes.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
-    )
+    address: UInt32 = Field(description="Address that was read from or written to.")
+    data_len: UInt32 = Field(description="Length of data that was read or written, in bytes.")
 
     def display(self, sm: Machine) -> str:  # noqa: ARG002 - unused method argument
         """Return a human-readable representation of this payload.
 
         Args:
             sm (Machine): The state machine to resolve against.
-
 
         Returns:
             str: Human-readable representation of the payload.
@@ -372,27 +161,9 @@ class SMALDebugDataPayload(BaseModel):
 class SMALDebugErrorPayload(BaseModel):
     """Payload for error debug entries."""
 
-    C_DATATYPE: ClassVar[str] = "smal_dbg_error_payload_t"
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        json_schema_extra={METADATA_C_DATATYPE: C_DATATYPE, METADATA_C_PACKED: False},
-    )
-
     entry_type: Literal["error"] = Field(default="error", exclude=True)
-    error_code: int = Field(
-        ...,
-        ge=-2147483648,
-        le=2147483647,
-        description="Error code (negative for error types, non-negative for specific codes).",
-        json_schema_extra={METADATA_C_DATATYPE: "int32_t"},
-    )
-    detail: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFFFFFF,
-        description="Additional error detail (address, value, bitmask, etc.).",
-        json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
-    )
+    error_code: Int32 = Field(description="Error code (negative for error types, non-negative for specific codes).")
+    detail: UInt32 = Field(description="Additional error detail (address, value, bitmask, etc.).")
 
     def display(self, sm: Machine) -> str:
         """Return a human-readable representation of this payload.
@@ -404,19 +175,10 @@ class SMALDebugErrorPayload(BaseModel):
             str: Human-readable representation of the payload.
 
         """
-
-        def resolve_error_name(error_code: int) -> str:
-            for idx, error in enumerate(sm.errors):
-                candidate_id = error.id if error.id is not None else idx
-                if candidate_id == error_code:
-                    return error.name
-            return f"error#{error_code}"
-
-        err_name = resolve_error_name(self.error_code)
-        return f"{err_name}({self.error_code}) · detail={self.detail:#010x}"
+        return f"{_label(sm.errors, 'error', self.error_code)} · detail={self.detail:#010x}"
 
 
-# TODO: Figure out how to make this into a union in c code
+# Rendered in each target language as a tagged union (see TaggedUnionSpec)
 SMALDebugPayload = Annotated[
     SMALDebugTransitionPayload | SMALDebugMessagePayload | SMALDebugDataPayload | SMALDebugErrorPayload,
     Field(discriminator="entry_type"),
@@ -426,46 +188,16 @@ SMALDebugPayload = Annotated[
 class SMALDebugEntry(BaseModel):
     """Debug entry structure representing a single debug log entry."""
 
-    C_DATATYPE: ClassVar[str] = "smal_dbg_entry_t"
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        json_schema_extra={METADATA_C_DATATYPE: C_DATATYPE, METADATA_C_PACKED: False},
-    )
-
-    entry_type: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFFFFFF,
-        description="Bitmask indicating the type of entry (state transition, event, command, data read/write, error, etc.).",
-        json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
-    )
-    timestamp_ms: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFFFFFF,
-        description="Timestamp in milliseconds when the entry was logged.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint32_t"},
-    )
-    payload: SMALDebugPayload = Field(
-        ...,
-        description="The payload of the entry, interpreted based on entry_type.",
-        json_schema_extra={METADATA_C_DATATYPE: "smal_dbg_payload_t"},
-    )
+    entry_type: UInt32 = Field(description="Bitmask indicating the type of entry (state transition, event, command, data read/write, error, etc.).")
+    timestamp_ms: UInt32 = Field(description="Timestamp in milliseconds when the entry was logged.")
+    payload: Annotated[SMALDebugPayload, RefTo("dbg_payload")] = Field(description="The payload of the entry, interpreted based on entry_type.")
 
     @staticmethod
     def deserialize_entries_from_bytes(data: bytearray, endianness: Literal["little", "big"] = "little") -> list[SMALDebugEntry]:
-        """Deserialize a bytearray containing binary smal_dbg_entry_t structures into a list of SMALDebugEntry objects.
+        """Deserialize a bytearray containing binary debug entries into a list of SMALDebugEntry objects.
 
-        The bytearray should contain a series of debug entries, each consisting of:
-        - entry_type (uint32, 4 bytes): Bitmask indicating the type of entry
-        - timestamp_ms (uint32, 4 bytes): Timestamp when the entry was logged
-        - payload (8 bytes): Union of various payload types interpreted by entry_type
-
-        Payload format for STATE_TRANSITION entries:
-        - src_state (uint16): Source state ID/index before transition
-        - tgt_state (uint16): Target state ID/index after transition
-        - evt (uint16): Event ID/index that triggered the transition
-        - status (int16): Status of the transition
+        Every entry is a header (its directly-encoded fields, in order) followed by a payload sized for the largest payload type.
+        The header and payload layouts are derived from the models' field types, so adding a field changes the wire format with no other edit.
 
         Args:
             data: Bytearray containing serialized debug entries.
@@ -475,242 +207,456 @@ class SMALDebugEntry(BaseModel):
             List of SMALDebugEntry objects ordered by occurrence in the data.
 
         Raises:
-            ValueError: If data length is not a multiple of the size in bytes of SMALDebugEntry or payload unpacking fails.
+            ValueError: If data length is not a multiple of the size in bytes of an entry.
 
         """
-        endian_prefix = "<" if endianness == "little" else ">"
-        header_fmt = f"{endian_prefix}II"
-        transition_fmt = f"{endian_prefix}HHHh"
-        error_fmt = f"{endian_prefix}iI"
-        message_fmt = f"{endian_prefix}HHI"
-        data_fmt = f"{endian_prefix}II"
-        header_size_bytes = struct.calcsize(header_fmt)
-        payload_size_bytes = max(
-            struct.calcsize(transition_fmt),
-            struct.calcsize(error_fmt),
-            struct.calcsize(message_fmt),
-            struct.calcsize(data_fmt),
-        )
-        entry_size_bytes = header_size_bytes + payload_size_bytes
-        if len(data) % entry_size_bytes != 0:
-            raise ValueError(f"Invalid debug data size: {len(data)} bytes is not a multiple of {entry_size_bytes} bytes")
+        prefix = "<" if endianness == "little" else ">"
+        header, header_fields = _layout(StructSpec.build(SMALDebugEntry, "dbg_entry"), prefix)
+        layouts = {model: _payload_layout(model, prefix) for _, _, model in _PAYLOADS}
+        entry_size = header.size + max(layout.size for layout, _ in layouts.values())
+        if len(data) % entry_size != 0:
+            raise ValueError(f"Invalid debug data size: {len(data)} bytes is not a multiple of {entry_size} bytes")
         entries: list[SMALDebugEntry] = []
-        for i in range(0, len(data), entry_size_bytes):
-            chunk = data[i : i + entry_size_bytes]
-            # Unpack header: entry_type (uint32) | timestamp_ms (uint32)
-            entry_type, timestamp_ms = struct.unpack(header_fmt, chunk[0:header_size_bytes])
-            payload_bytes = chunk[header_size_bytes : header_size_bytes + payload_size_bytes]
-            # Determine payload type based on entry_type bitmask and parse accordingly
-            payload_dict: dict = {"entry_type": _get_payload_type(entry_type)}
-            if entry_type & SMALDebugEntryType.ENTRY_TYPE_STATE_TRANSITION:
-                # Unpack payload: src_state (u16) | tgt_state (u16) | evt (u16) | status (i16)
-                src_state, tgt_state, evt, status = struct.unpack(transition_fmt, payload_bytes[0:payload_size_bytes])
-                payload_dict.update(
-                    {
-                        "src_state": src_state,
-                        "tgt_state": tgt_state,
-                        "evt": evt,
-                        "status": status,
-                    },
-                )
-            elif entry_type & SMALDebugEntryType.ENTRY_TYPE_ERROR:
-                error_code, detail = struct.unpack(error_fmt, payload_bytes[0:payload_size_bytes])
-                payload_dict.update({"error_code": error_code, "detail": detail})
-            elif entry_type & (
-                SMALDebugEntryType.ENTRY_TYPE_EVENT_RX
-                | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX
-                | SMALDebugEntryType.ENTRY_TYPE_CMD_RX
-                | SMALDebugEntryType.ENTRY_TYPE_CMD_TX
-            ):
-                identifier, data_len, value = struct.unpack(message_fmt, payload_bytes[0:payload_size_bytes])
-                payload_dict.update(
-                    {
-                        "identifier": identifier,
-                        "data_len": data_len,
-                        "value": value,
-                    },
-                )
-            elif entry_type & (SMALDebugEntryType.ENTRY_TYPE_DATA_READ | SMALDebugEntryType.ENTRY_TYPE_DATA_WRITE):
-                address, data_len = struct.unpack(data_fmt, payload_bytes[0:payload_size_bytes])
-                payload_dict.update({"address": address, "data_len": data_len})
-            else:
-                # Default to transition payload if no specific type matched
-                src_state, tgt_state, evt, status = struct.unpack(transition_fmt, payload_bytes[0:payload_size_bytes])
-                payload_dict.update(
-                    {
-                        "src_state": src_state,
-                        "tgt_state": tgt_state,
-                        "evt": evt,
-                        "status": status,
-                    },
-                )
-            entry = SMALDebugEntry(entry_type=entry_type, timestamp_ms=timestamp_ms, payload=payload_dict)
-            entries.append(entry)
+        for offset in range(0, len(data), entry_size):
+            header_values = dict(zip(header_fields, header.unpack_from(data, offset), strict=True))
+            model = _payload_model(header_values["entry_type"])
+            layout, field_names = layouts[model]
+            payload = model(**dict(zip(field_names, layout.unpack_from(data, offset + header.size), strict=True)))
+            entries.append(SMALDebugEntry(**header_values, payload=payload))
         return entries
 
 
 class SMALDebugRing(BaseModel):
     """Debug ring buffer structure for storing debug entries."""
 
-    C_DATATYPE: ClassVar[str] = "smal_dbg_ring_t"
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        json_schema_extra={METADATA_C_DATATYPE: C_DATATYPE, METADATA_C_PACKED: False},
-    )
-
-    oldest_index: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Index of the oldest entry in the ring buffer.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    write_index: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Index where the next entry will be written.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    entry_count: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Number of valid entries currently in the ring.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    capacity: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Maximum number of entries the ring can hold.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    overwrite_count: int = Field(
-        ...,
-        ge=0,
-        le=0xFFFF,
-        description="Number of times entries have been overwritten.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    entries: list[SMALDebugEntry] = Field(
-        ...,
+    oldest_index: UInt16 = Field(description="Index of the oldest entry in the ring buffer.")
+    write_index: UInt16 = Field(description="Index where the next entry will be written.")
+    entry_count: UInt16 = Field(description="Number of valid entries currently in the ring.")
+    capacity: UInt16 = Field(description="Maximum number of entries the ring can hold.")
+    overwrite_count: UInt16 = Field(description="Number of times entries have been overwritten.")
+    entries: Annotated[list[SMALDebugEntry], RefTo("dbg_entry", array=True, count_field="capacity")] = Field(
         description="Array of debug entries in the ring buffer.",
-        json_schema_extra={METADATA_C_DATATYPE: f"{SMALDebugEntry.C_DATATYPE} *"},
     )
 
 
 class SMALFlushStatus(BaseModel):
     """Model defining flush parameters for transmitting debug data out of the ring buffer."""
 
-    C_DATATYPE: ClassVar[str] = "smal_dbg_flush_status_t"
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        json_schema_extra={METADATA_C_DATATYPE: C_DATATYPE, METADATA_C_PACKED: False},
-    )
-
-    active: bool = Field(
-        default=False,
-        description="Indicates whether a flush cycle is currently active.",
-        json_schema_extra={METADATA_C_DATATYPE: "bool"},
-    )
-    entry_transmit_complete: bool = Field(
+    active: Bool = Field(default=False, description="Indicates whether a flush cycle is currently active.")
+    entry_transmit_complete: Bool = Field(
         default=False,
         description="Indicates whether the entry transmission for the current flush cycle is complete.",
-        json_schema_extra={METADATA_C_DATATYPE: "bool"},
     )
-    oldest_idx: int = Field(
+    oldest_idx: UInt16 = Field(default=0, description="The index of the oldest entry in the ring at the start of the flush cycle.")
+    entry_count: UInt16 = Field(
         default=0,
-        ge=0,
-        le=0xFFFF,
-        description="The index of the oldest entry in the ring at the start of the flush cycle.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
-    entry_count: int = Field(
-        default=0,
-        ge=0,
-        le=0xFFFF,
         description=(
             "The total number of entries that need to be sent in the current flush cycle, "
             "i.e. the number of entries that were in the ring at the start of the flush."
         ),
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
     )
-    num_entries_sent: int = Field(
-        default=0,
-        ge=0,
-        le=0xFFFF,
-        description="The number of entries that have been sent so far in the current flush cycle.",
-        json_schema_extra={METADATA_C_DATATYPE: "uint16_t"},
-    )
+    num_entries_sent: UInt16 = Field(default=0, description="The number of entries that have been sent so far in the current flush cycle.")
 
 
-def _get_payload_type(entry_type: int) -> str:
-    """Determine the payload type discriminator based on entry_type bitmask.
-
-    Args:
-        entry_type: The entry_type bitmask from the debug entry.
-
-    Returns:
-        The discriminator string for the payload type.
-
-    """
-    if entry_type & SMALDebugEntryType.ENTRY_TYPE_STATE_TRANSITION:
-        return "transition"
-    if entry_type & SMALDebugEntryType.ENTRY_TYPE_ERROR:
-        return "error"
-    if entry_type & (
+# Each payload's logical struct name, the entry types that select it, and its model. Checked in order, and the first one whose mask
+# overlaps the entry type wins. Names are the C names without the `smal_` prefix and `_t` suffix, so the C output stays unchanged.
+_PAYLOADS: Final[tuple[tuple[str, SMALDebugEntryType, type[BaseModel]], ...]] = (
+    ("dbg_transition_payload", SMALDebugEntryType.ENTRY_TYPE_STATE_TRANSITION, SMALDebugTransitionPayload),
+    ("dbg_error_payload", SMALDebugEntryType.ENTRY_TYPE_ERROR, SMALDebugErrorPayload),
+    (
+        "dbg_message_payload",
         SMALDebugEntryType.ENTRY_TYPE_EVENT_RX
         | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX
         | SMALDebugEntryType.ENTRY_TYPE_CMD_RX
-        | SMALDebugEntryType.ENTRY_TYPE_CMD_TX
-    ):
-        return "message"
-    if entry_type & (SMALDebugEntryType.ENTRY_TYPE_DATA_READ | SMALDebugEntryType.ENTRY_TYPE_DATA_WRITE):
-        return "data"
-    return "transition"
+        | SMALDebugEntryType.ENTRY_TYPE_CMD_TX,
+        SMALDebugMessagePayload,
+    ),
+    ("dbg_data_payload", SMALDebugEntryType.ENTRY_TYPE_DATA_READ | SMALDebugEntryType.ENTRY_TYPE_DATA_WRITE, SMALDebugDataPayload),
+)
 
 
-def construct_c_codegen_context(*_args: Any, **_kwargs: Any) -> CCodegenContext:
-    """Construct a jinja2 template rendering context for SMAL debugging boilerplate code (C).
+def _payload_model(entry_type: int) -> type[BaseModel]:
+    """Get the payload model selected by an entry type bitmask, defaulting to the transition payload.
+
+    Args:
+        entry_type (int): The entry type bitmask.
 
     Returns:
-        CCodegenContext: The context for generating SMAL debugging boilerplate code (C).
+        type[BaseModel]: The payload model.
 
     """
-    return CCodegenContext(
-        enums=[CEnumData.from_py_enum(SMALDebugEntryType)],
-        structs=[
-            CStructData.from_model(SMALDebugTransitionPayload),
-            CStructData.from_model(SMALDebugMessagePayload),
-            CStructData.from_model(SMALDebugDataPayload),
-            CStructData.from_model(SMALDebugErrorPayload),
-            CStructData.from_model(SMALDebugEntry),
-            CStructData.from_model(SMALDebugRing),
-            CStructData.from_model(SMALFlushStatus),
-        ],
-        # TODO: Is there a better way to represent this?
-        unions=[
-            CUnionData(
-                "smal_dbg_payload_t",
-                {
-                    "transition": (SMALDebugTransitionPayload.C_DATATYPE, "Payload for state transition entries"),
-                    "message": (SMALDebugMessagePayload.C_DATATYPE, "Payload for event/command entries"),
-                    "data": (SMALDebugDataPayload.C_DATATYPE, "Payload for data read/write entries"),
-                    "error": (SMALDebugErrorPayload.C_DATATYPE, "Payload for error entries"),
-                    "raw_words[2]": ("uint32_t", "For raw access to the payload as two 32-bit words, if needed"),
-                },
+    return next((model for _, mask, model in _PAYLOADS if entry_type & mask), SMALDebugTransitionPayload)
+
+
+def _struct_code(wire: WireType) -> str:
+    """Get the `struct` format code of a wire type.
+
+    Args:
+        wire (WireType): The wire type.
+
+    Raises:
+        ValueError: If the wire type has no format code (for example an enum, whose storage type isn't carried by the field).
+
+    Returns:
+        str: The format code.
+
+    """
+    if wire.primitive == SMALPrimitive.BYTES:
+        return f"{wire.length}s"
+    code = wire.primitive.struct_code
+    if code is None:
+        raise ValueError(f"{wire.primitive.value} has no struct format code.")
+    return code
+
+
+def _layout(spec: StructSpec, prefix: str) -> tuple[struct.Struct, tuple[str, ...]]:
+    """Get the struct format and field names for the directly-encoded fields of a struct, skipping references to other types.
+
+    Args:
+        spec (StructSpec): The struct to lay out.
+        prefix (str): The `struct` byte order prefix, e.g. "<" for packed little-endian.
+
+    Returns:
+        tuple[struct.Struct, tuple[str, ...]]: The compiled struct and the names of its fields, in order.
+
+    """
+    wire_fields = [f for f in spec.fields if f.wire is not None]
+    return struct.Struct(prefix + "".join(_struct_code(f.wire) for f in wire_fields)), tuple(f.name for f in wire_fields)
+
+
+def _payload_layout(model: type[BaseModel], prefix: str) -> tuple[struct.Struct, tuple[str, ...]]:
+    """Get the struct format and field names of a payload model.
+
+    Args:
+        model (type[BaseModel]): The payload model.
+        prefix (str): The `struct` byte order prefix.
+
+    Returns:
+        tuple[struct.Struct, tuple[str, ...]]: The compiled struct and the names of its fields, in order.
+
+    """
+    return _layout(StructSpec.build(model, model.__name__), prefix)
+
+
+@dataclass(frozen=True)
+class FieldSpec:
+    """A field of a struct, described without reference to any target language."""
+
+    name: str
+    wire: WireType | None  # None when the field refers to another type
+    ref: str | None  # The logical name of the struct or union this field refers to
+    description: str
+    array: bool = False  # A runtime-sized array of `ref`
+    count_field: str | None = None  # For arrays: the sibling field holding the number of elements
+
+    def __post_init__(self) -> None:
+        """Validate the construction of FieldSpec.
+
+        Raises:
+            ValueError: If not exactly one of wire and ref is set.
+            ValueError: If array or count_field is used on a field that isn't a reference.
+            ValueError: If count_field is used on a field that isn't an array.
+
+        """
+        has_wire, has_ref = self.wire is not None, bool(self.ref)
+        if has_wire == has_ref:
+            raise ValueError(f"Field '{self.name}' must set exactly one of wire or ref.")
+        if (self.array or self.count_field) and not has_ref:
+            raise ValueError(f"Field '{self.name}': array and count_field are only valid for references.")
+        if self.count_field and not self.array:
+            raise ValueError(f"Field '{self.name}': count_field is only valid for arrays.")
+
+
+@dataclass(frozen=True)
+class StructSpec:
+    """A struct, described without reference to any target language."""
+
+    name: str
+    fields: tuple[FieldSpec, ...]
+    packed: bool = True
+
+    def __post_init__(self) -> None:
+        """Validate the construction of StructSpec.
+
+        Raises:
+            ValueError: If two fields share a name.
+            ValueError: If an array's count_field is not a directly-encoded field of this struct.
+
+        """
+        names = [f.name for f in self.fields]
+        if len(set(names)) != len(names):
+            raise ValueError(f"Struct '{self.name}' has duplicate field names.")
+        plain_fields = {f.name for f in self.fields if f.wire is not None}
+        for f in self.fields:
+            if f.count_field is not None and f.count_field not in plain_fields:
+                raise ValueError(f"Struct '{self.name}': field '{f.name}' counts by '{f.count_field}', which is not a plain field of the struct.")
+
+    @classmethod
+    def build(cls, model: type[BaseModel], name: str, *, packed: bool = True) -> StructSpec:
+        """Build a StructSpec from a pydantic model whose fields are annotated with a WireType or a RefTo.
+
+        Fields with `exclude=True` (such as a payload's discriminator) are not part of the wire layout and are skipped.
+
+        Args:
+            model (type[BaseModel]): The model to describe.
+            name (str): The logical name of the struct.
+            packed (bool, optional): Whether the struct is packed. Defaults to True.
+
+        Raises:
+            RuntimeError: If a field has neither or both of WireType and RefTo.
+
+        Returns:
+            StructSpec: The struct description.
+
+        """
+        fields = []
+        for field_name, info in model.model_fields.items():
+            if info.exclude:
+                continue
+            wire = next((m for m in info.metadata if isinstance(m, WireType)), None)
+            ref = next((m for m in info.metadata if isinstance(m, RefTo)), None)
+            if (wire is None) == (ref is None):
+                raise RuntimeError(f"{model.__name__}.{field_name} must have exactly one of WireType or RefTo. This is a programming error.")
+            fields.append(
+                FieldSpec(
+                    name=field_name,
+                    wire=wire,
+                    ref=ref.name if ref else None,
+                    description=info.description or "",
+                    array=ref.array if ref else False,
+                    count_field=ref.count_field if ref else None,
+                ),
+            )
+        return cls(name=name, fields=tuple(fields), packed=packed)
+
+
+@dataclass(frozen=True)
+class EnumSpec:
+    """An enum, described without reference to any target language."""
+
+    name: str
+    storage: SMALPrimitive
+    members: tuple[tuple[str, int], ...]  # (member name, value), in definition order
+    flags: bool = False
+    prefix: str = ""  # Namespaces the members in the target language, in lower snake case, e.g. "dbg"
+    include_count: bool = True
+    include_null: bool = True
+
+    @classmethod
+    def build(
+        cls,
+        enum: type[Enum],
+        name: str,
+        storage: SMALPrimitive = SMALPrimitive.UINT32,
+        flags: bool | None = None,
+        prefix: str = "",
+        include_count: bool = True,
+        include_null: bool = True,
+    ) -> EnumSpec:
+        """Build an EnumSpec from a python enum.
+
+        Zero-valued members and aliases are included (iterating a Flag would skip them).
+
+        Args:
+            enum (type[Enum]): The python enum.
+            name (str): The logical name of the enum.
+            storage (SMALPrimitive, optional): The integer type that stores it. Defaults to UINT32.
+            flags (bool | None, optional): Whether the members are bit flags. Defaults to whether `enum` is a Flag.
+            prefix (str, optional): Namespace prefix for the members in the target language. Defaults to none.
+            include_count (bool, optional): Include a count member. Defaults to True.
+            include_null (bool, optional): Include a null member. Defaults to True.
+
+        Raises:
+            ValueError: If storage is not an integer type, or a member's value doesn't fit it.
+
+        Returns:
+            EnumSpec: The enum description.
+
+        """
+        if not storage.is_integer:
+            raise ValueError(f"Enum '{enum.__name__}' storage must be an integer type, not '{storage.value}'.")
+        members = tuple((member_name, member.value) for member_name, member in enum.__members__.items())
+        # TODO: Check members for anything that could collide with count and null
+        for member_name, value in members:
+            try:
+                storage.check_value(value)
+            except ValueError as exc:
+                raise ValueError(f"Enum '{enum.__name__}' member '{member_name}' does not fit {storage.value}: {exc}") from exc
+        return cls(
+            name=name,
+            storage=storage,
+            members=members,
+            flags=issubclass(enum, Flag) if flags is None else flags,
+            prefix=prefix,
+            include_count=include_count,
+            include_null=include_null,
+        )
+
+    @classmethod
+    def build_from_data(
+        cls,
+        data: dict[str, int],
+        name: str,
+        storage: SMALPrimitive = SMALPrimitive.UINT32,
+        flags: bool | None = None,
+        prefix: str = "",
+    ) -> EnumSpec:
+        """Build an EnumSpec from dynamic data instead of a pre-defined python Enum.
+
+        Args:
+            data (dict[str, int]): The enum members and their values.
+            name (str): The enum name.
+            storage (SMALPrimitive, optional): The storage type. Defaults to SMALPrimitive.UINT32.
+            flags (bool | None, optional): Whether it's a flag enum. Defaults to None.
+            prefix (str, optional): Prefix for members. Defaults to "".
+
+        Returns:
+            EnumSpec: The enum spec.
+
+        """
+        dynamic_enum = Enum(name, data)
+        return cls.build(dynamic_enum, name, storage, flags, prefix)
+
+
+@dataclass(frozen=True)
+class TaggedUnionSpec:
+    """A union whose active variant is chosen by a tag, described without reference to any target language."""
+
+    name: str
+    tag: str
+    variants: tuple[tuple[str, str], ...]  # (tag value, struct name)
+
+    @classmethod
+    def from_models(cls, name: str, tag: str, models: Iterable[tuple[str, type[BaseModel]]]) -> TaggedUnionSpec:
+        """Build a TaggedUnionSpec from the models that are its variants.
+
+        Each model's `tag` field must be a Literal with a default, which becomes that variant's tag value.
+
+        Args:
+            name (str): The logical name of the union.
+            tag (str): The name of the discriminator field on every model.
+            models (Iterable[tuple[str, type[BaseModel]]]): Each variant's logical struct name and model.
+
+        Raises:
+            TypeError: If a model has no string default for the tag field.
+            ValueError: If two variants share a tag value.
+
+        Returns:
+            TaggedUnionSpec: The union description.
+
+        """
+        variants = []
+        for struct_name, model in models:
+            tag_value = model.model_fields[tag].default
+            if not isinstance(tag_value, str):
+                raise TypeError(f"{model.__name__}.{tag} must be a Literal with a string default.")
+            variants.append((tag_value, struct_name))
+        tag_values = [v for v, _ in variants]
+        duplicates = sorted({v for v in tag_values if tag_values.count(v) > 1})
+        if duplicates:
+            raise ValueError(f"Union '{name}' has variants sharing the tag values {duplicates}.")
+        return cls(name=name, tag=tag, variants=tuple(variants))
+
+
+def _dependencies(item: EnumSpec | StructSpec | TaggedUnionSpec) -> list[str]:
+    """Get the names of the types that must be defined before `item`, in a stable order.
+
+    Args:
+        item (EnumSpec | StructSpec | TaggedUnionSpec): The type to inspect.
+
+    Returns:
+        list[str]: The names of the types it depends on.
+
+    """
+    if isinstance(item, StructSpec):
+        deps = []
+        for f in item.fields:
+            if f.ref:
+                deps.append(f.ref)
+            elif f.wire is not None and f.wire.enum_name:
+                deps.append(f.wire.enum_name)
+        return deps
+    if isinstance(item, TaggedUnionSpec):
+        return [struct_name for _, struct_name in item.variants]
+    return []
+
+
+@dataclass(frozen=True)
+class DebugCodegenContext:
+    """Everything a target language needs to generate the debug types, with no language-specific content."""
+
+    enums: tuple[EnumSpec, ...]
+    structs: tuple[StructSpec, ...]
+    unions: tuple[TaggedUnionSpec, ...]
+
+    def __post_init__(self) -> None:
+        """Validate the context by computing the definition order, which checks names and references."""
+        self._ordered()
+
+    @classmethod
+    def build(cls, *_args: Any, **_kwargs: Any) -> DebugCodegenContext:
+        """Build the context for the SMAL debug types.
+
+        Returns:
+            DebugCodegenContext: The context.
+
+        """
+        return cls(
+            enums=(EnumSpec.build(SMALDebugEntryType, "dbg_entry_type", prefix="dbg"),),
+            structs=(
+                *(StructSpec.build(model, name, packed=False) for name, _, model in _PAYLOADS),
+                StructSpec.build(SMALDebugEntry, "dbg_entry", packed=False),
+                StructSpec.build(SMALDebugRing, "dbg_ring", packed=False),
+                StructSpec.build(SMALFlushStatus, "dbg_flush_status", packed=False),
             ),
-        ],
-        definition_order=[
-            "smal_dbg_entry_type_t",
-            "smal_dbg_transition_payload_t",
-            "smal_dbg_message_payload_t",
-            "smal_dbg_data_payload_t",
-            "smal_dbg_error_payload_t",
-            "smal_dbg_payload_t",
-            "smal_dbg_entry_t",
-            "smal_dbg_ring_t",
-            "smal_dbg_flush_status_t",
-        ],
-    )
+            unions=(TaggedUnionSpec.from_models("dbg_payload", "entry_type", ((name, model) for name, _, model in _PAYLOADS)),),
+        )
+
+    def _ordered(self) -> list[tuple[str, Any]]:
+        """Order every type so each comes after the types it depends on.
+
+        Raises:
+            ValueError: If two types share a name, a type refers to one that doesn't exist, or the references form a cycle.
+
+        Returns:
+            list[tuple[str, Any]]: (kind, spec) pairs, where kind is "enum", "struct" or "union". Ties keep the declared order.
+
+        """
+        items: dict[str, tuple[str, Any]] = {}
+        for kind, group in (("enum", self.enums), ("struct", self.structs), ("union", self.unions)):
+            for item in group:
+                if item.name in items:
+                    raise ValueError(f"Duplicate type name '{item.name}' among enums, structs and unions.")
+                items[item.name] = (kind, item)
+        ordered: list[tuple[str, Any]] = []
+        done: set[str] = set()
+        visiting: list[str] = []
+
+        def visit(name: str) -> None:
+            if name in done:
+                return
+            if name in visiting:
+                raise ValueError(f"Circular type dependency: {' -> '.join([*visiting[visiting.index(name) :], name])}")
+            visiting.append(name)
+            kind, item = items[name]
+            for dep in _dependencies(item):
+                if dep not in items:
+                    raise ValueError(f"'{name}' refers to unknown type '{dep}'.")
+                visit(dep)
+            visiting.pop()
+            done.add(name)
+            ordered.append((kind, item))
+
+        for name in items:
+            visit(name)
+        return ordered
+
+    @property
+    def all_data(self) -> list[tuple[str, Any]]:
+        """Get every type as a (kind, spec) pair, in dependency order.
+
+        Returns:
+            list[tuple[str, Any]]: The types, each after the types it depends on.
+
+        """
+        return self._ordered()

@@ -2,14 +2,13 @@
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
-if TYPE_CHECKING:
-    from smal.schemas.action import Action
-    from smal.schemas.guard import GuardRef
-    from smal.utilities.types import Identifier
+from smal.schemas.action import Action  # noqa: TC001 - Pydantic requires this at runtime
+from smal.schemas.guard import Guards  # noqa: TC001 - Pydantic requires this at runtime
+from smal.utilities.types import Identifier  # noqa: TC001 - Pydantic requires this at runtime
 
 
 class Transition(BaseModel):
@@ -20,7 +19,7 @@ class Transition(BaseModel):
         default=None,
         description="Event that must be received while in src state to trigger this transition. If None, it is a completion transition.",
     )
-    guard: GuardRef = Field(default_factory=list, description="Guard condition(s) for the transition.")
+    guard: Guards = Field(default_factory=list, description="Guard condition(s) for the transition.")
     is_else: bool = Field(default=False, description="Fires only if no sibling guard(s) match.")
     actions: list[Action] = Field(
         default_factory=list,
@@ -113,7 +112,7 @@ class ShorthandTransition(BaseModel):
         frozen=True,
     )
     tgt: Identifier = Field(..., alias="target", description="The state to transition into after executing actions in response to receiving evt while in src.")
-    guard: GuardRef = Field(default_factory=list, description="Guard condition(s) for the transition.")
+    guard: Guards = Field(default_factory=list, description="Guard condition(s) for the transition.")
     actions: list[Identifier] = Field(
         default_factory=list,
         description="The sequence of functions to invoke (in order of definition) when evt is received while in src.",

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
-if TYPE_CHECKING:
-    from smal.utilities.types import Identifier
+from smal.utilities.types import Identifier  # noqa: TC001 - Pydantic requires this at runtime
 
 
 class Constant(BaseModel):

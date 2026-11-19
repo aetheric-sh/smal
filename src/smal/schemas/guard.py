@@ -1,42 +1,54 @@
+"""Guard references and definitions."""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar
+from typing import Annotated, Any, ClassVar
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StrictStr, model_validator
 
 import smal.utilities.expressions as SMALExpressions
-
-if TYPE_CHECKING:
-    from smal.utilities.types import Identifier
+from smal.utilities.types import Identifier  # noqa: TC001 - Pydantic requires this at runtime
 
 
-class Guard(BaseModel):
+class GuardRef(BaseModel):
+    """A reference to a guard within a Transition, as opposed to a `GuardDef`, which is the declaration of a guard."""
+
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
 
     name: Identifier
     negate: bool = False
 
     @staticmethod
-    def parse(v: Any) -> list[Guard]:
+    def parse(v: Any) -> list[GuardRef]:
+        """Parse one or more GuardRef(s) from the given data.
+
+        Args:
+            v (Any): The data to parse.
+
+        Returns:
+            list[GuardRef]: The parsed guard reference(s).
+
+        """
         if v is None:
             return []
-        if isinstance(v, (str, Guard)):
+        if isinstance(v, (str, GuardRef)):
             v = [v]
         out = []
         for g in v:
             if isinstance(g, str):
                 neg = g.startswith("!")
-                out.append(Guard(name=g.removeprefix("!"), negate=neg))
+                out.append(GuardRef(name=g.removeprefix("!"), negate=neg))
             else:
                 out.append(g)
         return out
 
 
-GuardRef = Annotated[list[Guard], BeforeValidator(Guard.parse)]
+Guards = Annotated[list[GuardRef], BeforeValidator(GuardRef.parse)]
+"""A list of guards, automatically parsed and validated upon construction."""
 
 
 class GuardDef(BaseModel):
-    """The declaration of a guard, as opposed to `Guard`, which is a reference to one from a transition."""
+    """The declaration of a guard, as opposed to `GuardRef`, which is a reference to one from a transition."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
 

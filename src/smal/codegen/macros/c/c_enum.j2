@@ -1,10 +1,16 @@
-{% macro c_enum(c_enum_data) %}
+{% macro c_enum(enum_spec) %}
 typedef enum
 {
-{% for ename, eval in c_enum_data.values.items() %}
-    {{ ename | upper }} = {{ eval }},
+{% for member_name, member_value in enum_spec.members %}
+    {{ member_name | c_enum_member(enum_spec.prefix) }} = {{ member_value }},
 {% endfor %}
-    /* End of enumeration. */
-    {{ c_enum_data.name | upper }}_COUNT,
-} {{ c_enum_data.name.rstrip("_t") | lower }}_t;
+{% if enum_spec.include_count %}
+    /* Count of all non-null members. */
+    {{ enum_spec.name | c_enum_count }},
+{% endif %}
+{% if enum_spec.include_null %}
+    /* Null member for utility purposes, does not count towards member count. */
+    {{ enum_spec.name | c_enum_null }},
+{% endif %}
+} {{ enum_spec.name | c_type_name }};
 {% endmacro %}

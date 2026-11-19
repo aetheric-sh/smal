@@ -5,12 +5,11 @@ This includes their properties, validation rules, and support for short-form rep
 
 from __future__ import annotations  # Until Python 3.14
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
-if TYPE_CHECKING:
-    from smal.utilities.types import Identifier
+from smal.utilities.types import Identifier  # noqa: TC001 - Pydantic requires this at runtime
 
 
 class Event(BaseModel):

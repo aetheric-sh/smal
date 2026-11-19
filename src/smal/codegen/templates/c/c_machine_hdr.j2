@@ -1,42 +1,40 @@
 {% from "macros/c/c_autogen_banner_state_machine.j2" import c_autogen_banner_state_machine %}
 {% from "macros/c/c_machine_constants.j2" import c_machine_constants %}
-{% from "macros/c/c_machine_errors.j2" import c_machine_errors %}
-{% from "macros/c/c_machine_events.j2" import c_machine_events %}
 {% from "macros/c/c_machine_state_table_entry.j2" import c_machine_state_table_entry %}
-{% from "macros/c/c_machine_states.j2" import c_machine_states %}
 {% from "macros/c/c_machine_struct.j2" import c_machine_struct %}
 {% from "macros/c/c_machine_version.j2" import c_machine_version %}
 {% from "macros/c/c_machine_state_transition_table.j2" import c_machine_state_transition_table %}
 {% from "macros/c/c_machine_actions.j2" import c_machine_actions %}
-{{ c_autogen_banner_state_machine(smal) }}
-#ifndef {{ smal.metadata.header_guard }}
-#define {{ smal.metadata.header_guard }}
+{% from "macros/c/c_enum.j2" import c_enum %}
+{{ c_autogen_banner_state_machine(machine) }}
+#ifndef {{ machine.metadata.header_guard }}
+#define {{ machine.metadata.header_guard }}
 
 #include <stdint.h>
 #include <stddef.h>
 
-{{ c_machine_version(smal) }}
+{{ c_machine_version(machine) }}
 
 // CONSTANTS
-{{ c_machine_constants(smal) }}
+{{ c_machine_constants(machine) }}
 
 // STATES
-{{ c_machine_states(smal) }}
+{{ c_enum(machine.states_spec) }}
 
 // EVENTS
-{{ c_machine_events(smal) }}
+{{ c_enum(machine.events_spec) }}
 
 // ERRORS
-{{ c_machine_errors(smal) }}
+{{ c_enum(machine.errors_spec) }}
 
-{{ c_machine_struct(smal) }}
+{{ c_machine_struct(machine) }}
 
-{{ c_machine_state_table_entry(smal, 3) }}
+{{ c_machine_state_table_entry(machine, machine.longest_action_chain) }}
 
 // ACTIONS
-{{ c_machine_actions(smal) }}
+{{ c_machine_actions(machine) }}
 
 // STATE TABLE
-{{ c_machine_state_transition_table(smal) }}
+{{ c_machine_state_transition_table(machine) }}
 
-#endif // {{ smal.metadata.header_guard }}
+#endif // {{ machine.metadata.header_guard }}

@@ -1,3 +1,5 @@
+"""Methods for rendering Mermaid diagrams from SMAL machines."""
+
 from __future__ import annotations
 
 import textwrap
@@ -54,7 +56,7 @@ def _wrap_description(description: str, width: int | None) -> list[str]:
     """
     lines: list[str] = []
     for paragraph in description.splitlines():
-        paragraph = paragraph.strip()  # noqa: PLW2901 - Mermaid trims leading whitespace in notes anyway
+        paragraph = paragraph.strip()
         if not paragraph:
             continue
         lines.extend(textwrap.wrap(paragraph, width=width) if width else [paragraph])
@@ -79,6 +81,7 @@ def render_mermaid_diagram(
 
     Args:
         machine (Machine): The machine to render.
+        file (str | Path, optional): Output file.
         direction (Literal["LR", "TB"], optional): Layout direction. Defaults to "LR".
         theme (str, optional): Mermaid theme. Defaults to "default".
         look (str, optional): Mermaid look. Defaults to "classic".

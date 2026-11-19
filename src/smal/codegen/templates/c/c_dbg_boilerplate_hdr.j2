@@ -2,7 +2,7 @@
 {% from "macros/c/c_enum.j2" import c_enum %}
 {% from "macros/c/c_struct.j2" import c_struct %}
 {% from "macros/c/c_union.j2" import c_union %}
-{{ c_autogen_banner(smal) }}
+{{ c_autogen_banner(machine) }}
 #ifndef SMAL_DBG_H
 #define SMAL_DBG_H
 
@@ -36,7 +36,7 @@ uint32_t smal_dbg_get_timestamp_ms(void);
  */
 void smal_dbg_flush_packet(size_t pkt_len_bytes, const void *pkt, void *user_ctx);
 
-{% for kind, data in smal_dbg_ctx.all_data %}
+{% for kind, data in dbg_ctx.all_data %}
 {% if kind == "enum" %}
 {{ c_enum(data) }}
 {% elif kind == "struct" %}
