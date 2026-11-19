@@ -12,7 +12,7 @@ from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import machine_completer
 from smal.repl.helpers import echo_table, get_persistence
 from smal.repl.repl_like import REPLLike  # noqa: TC001 - Pydantic requires this at runtime for type validation
-from smal.schemas.state_machine import SMALFile
+from smal.schemas.machine import Machine
 from smal.utilities import constants as SMALConstants
 
 if TYPE_CHECKING:
@@ -96,7 +96,7 @@ class MachineCmdSet(SMALCmdSet):
             if not machine_files:
                 parent_app.print_warning(f"No SMAL machine definition files found under directory: {parsed_args.file}")
                 return
-            loaded_machines: list[SMALFile] = []
+            loaded_machines: list[Machine] = []
             for machine_file in machine_files:
                 machine_from_file = self._load_machine_from_file(parent_app, machine_file, parsed_args.overwrite)
                 if machine_from_file:
@@ -191,7 +191,7 @@ class MachineCmdSet(SMALCmdSet):
             parent_app.set_active_machine(updated_machine)
             parent_app.print_success(f"Updated machine '{updated_machine.name}' from file '{machine_path}'.")
 
-    def _load_machine_from_file(self, parent_app: REPLLike, file_path: Path, overwrite: bool) -> SMALFile | None:
+    def _load_machine_from_file(self, parent_app: REPLLike, file_path: Path, overwrite: bool) -> Machine | None:
         """Load a SMAL state machine definition from a file.
 
         Args:
@@ -200,21 +200,22 @@ class MachineCmdSet(SMALCmdSet):
             overwrite (bool): Whether to overwrite an existing cached machine definition.
 
         Returns:
-            SMALFile | None: The loaded SMALFile object if successful, or None if an error occurred.
+            Machine | None: The loaded machine if successful, or None if an error occurred.
 
         """
         persistence = get_persistence()
-        machine = next((m for m, p in persistence.machine_paths.items() if p == file_path), None)
-        if machine and not overwrite:
-            parent_app.set_active_machine(machine)
-            parent_app.print_success(f"Successfully loaded '{machine.name}' machine definition from cache.", omit_heading=True)
-            return machine
+        if not overwrite:
+            for name, path in persistence.machine_paths.items():
+                if path == file_path and (machine := persistence.machines.get(name)) is not None:
+                    parent_app.print_success(f"Successfully loaded '{machine.name}' machine definition from cache.", omit_heading=True)
+                    return machine
         with parent_app.console.status(f"[bold blue]Loading machine definition from file {file_path}...[/bold blue]"):
             try:
-                machine_from_file = SMALFile.from_file(file_path)
+                machine_from_file = Machine.from_file(file_path)
                 parent_app.print_success(f"Successfully loaded machine definition from file: {file_path}.", omit_heading=True)
                 persistence.add_machine(machine_from_file, overwrite=overwrite, save=True)
-                persistence.add_machine_path(machine_from_file.name, file_path, overwrite=overwrite, save=True)
+                if persistence.machine_paths.get(machine_from_file.name) != file_path:
+                    persistence.add_machine_path(machine_from_file.name, file_path, overwrite=overwrite, save=True)
                 return machine_from_file
             except FileNotFoundError:
                 parent_app.print_error(f"File not found: {file_path}")

@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from smal.codegen.code_generator import SMALCodeGenerator
 from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.helpers import get_persistence
-from smal.schemas.state_machine import SMALFile
+from smal.schemas.machine import Machine
 from smal.utilities import constants as SMALConstants
 from smal.utilities.rules import ALL_RULES
 
@@ -62,7 +62,7 @@ class ValidateCmdSet(SMALCmdSet):
                     for rule_name in rules_to_reenable:
                         persistence.enable_rule(rule_name, False, write_to_file=False)
                     persistence.save()
-                SMALFile.model_validate(model_data)
+                Machine.model_validate(model_data)
                 parent_app.print_success(f"'{parsed_args.file}' is a valid SMAL file!", prefix="✅")
                 if rules_to_reenable:
                     parent_app.console.print(f"Re-enabling {len(rules_to_reenable)} rules after validation...")
@@ -233,7 +233,7 @@ class JinjaTemplateValidator:
         self.template_name = self.template.name
         self.template_source, _, _ = self.env.loader.get_source(self.env, self.template.name)
         self.template_lines = self.template_source.splitlines()
-        self.allowed_paths = generate_allowed_variable_paths_from_model(SMALFile)
+        self.allowed_paths = generate_allowed_variable_paths_from_model(Machine)
         self.ast = self.env.parse(self.template_source)
 
     def validate(self) -> SMALValidationResult:

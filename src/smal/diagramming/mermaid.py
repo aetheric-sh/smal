@@ -86,7 +86,7 @@ def render_mermaid_diagram(
         theme (str, optional): Mermaid theme. Defaults to "default".
         look (str, optional): Mermaid look. Defaults to "classic".
         layout (str, optional): Mermaid layout engine. Defaults to "dagre".
-        title (str | None, optional): Diagram title. Defaults to the machine name.
+        title (str | None, optional): Diagram title. None uses the machine name and an empty string omits the title.
         notes (dict | None, optional): Extra notes keyed by (state, "left" | "right"). Defaults to None.
         indent (int, optional): Spaces per indentation level. Defaults to 4.
         action_display (ActionDisplay, optional): Where transition actions are shown. "notes" puts them in a note on the source
@@ -107,7 +107,8 @@ def render_mermaid_diagram(
     indent_str = " " * indent
     # NOTE: The title is a top-level frontmatter key. Mermaid ignores it inside `config`.
     config = {"theme": theme, "look": look, "layout": layout}
-    config_lines = ["---", f"title: {title or machine.name}", "config:", *[f"{indent_str}{k}: {v}" for k, v in config.items()], "---"]
+    title_lines = [f"title: {machine.name if title is None else title}"] if title != "" else []
+    config_lines = ["---", *title_lines, "config:", *[f"{indent_str}{k}: {v}" for k, v in config.items()], "---"]
     retval = [*config_lines, "stateDiagram-v2", f"{indent_str}direction {direction}"]
     state_types = {name: s.type for name, s in Machine.flatten(machine.states).items()}
     for s in machine.states:
