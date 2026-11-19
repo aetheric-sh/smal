@@ -442,6 +442,10 @@ class EnumSpec:
     include_count: bool = True
     include_null: bool = True
 
+    # TODO: build (py) - Simply pass py enum through
+    # TODO: build (Enumeration) - Derive include_count/include_null from Enumeration vars
+    # TODO: build (dict[str, int]) - Simply pass data through
+
     @classmethod
     def build(
         cls,
