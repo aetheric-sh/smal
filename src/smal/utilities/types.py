@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Protocol
 
 import semver
 from annotated_types import Ge, GroupedMetadata, Le, MaxLen, MinLen
-from pydantic import BeforeValidator, Field, PlainSerializer, StrictBool, StrictFloat, StrictInt
+from pydantic import BeforeValidator, Field, PlainSerializer, StrictBool, StrictFloat, StrictInt, WithJsonSchema
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -26,7 +26,12 @@ def _parse_semver(v: Any) -> semver.Version:
     return semver.Version.parse(str(v))  # Raises ValueError on bad input
 
 
-SemVer = Annotated[semver.Version, BeforeValidator(_parse_semver), PlainSerializer(str, return_type=str)]
+SemVer = Annotated[
+    semver.Version,
+    BeforeValidator(_parse_semver),
+    PlainSerializer(str, return_type=str),
+    WithJsonSchema({"type": "string", "format": "semver"}),
+]
 """A parsed and validated semantic version (major.minor.patch). Serializes to string."""
 
 
