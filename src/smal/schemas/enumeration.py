@@ -44,6 +44,8 @@ class Enumeration(BaseModel):
         default=SMALPrimitive.UINT8,
         description="Fixed-width integer type used to store this enum in generated code. Every member's value must fit in it.",
     )
+    include_null: bool = Field(default=False, description="Whether to include a null member (always at the end of enum, before count).")
+    include_count: bool = Field(default=False, description="Whether to include a count member (always last).")
 
     @property
     def resolved_values(self) -> dict[str, int]:
@@ -59,6 +61,7 @@ class Enumeration(BaseModel):
             value = next_value if member.value is None else member.value
             resolved[member.name] = value
             next_value = value + 1
+        # NOTE: Null and count are automatically added to self.values by a model validator upon construction, no need to add them here
         return resolved
 
     @cached_property
@@ -70,6 +73,16 @@ class Enumeration(BaseModel):
             include_count=True,
             include_null=False,
         )
+
+    @model_validator(mode="after")
+    def _check_null_and_count(self) -> Enumeration:
+        if self.include_null:
+            null_value = EnumMember(name="null", value=len(self.resolved_values), description="Null member")
+            self.values.append(null_value)
+        if self.include_count:
+            count_value = EnumMember(name="count", value=len(self.resolved_values), description="Count member")
+            self.values.append(count_value)
+        return self
 
     @model_validator(mode="after")
     def _enforce_unique_members(self) -> Enumeration:

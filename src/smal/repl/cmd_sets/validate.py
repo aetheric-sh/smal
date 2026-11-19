@@ -372,7 +372,7 @@ class JinjaTemplateValidator:
         def is_allowed_symbol(symbol: str) -> bool:
             if symbol in self.allowed_paths:
                 return True
-            if symbol.startswith("smal.metadata"):
+            if symbol.startswith("machine.metadata"):
                 return True  # Allow arbitrary metadata from the SMAL file
             prefix_dot = symbol + "."
             prefix_arr = symbol + "[]"
@@ -479,12 +479,12 @@ def extract_paths_from_model_schema(
     return paths
 
 
-def generate_allowed_variable_paths_from_model(model: type[BaseModel], root: str = "smal") -> set[str]:
+def generate_allowed_variable_paths_from_model(model: type[BaseModel], root: str = "machine") -> set[str]:
     """Generate a set of allowed variable paths for a given Pydantic model by analyzing its JSON schema.
 
     Args:
         model (type[BaseModel]): The Pydantic model class.
-        root (str): The root variable name to prefix all paths with. Defaults to "smal".
+        root (str): The root variable name to prefix all paths with. Defaults to "machine".
 
     Returns:
         set[str]: A set of allowed variable paths.

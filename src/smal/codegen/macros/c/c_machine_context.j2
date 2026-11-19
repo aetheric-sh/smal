@@ -2,7 +2,7 @@
 typedef struct
 {
 {% for ctxvar in machine.context %}
-    {{ctxvar.resolved_type | c_primitive_datatype}} {{ctxvar.name}}{{' = ' ~ ctxvar.resolved_type | c_primitive_value(ctxvar.resolved_value, machine.enum_specs) if ctxvar.default_value is defined}};
+    {{ctxvar.resolved_type | c_primitive_datatype}} {{ctxvar.name}};
 {% endfor %}
 } {{ machine.name | lower }}_context_t;
 {% endmacro %}
