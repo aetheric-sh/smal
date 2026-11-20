@@ -429,8 +429,8 @@ class EnumSpec:
     members: tuple[tuple[str, int], ...]  # (member name, value), in definition order
     flags: bool = False
     prefix: str = ""  # Namespaces the members in the target language, in lower snake case, e.g. "dbg"
-    include_count: bool = True
-    include_null: bool = True
+    include_count: bool = False
+    include_null: bool = False
 
     @classmethod
     def build(
@@ -440,8 +440,8 @@ class EnumSpec:
         storage: SMALPrimitive = SMALPrimitive.UINT32,
         flags: bool | None = None,
         prefix: str = "",
-        include_count: bool = True,
-        include_null: bool = True,
+        include_count: bool = False,
+        include_null: bool = False,
     ) -> EnumSpec:
         """Build an EnumSpec from a python enum.
 
@@ -453,8 +453,8 @@ class EnumSpec:
             storage (SMALPrimitive, optional): The integer type that stores it. Defaults to UINT32.
             flags (bool | None, optional): Whether the members are bit flags. Defaults to whether `enum` is a Flag.
             prefix (str, optional): Namespace prefix for the members in the target language. Defaults to none.
-            include_count (bool, optional): Include a count member. Defaults to True.
-            include_null (bool, optional): Include a null member. Defaults to True.
+            include_count (bool, optional): Include a count member. Defaults to False.
+            include_null (bool, optional): Include a null member. Defaults to False.
 
         Raises:
             ValueError: If storage is not an integer type, or a member's value doesn't fit it.
@@ -490,8 +490,8 @@ class EnumSpec:
         storage: SMALPrimitive = SMALPrimitive.UINT32,
         flags: bool | None = None,
         prefix: str = "",
-        include_count: bool = True,
-        include_null: bool = True,
+        include_count: bool = False,
+        include_null: bool = False,
     ) -> EnumSpec:
         """Build an EnumSpec from dynamic data instead of a pre-defined python Enum.
 
@@ -501,8 +501,8 @@ class EnumSpec:
             storage (SMALPrimitive, optional): The storage type. Defaults to SMALPrimitive.UINT32.
             flags (bool | None, optional): Whether it's a flag enum. Defaults to None.
             prefix (str, optional): Prefix for members. Defaults to "".
-            include_count (bool, optional): Include count member. Defaults to True.
-            include_null (bool, optional): Include null member. Defaults to True.
+            include_count (bool, optional): Include count member. Defaults to False.
+            include_null (bool, optional): Include null member. Defaults to False.
 
         Returns:
             EnumSpec: The enum spec.
