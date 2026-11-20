@@ -177,15 +177,15 @@ class Machine(BaseModel):
 
         """
         enum_name = f"{self.name}_error".lower()
-        enumeration = Enumeration(
-            enum_name,
-            values=self.errors or [],
-            storage_type=storage,
+        return EnumSpec.build_from_data(
+            {error.name: error.value if error.value is not None else idx for idx, error in enumerate(self.errors)},
+            name=enum_name,
+            storage=storage,
             flags=flags,
+            prefix=enum_name if prefix is None else prefix,
             include_null=include_null,
             include_count=include_count,
         )
-        return enumeration.specification(prefix=prefix or enum_name)
 
     def events_enum_spec(
         self,
@@ -209,15 +209,15 @@ class Machine(BaseModel):
 
         """
         enum_name = f"{self.name}_event".lower()
-        enumeration = Enumeration(
-            enum_name,
-            values=self.events or [],
-            storage_type=storage,
+        return EnumSpec.build_from_data(
+            {event.name: event.value if event.value is not None else idx for idx, event in enumerate(self.events)},
+            name=enum_name,
+            storage=storage,
             flags=flags,
+            prefix=enum_name if prefix is None else prefix,
             include_null=include_null,
             include_count=include_count,
         )
-        return enumeration.specification(prefix=prefix or enum_name)
 
     def states_enum_spec(
         self,

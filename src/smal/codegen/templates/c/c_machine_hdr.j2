@@ -14,24 +14,33 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 {{ c_machine_version(machine) }}
 
+{% if machine.constants %}
 // CONSTANTS
 {{ c_machine_constants(machine) }}
+{% endif %}
 
+{% if machine.states %}
 // STATES
-{{ c_enum(machine.states_spec) }}
+{{ c_enum(machine.states_enum_spec(include_null=true, include_count=true)) }}
+{% endif %}
 
+{% if machine.events %}
 // EVENTS
-{{ c_enum(machine.events_spec) }}
+{{ c_enum(machine.events_enum_spec(include_null=true, include_count=true)) }}
+{% endif %}
 
+{% if machine.errors %}
 // ERRORS
-{{ c_enum(machine.errors_spec) }}
+{{ c_enum(machine.errors_enum_spec(include_null=true, include_count=true)) }}
+{% endif %}
 
 // ENUMS
 {% for enum in machine.enums %}
-{{ c_enum(enum.spec) }}
+{{ c_enum(enum.specification(prefix=enum.name)) }}
 {% endfor %}
 
 {{ c_machine_context(machine) }}
@@ -40,8 +49,10 @@
 
 {{ c_machine_state_table_entry(machine, machine.longest_action_chain) }}
 
+{% if machine.guards %}
 // GUARDS
 {{ c_machine_guards(machine) }}
+{% endif %}
 
 // ACTIONS
 {{ c_machine_actions(machine) }}
