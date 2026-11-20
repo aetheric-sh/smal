@@ -1,5 +1,5 @@
 {% macro c_machine_actions(machine) %}
 {% for action in machine.actions %}
-void {{ action.name }}({{ machine.name | lower }}_state_machine_t *state_machine);
+void {{ action.name }}({{ machine.name | lower }}_state_machine_t *state_machine, void *user_ctx);
 {% endfor %}
 {% endmacro %}
