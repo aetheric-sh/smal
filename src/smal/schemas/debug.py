@@ -78,6 +78,9 @@ class SMALDebugTransitionPayload(BaseModel):
     tgt_state: UInt16 = Field(description="Target state ID or index after the transition.")
     evt: UInt16 = Field(description="Event ID or index that triggered the transition.")
     status: Int16 = Field(description="Status of the transition (success, failure, error code, etc.).")
+    transition_id: UInt32 = Field(default=0, description="One-based transition table row, or zero if unavailable.")
+    guards_evaluated: UInt32 = Field(default=0, description="Bit mask of evaluated guards in transition order.")
+    guard_results: UInt32 = Field(default=0, description="Bit mask of raw true guard results before negation.")
 
     def display(self, sm: Machine) -> str:
         """Return a human-readable representation of this payload.
@@ -93,7 +96,23 @@ class SMALDebugTransitionPayload(BaseModel):
         src_state = _label(sm.states_enum_spec(include_null=True), "state", self.src_state)
         evt = _label(sm.events_enum_spec(include_null=True), "event", self.evt)
         tgt_state = _label(sm.states_enum_spec(include_null=True), "state", self.tgt_state)
-        return f"{src_state} --[{evt}]--> {tgt_state} · {status}"
+        conditions = ""
+        if 0 < self.transition_id <= len(sm.transitions):
+            transition = sm.transitions[self.transition_id - 1]
+            guards = []
+            for index, guard in enumerate(transition.guard):
+                bit = 1 << index
+                result = "unknown"
+                if self.guards_evaluated & bit:
+                    result = "true" if self.guard_results & bit else "false"
+                guards.append(f"{'!' if guard.negate else ''}{guard.name}({result})")
+            if transition.is_else:
+                guards.append("else(true)")
+            if guards:
+                conditions = f" · guards: {', '.join(guards)}"
+        elif self.transition_id:
+            conditions = f" · transition#{self.transition_id}"
+        return f"{src_state} --[{evt}]--> {tgt_state} · {status}{conditions}"
 
 
 class SMALDebugMessagePayload(BaseModel):
@@ -169,7 +188,7 @@ class SMALDebugEntry(BaseModel):
 
     entry_type: UInt32 = Field(description="Bitmask indicating the type of entry (state transition, event, command, data read/write, error, etc.).")
     timestamp_ms: UInt32 = Field(description="Timestamp in milliseconds when the entry was logged.")
-    payload: Annotated[SMALDebugPayload, RefTo("dbg_payload")] = Field(description="The payload of the entry, interpreted based on entry_type.")
+    payload: Annotated[SMALDebugPayload, RefTo("smal_dbg_payload")] = Field(description="The payload of the entry, interpreted based on entry_type.")
 
     @staticmethod
     def deserialize_entries_from_bytes(data: bytearray, endianness: Literal["little", "big"] = "little") -> list[SMALDebugEntry]:
@@ -190,7 +209,7 @@ class SMALDebugEntry(BaseModel):
 
         """
         prefix = "<" if endianness == "little" else ">"
-        header, header_fields = _layout(StructSpec.build(SMALDebugEntry, "dbg_entry"), prefix)
+        header, header_fields = _layout(StructSpec.build(SMALDebugEntry, "smal_dbg_entry"), prefix)
         layouts = {model: _payload_layout(model, prefix) for _, _, model in _PAYLOADS}
         entry_size = header.size + max(layout.size for layout, _ in layouts.values())
         if len(data) % entry_size != 0:
@@ -213,7 +232,7 @@ class SMALDebugRing(BaseModel):
     entry_count: UInt16 = Field(description="Number of valid entries currently in the ring.")
     capacity: UInt16 = Field(description="Maximum number of entries the ring can hold.")
     overwrite_count: UInt16 = Field(description="Number of times entries have been overwritten.")
-    entries: Annotated[list[SMALDebugEntry], RefTo("dbg_entry", array=True, count_field="capacity")] = Field(
+    entries: Annotated[list[SMALDebugEntry], RefTo("smal_dbg_entry", array=True, count_field="capacity")] = Field(
         description="Array of debug entries in the ring buffer.",
     )
 
@@ -240,17 +259,17 @@ class SMALFlushStatus(BaseModel):
 # Each payload's logical struct name, the entry types that select it, and its model. Checked in order, and the first one whose mask
 # overlaps the entry type wins. Names are the C names without the `smal_` prefix and `_t` suffix, so the C output stays unchanged.
 _PAYLOADS: Final[tuple[tuple[str, SMALDebugEntryType, type[BaseModel]], ...]] = (
-    ("dbg_transition_payload", SMALDebugEntryType.ENTRY_TYPE_STATE_TRANSITION, SMALDebugTransitionPayload),
-    ("dbg_error_payload", SMALDebugEntryType.ENTRY_TYPE_ERROR, SMALDebugErrorPayload),
+    ("smal_dbg_transition_payload", SMALDebugEntryType.ENTRY_TYPE_STATE_TRANSITION, SMALDebugTransitionPayload),
+    ("smal_dbg_error_payload", SMALDebugEntryType.ENTRY_TYPE_ERROR, SMALDebugErrorPayload),
     (
-        "dbg_message_payload",
+        "smal_dbg_message_payload",
         SMALDebugEntryType.ENTRY_TYPE_EVENT_RX
         | SMALDebugEntryType.ENTRY_TYPE_EVENT_TX
         | SMALDebugEntryType.ENTRY_TYPE_CMD_RX
         | SMALDebugEntryType.ENTRY_TYPE_CMD_TX,
         SMALDebugMessagePayload,
     ),
-    ("dbg_data_payload", SMALDebugEntryType.ENTRY_TYPE_DATA_READ | SMALDebugEntryType.ENTRY_TYPE_DATA_WRITE, SMALDebugDataPayload),
+    ("smal_dbg_data_payload", SMALDebugEntryType.ENTRY_TYPE_DATA_READ | SMALDebugEntryType.ENTRY_TYPE_DATA_WRITE, SMALDebugDataPayload),
 )
 
 
@@ -585,14 +604,14 @@ class DebugCodegenContext:
 
         """
         return cls(
-            enums=(EnumSpec.build(SMALDebugEntryType, "dbg_entry_type", prefix="dbg"),),
+            enums=(EnumSpec.build(SMALDebugEntryType, "smal_dbg_entry_type", prefix="smal_dbg"),),
             structs=(
                 *(StructSpec.build(model, name, packed=False) for name, _, model in _PAYLOADS),
-                StructSpec.build(SMALDebugEntry, "dbg_entry", packed=False),
-                StructSpec.build(SMALDebugRing, "dbg_ring", packed=False),
-                StructSpec.build(SMALFlushStatus, "dbg_flush_status", packed=False),
+                StructSpec.build(SMALDebugEntry, "smal_dbg_entry", packed=False),
+                StructSpec.build(SMALDebugRing, "smal_dbg_ring", packed=False),
+                StructSpec.build(SMALFlushStatus, "smal_dbg_flush_status", packed=False),
             ),
-            unions=(TaggedUnionSpec.from_models("dbg_payload", "entry_type", ((name, model) for name, _, model in _PAYLOADS)),),
+            unions=(TaggedUnionSpec.from_models("smal_dbg_payload", "entry_type", ((name, model) for name, _, model in _PAYLOADS)),),
         )
 
     def _ordered(self) -> list[tuple[str, Any]]:

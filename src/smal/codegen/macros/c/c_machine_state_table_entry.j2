@@ -1,8 +1,9 @@
 {% macro c_machine_state_table_entry(machine, max_actions) %}
 /* All actions take the state machine itself as an argument and return nothing. */
 typedef void (*{{ machine.name | lower }}_action_t)({{ machine.name | lower }}_state_machine_t *state_machine, void *user_ctx);
-/* Returns 1 if guard passes, 0 otherwise. All guards are expected to be written such that a passing guard allows the transition. */
-typedef int (*{{ machine.name | lower }}_guard_t)({{ machine.name | lower }}_state_machine_t *state_machine, void *user_ctx);
+/* Returns 1 if the guard conditions pass. Both output pointers must be valid. */
+typedef int (*{{ machine.name | lower }}_guard_t)({{ machine.name | lower }}_state_machine_t *state_machine, void *user_ctx,
+        uint32_t *guards_evaluated, uint32_t *guard_results);
 
 /* A state table entry for the {{ machine.name | capitalize }} state machine. */
 #define MAX_ACTIONS_PER_EVENT {{ max_actions }} // Arbitrary number to cap static allocation of actions in state table. Adjust as needed.
@@ -20,5 +21,7 @@ typedef struct
     {{ machine.name | lower }}_state_t tgt;
     /* The event to handle upon entering tgt, if any. */
     {{ machine.name | lower }}_event_t tgt_entry_evt;
+    /* One-based row identifier for debug packets. */
+    uint32_t transition_id;
 } {{ machine.name | lower }}_state_table_entry_t;
 {% endmacro %}
