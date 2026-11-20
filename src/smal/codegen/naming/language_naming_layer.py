@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from pydantic import JsonValue
 
+    from smal.codegen.expressions import BoundAssignment, BoundExpression
+
     from smal.schemas.debug import EnumSpec, FieldSpec
     from smal.schemas.enumeration import Enumeration, EnumMember
     from smal.utilities.types import SMALPrimitive
@@ -14,6 +16,21 @@ if TYPE_CHECKING:
 
 class LanguageNamingLayer(Protocol):
     """The naming conventions of one target language. Templates reach these as `<lang>_<name>` Jinja filters, e.g. `c_type_name`."""
+
+    @staticmethod
+    def emit_guard_expression(expression: BoundExpression) -> str:
+        """Render a bound guard expression in the target language."""
+        ...
+
+    @staticmethod
+    def emit_setter_assignment(assignment: BoundAssignment) -> str:
+        """Render a bound context assignment in the target language."""
+        ...
+
+    @staticmethod
+    def integer_literal(value: int) -> str:
+        """Render an integer literal in the target language."""
+        ...
 
     @staticmethod
     def type_name(logical_name: str) -> str:

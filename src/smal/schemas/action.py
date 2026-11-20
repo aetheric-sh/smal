@@ -20,7 +20,7 @@ class Action(BaseModel):
         default_factory=dict,
         description=(
             "Context variable assignments this action performs, applied in order. Values are literals or expressions over context variables, "
-            "constants and enum members, e.g. {foo: bar, attempts: 'attempts + 1'}. Used for path analysis."
+            "constants and enum members, e.g. {foo: bar, attempts: 'attempts + 1'}. Used for path analysis and generated setter actions."
         ),
     )
     description: StrictStr | None = Field(default=None, description="Description of the action.")

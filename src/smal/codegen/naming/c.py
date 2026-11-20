@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Final
 
+from smal.codegen import c_expressions
 from smal.codegen.primitives.language_primitive import get_language_primitive
 from smal.schemas.enumeration import Enumeration, EnumMember
 from smal.utilities import constants as SMALConstants
@@ -12,12 +13,26 @@ from smal.utilities.types import SMALPrimitive
 if TYPE_CHECKING:
     from pydantic import JsonValue
 
+    from smal.codegen.expressions import BoundAssignment, BoundExpression
+
     from smal.codegen.naming.language_naming_layer import LanguageNamingLayer
     from smal.schemas.debug import EnumSpec, FieldSpec
 
 
 class CLanguageNamingLayer:
     """Layer for C naming conventions."""
+
+    @staticmethod
+    def emit_guard_expression(expression: BoundExpression) -> str:
+        """Render a bound guard expression in C."""
+        return c_expressions.emit_guard_expression(expression, CLanguageNamingLayer.enum_member)
+
+    @staticmethod
+    def emit_setter_assignment(assignment: BoundAssignment) -> str:
+        """Render a bound context assignment in C."""
+        return c_expressions.emit_setter_assignment(assignment, CLanguageNamingLayer.enum_member)
+
+    integer_literal = staticmethod(c_expressions.integer_literal)
 
     @staticmethod
     def type_name(logical_name: str) -> str:
@@ -116,6 +131,7 @@ class CLanguageNamingLayer:
 
     @staticmethod
     def primitive_value(t: SMALPrimitive | Enumeration, v: JsonValue | EnumMember, enum_specs: list[EnumSpec] | None = None) -> str:
+        """Render a primitive value or enum member in C."""
         if isinstance(v, EnumMember):
             if not enum_specs:
                 raise ValueError("No enum specs")

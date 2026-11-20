@@ -40,6 +40,8 @@ class SMALCodeGenerator:
                     f"{lang}_enum_null": layer.enum_null,
                     f"{lang}_primitive_datatype": layer.primitive_datatype,
                     f"{lang}_primitive_value": layer.primitive_value,
+                    f"{lang}_integer_literal": layer.integer_literal,
+                    f"{lang}_emit_guard_expression": layer.emit_guard_expression,
                 },
             )
         return env
