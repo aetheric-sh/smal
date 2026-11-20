@@ -1,0 +1,8 @@
+{% macro c_machine_context(machine) %}
+typedef struct
+{
+{% for ctxvar in machine.context %}
+    {{ctxvar.resolved_type | c_primitive_datatype}} {{ctxvar.name}};
+{% endfor %}
+} {{ machine.name | lower }}_context_t;
+{% endmacro %}

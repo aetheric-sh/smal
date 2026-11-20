@@ -2,16 +2,21 @@
 
 from __future__ import annotations  # Until Python 3.14
 
+import os
+import platform
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import cmd2
+import yaml
 from pydantic import BaseModel
 
-from smal.diagramming.generation import generate_state_machine_svg
+from smal.diagramming.mermaid import render_mermaid_markdown
 from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.completers import machine_completer
 from smal.repl.helpers import get_persistence
+from smal.schemas.machine import Machine
 
 if TYPE_CHECKING:
     import argparse
@@ -45,7 +50,7 @@ class DiagramArgs(BaseModel):
     machine: str | None = None
     open: bool = False
     force: bool = False
-    title: bool = True
+    title: bool = False
     orientation: Literal["lr", "tb"] = "lr"
 
 
@@ -83,16 +88,33 @@ class DiagramCmdSet(SMALCmdSet):
                 if not smal_path.is_file():
                     parent_app.print_error(f"The specified machine name or path does not exist: {parsed_args.machine}")
                     return
-        if not parsed_args.output_dir.exists():
-            parsed_args.output_dir.mkdir(parents=True, exist_ok=True)
-            parent_app.console.print(f"Created previously non-existent output directory for diagram: [bold cyan]{parsed_args.output_dir}[/bold cyan]")
-        with parent_app.console.status(f"Generating state machine diagram in [cyan]{parsed_args.output_dir}[/cyan]", spinner="dots"):
-            out_path = generate_state_machine_svg(
-                smal_path,
-                parsed_args.output_dir,
-                open=parsed_args.open,
-                force=parsed_args.force,
-                title=parsed_args.title,
-                graph_attr={"rankdir": parsed_args.orientation.upper()},
-            )
+        machine = Machine.from_file(smal_path)
+        out_path = parsed_args.output_dir / f"{machine.name}_diagram.md".lower()
+        try:
+            with parent_app.console.status(f"Generating state machine diagram in [cyan]{parsed_args.output_dir}[/cyan]", spinner="dots"):
+                markdown = render_mermaid_markdown(
+                    machine,
+                    direction="LR" if parsed_args.orientation == "lr" else "TB",
+                    title=machine.name if parsed_args.title else "",
+                    theme="dark",
+                )
+                parsed_args.output_dir.mkdir(parents=True, exist_ok=True)
+                with out_path.open("w" if parsed_args.force else "x", encoding="utf-8") as output:
+                    output.write(markdown)
+        except FileExistsError as e:
+            parent_app.print_error(f"Could not create the diagram. Use --force to replace an existing diagram file. {e}")
+            return
+        except (OSError, ValueError, TypeError, yaml.YAMLError) as e:
+            parent_app.print_error(f"Failed to generate diagram from {smal_path}: {e}")
+            return
         parent_app.print_success(f"Diagram generated successfully: {out_path}", prefix="✅")
+        if parsed_args.open:
+            try:
+                absolute_path = out_path.resolve()
+                system = platform.system()
+                if system == "Windows":
+                    os.startfile(absolute_path)  # noqa: S606 - Open the generated Markdown document.
+                else:
+                    subprocess.run(["open" if system == "Darwin" else "xdg-open", str(absolute_path)], check=True)
+            except (OSError, subprocess.CalledProcessError) as e:
+                parent_app.print_error(f"Failed to open diagram {out_path}: {e}")

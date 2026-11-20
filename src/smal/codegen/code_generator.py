@@ -7,8 +7,9 @@ from typing import Any
 
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader, StrictUndefined, Template, UndefinedError, select_autoescape
 
+from smal.codegen.naming import available_naming_layers
 from smal.codegen.templates.builtin_templates import SMALTemplate, TemplateRegistry
-from smal.schemas.state_machine import SMALFile  # noqa: TC001
+from smal.schemas.machine import Machine  # noqa: TC001
 
 
 class SMALCodeGenerator:
@@ -19,21 +20,31 @@ class SMALCodeGenerator:
         self._internal_loader = PackageLoader("smal", "codegen")
 
     def _build_env(self, external_template_dir: str | Path | None = None) -> Environment:
-        if external_template_dir:
-            return Environment(
-                loader=ChoiceLoader([self._internal_loader, FileSystemLoader(external_template_dir)]),
-                autoescape=select_autoescape([]),
-                trim_blocks=True,
-                lstrip_blocks=True,
-                undefined=StrictUndefined,
-            )
-        return Environment(
-            loader=self._internal_loader,
+        loader = ChoiceLoader([self._internal_loader, FileSystemLoader(external_template_dir)]) if external_template_dir else self._internal_loader
+        env = Environment(
+            loader=loader,
             autoescape=select_autoescape([]),
             trim_blocks=True,
             lstrip_blocks=True,
             undefined=StrictUndefined,
         )
+        # Each language's naming conventions are available to every template as `<lang>_<name>` filters, e.g. `c_type_name`
+        for lang, layer in available_naming_layers().items():
+            env.filters.update(
+                {
+                    f"{lang}_type_name": layer.type_name,
+                    f"{lang}_field_decl": layer.field_decl,
+                    f"{lang}_enum_member": layer.enum_member,
+                    f"{lang}_enum_name": layer.enum_name,
+                    f"{lang}_enum_count": layer.enum_count,
+                    f"{lang}_enum_null": layer.enum_null,
+                    f"{lang}_primitive_datatype": layer.primitive_datatype,
+                    f"{lang}_primitive_value": layer.primitive_value,
+                    f"{lang}_integer_literal": layer.integer_literal,
+                    f"{lang}_emit_guard_expression": layer.emit_guard_expression,
+                },
+            )
+        return env
 
     def load_builtin_template(self, template_name: str) -> tuple[Environment, Template, SMALTemplate]:
         """Load a SMAL-provided built in jinja template.
@@ -72,12 +83,12 @@ class SMALCodeGenerator:
         tmpl = env.get_template(external_template_filepath.name)
         return env, tmpl
 
-    def render(self, template: Template, smal: SMALFile, **extra_context: Any) -> str:
+    def render(self, template: Template, machine: Machine, **extra_context: Any) -> str:
         """Render the given template using the given SMAL file, and any provided extra content.
 
         Args:
             template (Template): The jinja template to render.
-            smal (SMALFile): The SMAL file to render to the template.
+            machine (Machine): The SMAL state machine to render to the template.
             **extra_context (Any): Any extra content provided as kwargs to render in the template.
 
         Raises:
@@ -89,19 +100,19 @@ class SMALCodeGenerator:
         """
         # TODO: Implement formatting while the text is in memory here
         try:
-            return template.render(smal=smal, **extra_context)
+            return template.render(machine=machine, **extra_context)
         except UndefinedError as e:
             raise ValueError(
                 f"Unable to render template due to the following undefined variable error:\n\n{e}\n\n"
                 "Consider adding definitions of these variables in the metadata of your SMAL file.",
             ) from e
 
-    def render_to_file(self, template: Template, smal: SMALFile, out_path: str | Path, force: bool = False, **extra_context: Any) -> None:
+    def render_to_file(self, template: Template, machine: Machine, out_path: str | Path, force: bool = False, **extra_context: Any) -> None:
         """Render the given template using the given SMAL file, and any provided extra content to the given filepath.
 
         Args:
             template (Template): The jinja template to render.
-            smal (SMALFile): The SMAL file to render to the template.
+            machine (Machine): The SMAL state machine to render to the template.
             out_path (str | Path): The output filepath to write the file content to.
             force (bool, optional): Whether or not to forcefully overwrite an existing file. Defaults to False.
             **extra_context (Any): Any extra content provided as kwargs to render in the template.
@@ -115,7 +126,7 @@ class SMALCodeGenerator:
         if not force and out_path.exists():
             raise FileExistsError(f"File already exists and overwrite is not allowed: {out_path}")
         try:
-            code = self.render(template, smal, **extra_context)
+            code = self.render(template, machine, **extra_context)
         except ValueError:  # noqa: TRY203 - Error will automatically re-raise. Keeping for clarity
             raise
         out_path.write_text(code, encoding="utf-8")

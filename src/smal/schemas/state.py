@@ -1,4 +1,4 @@
-"""Module defining the State model and related classes for representing states in a state machine, including their types, properties, and validation rules."""
+"""State machine states, state types and substates."""
 
 from __future__ import annotations  # Until Python 3.14
 
@@ -7,9 +7,9 @@ from enum import StrEnum
 from functools import cached_property
 from typing import Any, ClassVar, Self
 
-from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, JsonValue, PrivateAttr, StrictInt, StrictStr, model_validator
 
-from smal.schemas.utilities import IdentifierValidationMixin
+from smal.utilities.types import Identifier  # noqa: TC001 - Pydantic requires this at runtime
 
 
 class StateType(StrEnum):
@@ -29,29 +29,6 @@ class StateType(StrEnum):
     FORK = "fork"
     JUNCTION = "junction"
     FINAL = "final"
-
-    @cached_property
-    def default_metadata(self) -> dict[str, Any]:
-        """Get the default metadata for this StateType.
-
-        Returns:
-            dict[str, Any]: The default metadata for this StateType, which may include graphviz rendering attributes and other relevant information.
-
-        """
-        return {
-            StateType.SIMPLE: {"shape": "box", "style": "rounded"},
-            StateType.COMPOSITE: {"shape": "box", "style": "rounded"},
-            StateType.INITIAL: {"shape": "circle"},
-            StateType.TERMINAL: {"shape": "none", "label": "✕", "fontsize": "24"},
-            StateType.ENTRY: {"shape": "circle", "color": "green"},
-            StateType.EXIT: {"shape": "circle", "color": "red"},
-            StateType.ERROR: {"shape": "hexagon"},
-            StateType.DECISION: {"shape": "diamond"},
-            StateType.JOIN: {"shape": "rect", "width": "1.2", "height": "0.1", "style": "filled", "color": "black", "fillcolor": "black"},
-            StateType.FORK: {"shape": "rect", "width": "0.1", "height": "1.2", "style": "filled", "color": "black", "fillcolor": "black"},
-            StateType.JUNCTION: {"shape": "point"},
-            StateType.FINAL: {"shape": "doublecircle"},
-        }.get(self, {})
 
     @cached_property
     def is_behavioral_state(self) -> bool:
@@ -78,16 +55,6 @@ class StateType(StrEnum):
         return not self.is_behavioral_state
 
     @cached_property
-    def shape(self) -> str:
-        """Get the graphviz rendering shape of this StateType from its metadata.
-
-        Returns:
-            str: The graphviz shape for this StateType, or an empty string if no shape is defined in the metadata.
-
-        """
-        return self.default_metadata.get("shape", "")
-
-    @cached_property
     def shorthand_suffix(self) -> str:
         """Get the shorthand suffix identifier for this StateType, to be appended to the State.name field in SMAL files.
 
@@ -110,46 +77,54 @@ class StateType(StrEnum):
             StateType.FINAL: "_f",
         }.get(self, "")
 
-    def get_metadata(self, **overrides: Any) -> dict[str, Any]:
-        """Get the metadata of this StateType, applying any given overrides over the defaults.
 
-        Returns:
-            dict[str, Any]: The metadata for this StateType, with any provided overrides applied on top of the defaults.
+class State(BaseModel):
+    """A discrete state within a state machine.
 
-        """
-        default_metadata = self.default_metadata.copy()
-        default_metadata.update(overrides)
-        return default_metadata
+    States can be behavioral (simple or composite) or pseudostates (initial, terminal, entry, exit, error, decision, join, fork, junction, final).
 
+    Composite states can contain substates.
+    """
 
-class State(BaseModel, IdentifierValidationMixin):
-    """Model describing a state in a state machine."""
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
-    IDENTIFIER_FIELDS: ClassVar[tuple[str]] = ("name",)
-
-    name: str = Field(...)
-    id: int | None = Field(default=None)
+    name: Identifier = Field(description="State name.")
+    value: StrictInt | None = Field(default=None, validation_alias=AliasChoices("value", "id"), description="Numeric identifier for the state.")
     type: StateType = Field(default=StateType.SIMPLE)
     substates: list[State] = Field(default_factory=list)
-    description: str | None = Field(default=None)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    description: StrictStr | None = Field(default=None)
+    metadata: dict[str, JsonValue] = Field(default_factory=dict)
     _parent_name: str | None = PrivateAttr(default=None)
 
     @property
-    def initial_substate(self) -> State:
-        """Get the initial substate of this composite state.
+    def is_composite(self) -> bool:
+        """Get whether this state is a composite state.
 
-        Raises:
-            ValueError: If this state is not composite and does not have substates.
-            ValueError: If this composite state does not have an initial substate defined.
-            ValueError: If this composite state has multiple initial substates defined, which is not allowed
+        A state is a composite state if its type is StateType.COMPOSITE and it has at least one substate.
 
         Returns:
-            State: The initial substate of this composite state.
+            bool: True if this state is a composite state, False otherwise.
+
+        """
+        return self.type == StateType.COMPOSITE and self.substates
+
+    @property
+    def initial_substate(self) -> State:
+        """Get the initial substate of this state.
+
+        If this state is not a composite state, this method will raise an exception.
+
+        Raises:
+            ValueError: If this state is not a composite state or does not have at least one substate.
+            ValueError: If the state has no initial substate defined.
+            ValueError: If the state has multiple initial substates defined.
+
+        Returns:
+            State: The initial substate of this state.
 
         """
         if not self.is_composite:
-            raise ValueError(f"State '{self.name}' is not composite and does not have substates.")
+            raise ValueError("State '{self.name}' is not composite and does not have substates.")
         initial_substates = [ss for ss in self.substates if ss.type == StateType.INITIAL]
         match len(initial_substates):
             case 0:
@@ -157,21 +132,21 @@ class State(BaseModel, IdentifierValidationMixin):
             case 1:
                 return initial_substates[0]
             case _:
-                raise ValueError(f"Composite state '{self.name}' has multiple initial substates defined, which is not allowed.")
+                raise ValueError(f"Composite state '{self.name}' has multiple initial substates defined, which is invalid.")
 
     @property
-    def is_composite(self) -> bool:
-        """Get whether or not this state is composite, e.g. it contains substates.
+    def parent_name(self) -> str | None:
+        """Get the name of this state's parent state, if applicable.
 
         Returns:
-            bool: True if this state is composite, False otherwise.
+            str | None: The name of the parent state if this state is a substate, or None if it is a top-level state.
 
         """
-        return self.type == StateType.COMPOSITE and self.substates
+        return self._parent_name
 
     @property
     def is_substate(self) -> bool:
-        """Get whether or not this state is a substate, e.g. it has a parent state.
+        """Get whether or not this state is a substate to a parent state.
 
         Returns:
             bool: True if this state is a substate, False otherwise.
@@ -179,105 +154,47 @@ class State(BaseModel, IdentifierValidationMixin):
         """
         return self.parent_name is not None
 
-    @property
-    def parent_name(self) -> str | None:
-        """Get the name of the parent state of this state, if it is a substate.
-
-        Returns:
-            str | None: The name of the parent state if this state is a substate, or None if this state does not have a parent.
-
-        """
-        return self._parent_name
-
     def set_parent(self, parent: State) -> None:
-        """Set the parent of this state.
+        """Set the parent state of this state.
 
         Args:
-            parent (State): The parent state to set for this state.
+            parent (State): The parent state to assign to this state.
 
         """
         self._parent_name = parent.name
 
-    @classmethod
-    def from_shorthand(cls, data: Any) -> State:
-        """Create a State instance from a short-hand representation in data.
-
-        Args:
-            data (Any): The input data for the state, which can be a string (state name) or a dictionary with state properties.
-
-        Raises:
-            ValueError: If the input data is not a string or a dictionary.
-
-        Returns:
-            State: The State instance created from the short-hand representation.
-
-        """
-        if isinstance(data, cls):
-            return data
-        if isinstance(data, str):
-            return cls(name=data)
-        if isinstance(data, dict):
-            return cls.model_validate(data)
-        raise ValueError(f"Invalid short-hand state representation: {data!r}. Expected a string or a dictionary.")
-
-    @field_validator("substates", mode="before")
-    @classmethod
-    def expand_shorthand_substates(cls, v: Any) -> list[State]:
-        """Expand all short-hand (e.g. ones defined simply by name instead of as an object) substates into their full form.
-
-        Args:
-            v (Any): The incoming data for the substates field, which may be a list of strings, a list of dicts, or None.
-
-        Raises:
-            TypeError: If any substate is not a string or a dictionary.
-
-        Returns:
-            list[State]: The list of expanded substates.
-
-        """
-        if v is None:
-            return []  # Substates are optional, so None is treated as an empty list
-        return [State.from_shorthand(ss) for ss in v]
-
     @model_validator(mode="before")
     @classmethod
-    def derive_state_type(cls, v: Any) -> Any:
-        """Derive the type of this state either by its explicitly provided 'type' field or by recognizing a type suffix in its name.
+    def _normalize_input(cls, data: Any) -> Any:
+        """Expand the string shorthand and derive the state type from a name suffix.
 
-        If both are provided, the explicit 'type' field takes precedence.
-
-        Args:
-            v (Any): The incoming data for the state, which should be a dictionary containing at least a 'name' field and optionally a 'type' field.
-
-        Raises:
-            ValueError: If the state definition is missing the required 'name' field.
-            ValueError: If the state name ends with multiple recognized type suffixes, making it ambiguous.
-
-        Returns:
-            Any: The updated state definition with the derived type, if applicable.
-
+        This must only rewrite the raw input and never construct a State itself (that would re-enter this validator).
+        State instances and invalid input are passed through so Pydantic can handle or report them.
         """
-        if not isinstance(v, dict):
-            return v  # Only process dict inputs, which are expected for State definitions
-        state_type = v.get("type", None)
-        if state_type is not None:
-            return v  # Always prioritize an explicitly provided type
-        name = v.get("name", "")
-        if not name:
-            raise ValueError("State definition missing required field 'name'.")
-        shorthanded_types = {st for st in StateType if name.lower().endswith(st.shorthand_suffix.lower())}
-        match len(shorthanded_types):
+        if isinstance(data, str):
+            data = {"name": data}
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)  # Don't mutate the caller's data
+        if data.get("type") is not None:
+            return data  # Always prioritize an explicitly provided type
+        name = data.get("name")
+        if not isinstance(name, str) or not name:
+            return data  # Pydantic reports the missing/invalid name
+        matches = [st for st in StateType if name.lower().endswith(st.shorthand_suffix.lower())]
+        match len(matches):
             case 0:
-                pass  # No recognized type suffixes, leave type as default
+                pass  # No recognized type suffix, leave type as default
             case 1:
-                shorthanded_type = next(iter(shorthanded_types))
-                v["type"] = shorthanded_type.value  # Set type based on the single recognized suffix
-                v["name"] = name[: -len(shorthanded_type.shorthand_suffix)]  # Strip the suffix from the name
-                if not v["name"]:
+                state_type = matches[0]
+                stripped = name[: -len(state_type.shorthand_suffix)]
+                if not stripped:
                     raise ValueError(f"State name '{name}' cannot consist only of a shorthand suffix.")
+                data["type"] = state_type.value
+                data["name"] = stripped
             case _:
                 raise ValueError(f"State name '{name}' ends with multiple recognized type suffixes. Cannot unambiguously derive type from name.")
-        return v
+        return data
 
     @model_validator(mode="after")
     def enforce_compositeness(self) -> Self:
@@ -334,22 +251,22 @@ class State(BaseModel, IdentifierValidationMixin):
 
         """
         if self.substates:
-            substate_ids = [ss.id for ss in self.substates]
+            substate_ids = [ss.value for ss in self.substates]
             if any(sid is None for sid in substate_ids):
                 logging.debug(
                     "State '%s': Some substates are missing IDs. Assigning fresh monotonic IDs based on definition order.",
                     self.name,
                 )
                 for idx, ss in enumerate(self.substates):
-                    ss.id = idx
-                    logging.debug("State '%s': Auto-assigned ID %s to substate '%s'.", self.name, ss.id, ss.name)
+                    ss.value = idx
+                    logging.debug("State '%s': Auto-assigned value %s to substate '%s'.", self.name, ss.value, ss.name)
                 return self
             sorted_ids = sorted(substate_ids)
             expected = list(range(len(substate_ids)))
             if sorted_ids != expected:
                 raise ValueError(
                     f"Substates of State '{self.name}' must have unique, non-negative, and \
-                                 monotonically increasing IDs starting from 0. Found IDs: {substate_ids}",
+                                    monotonically increasing IDs starting from 0. Found IDs: {substate_ids}",
                 )
         return self
 

@@ -1,6 +1,11 @@
-{% macro c_machine_struct(smal) %}
-typedef enum
+{% macro c_machine_struct(machine) %}
+typedef struct
 {
-    // TODO: Implement me however you see fit
-} {{ smal.name | lower }}_state_machine_t;
+{% if machine.context %}
+    {{ machine.name | lower }}_context_t context; // DO NOT REMOVE THIS FIELD
+    // TODO: Add any additional fields needed for the state machine
+{% else %}
+    // TODO: Implement any fields as needed
+{% endif %}
+} {{ machine.name | lower }}_state_machine_t;
 {% endmacro %}

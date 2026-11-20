@@ -14,13 +14,12 @@ from smal.codegen.templates.builtin_templates import TemplateRegistry
 from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.helpers import echo_table, parse_key_value, parse_params
 from smal.schemas.debug import SMALDebugEntry, SMALDebugEntryType
-from smal.schemas.state_machine import SMALFile
+from smal.schemas.machine import Machine
 
 if TYPE_CHECKING:
     import argparse
 
     from smal.repl.target_module import TargetModule
-    from smal.schemas.state_machine import StateMachine
 
 _debug_parser = cmd2.Cmd2ArgumentParser()
 _debug_parser.add_subparsers(title="subcommand", help="subcommand help")
@@ -164,7 +163,7 @@ class DebugCmdSet(SMALCmdSet):
             parent_app.print_error(f"Output path exists but is not a directory: {parsed_args.output_dir}")
             return
         generator = SMALCodeGenerator()
-        smal = SMALFile.blank()
+        machine = Machine.blank()
         boilerplate_templates = TemplateRegistry.get_dbg_boilerplate_templates(args.lang)
         if not boilerplate_templates:
             parent_app.print_error(f"No debug boilerplate templates found for language: {args.lang}")
@@ -177,16 +176,16 @@ class DebugCmdSet(SMALCmdSet):
             out_filepath = args.output_dir / fn
             extra_context = tmpl.extra_context.copy()
             for ctx_key, compute_fn in tmpl.computed_extra_context.items():
-                extra_context[ctx_key] = compute_fn(smal)
+                extra_context[ctx_key] = compute_fn(machine)
             try:
-                generator.render_to_file(btmpl, smal, out_filepath, force=args.force, **extra_context)
+                generator.render_to_file(btmpl, machine, out_filepath, force=args.force, **extra_context)
                 parent_app.print_success(f"Successfully generated debug boilerplate code: [bold cyan]{out_filepath}[/bold cyan]")
             except ValueError:
                 parent_app.print_error(f"Failed to render template {tmpl.name}.")
                 raise
 
 
-def _format_payload_details(entry: SMALDebugEntry, sm: StateMachine) -> str:
+def _format_payload_details(entry: SMALDebugEntry, sm: Machine) -> str:
     payload = entry.payload
     if not hasattr(payload, "display"):
         raise RuntimeError(f"Payload for entry type {entry.entry_type} does not have a display method. This is a programming error.")
@@ -194,7 +193,7 @@ def _format_payload_details(entry: SMALDebugEntry, sm: StateMachine) -> str:
     return escape(payload.display(sm))
 
 
-def _display_entries(entries: list[SMALDebugEntry], sm: StateMachine) -> None:
+def _display_entries(entries: list[SMALDebugEntry], sm: Machine) -> None:
     """Display debug entries in a rich table format.
 
     Args:

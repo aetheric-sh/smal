@@ -2,7 +2,7 @@
 {% from "macros/c/c_enum.j2" import c_enum %}
 {% from "macros/c/c_struct.j2" import c_struct %}
 {% from "macros/c/c_union.j2" import c_union %}
-{{ c_autogen_banner(smal) }}
+{{ c_autogen_banner(machine) }}
 #ifndef SMAL_DBG_H
 #define SMAL_DBG_H
 
@@ -36,7 +36,7 @@ uint32_t smal_dbg_get_timestamp_ms(void);
  */
 void smal_dbg_flush_packet(size_t pkt_len_bytes, const void *pkt, void *user_ctx);
 
-{% for kind, data in smal_dbg_ctx.all_data %}
+{% for kind, data in dbg_ctx.all_data %}
 {% if kind == "enum" %}
 {{ c_enum(data) }}
 {% elif kind == "struct" %}
@@ -269,12 +269,13 @@ static inline uint16_t smal_dbg_ring_drop_oldest(smal_dbg_ring_t *ring, uint16_t
  * @param evt The event that triggered the transition.
  * @param tgt_state The target state of the transition.
  * @param status The status associated with the transition.
+ * @param transition_id The selected state table row's transition_id, or 0 if unavailable.
  * @return smal_dbg_entry_t A SMAL debug entry of type state transition with the specified values and the current timestamp.
  */
 static inline smal_dbg_entry_t smal_dbg_create_transition(uint16_t src_state, uint16_t evt, uint16_t tgt_state,
-        int16_t status)
+        int16_t status, uint32_t transition_id)
 {
-    smal_dbg_entry_t entry;
+    smal_dbg_entry_t entry = {0};
 
     entry.entry_type = SMAL_DBG_ENTRY_TYPE_STATE_TRANSITION;
     entry.timestamp_ms = smal_dbg_get_timestamp_ms();
@@ -282,6 +283,7 @@ static inline smal_dbg_entry_t smal_dbg_create_transition(uint16_t src_state, ui
     entry.payload.transition.tgt_state = tgt_state;
     entry.payload.transition.evt = evt;
     entry.payload.transition.status = status;
+    entry.payload.transition.transition_id = transition_id;
 
     return entry;
 }
@@ -298,7 +300,7 @@ static inline smal_dbg_entry_t smal_dbg_create_transition(uint16_t src_state, ui
 static inline smal_dbg_entry_t smal_dbg_create_msg(uint32_t entry_type, uint16_t identifier, uint16_t data_len,
         uint32_t value)
 {
-    smal_dbg_entry_t entry;
+    smal_dbg_entry_t entry = {0};
 
     entry.entry_type = entry_type;
     entry.timestamp_ms = smal_dbg_get_timestamp_ms();
@@ -318,7 +320,7 @@ static inline smal_dbg_entry_t smal_dbg_create_msg(uint32_t entry_type, uint16_t
  */
 static inline smal_dbg_entry_t smal_dbg_create_data_read(uint32_t address, uint32_t data_len)
 {
-    smal_dbg_entry_t entry;
+    smal_dbg_entry_t entry = {0};
 
     entry.entry_type = SMAL_DBG_ENTRY_TYPE_DATA_READ;
     entry.timestamp_ms = smal_dbg_get_timestamp_ms();
@@ -337,7 +339,7 @@ static inline smal_dbg_entry_t smal_dbg_create_data_read(uint32_t address, uint3
  */
 static inline smal_dbg_entry_t smal_dbg_create_data_write(uint32_t address, uint32_t data_len)
 {
-    smal_dbg_entry_t entry;
+    smal_dbg_entry_t entry = {0};
 
     entry.entry_type = SMAL_DBG_ENTRY_TYPE_DATA_WRITE;
     entry.timestamp_ms = smal_dbg_get_timestamp_ms();
@@ -356,7 +358,7 @@ static inline smal_dbg_entry_t smal_dbg_create_data_write(uint32_t address, uint
  */
 static inline smal_dbg_entry_t smal_dbg_create_error(int32_t error_code, uint32_t detail)
 {
-    smal_dbg_entry_t entry;
+    smal_dbg_entry_t entry = {0};
 
     entry.entry_type = SMAL_DBG_ENTRY_TYPE_ERROR;
     entry.timestamp_ms = smal_dbg_get_timestamp_ms();
@@ -374,13 +376,14 @@ static inline smal_dbg_entry_t smal_dbg_create_error(int32_t error_code, uint32_
  * @param evt The event that triggered the transition.
  * @param tgt_state The target state of the transition.
  * @param status The status associated with the transition.
+ * @param transition_id The selected state table row's transition_id, or 0 if unavailable.
  * @return true if the entry was successfully created and pushed into the ring buffer.
  * @return false if the ring buffer is NULL, has no entries, has zero capacity, or if the push operation failed for any reason.
  */
 static inline bool smal_dbg_log_transition(smal_dbg_ring_t *ring, uint16_t src_state, uint16_t evt, uint16_t tgt_state,
-        int16_t status)
+        int16_t status, uint32_t transition_id)
 {
-    smal_dbg_entry_t entry = smal_dbg_create_transition(src_state, evt, tgt_state, status);
+    smal_dbg_entry_t entry = smal_dbg_create_transition(src_state, evt, tgt_state, status, transition_id);
     return smal_dbg_ring_push(ring, &entry);
 }
 

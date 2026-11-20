@@ -1,19 +1,43 @@
-{% macro c_machine_state_transition_table(smal) %}
-static const {{ smal.name | lower }}_state_table_entry_t {{ smal.name | lower }}_state_table[] =
+{% macro c_machine_state_transition_table(machine) %}
+{% set name = machine.name | lower %}
+{% for t in machine.transitions %}
+{% if t.guard | length > 1 or (t.guard and t.guard[0].negate) %}
+static int {{ name }}_transition_{{ loop.index }}_guard({{ name }}_state_machine_t *state_machine, void *user_ctx)
 {
-{% for t in smal.transitions %}
+    return {% for guard in t.guard %}{{ "!" if guard.negate else "" }}{{ guard.name }}(state_machine, user_ctx){{ " && " if not loop.last else ";" }}{% endfor %}
+
+}
+
+{% endif %}
+{% endfor %}
+static const {{ machine.name | lower }}_state_table_entry_t {{ machine.name | lower }}_state_table[] =
+{
+{% for t in machine.transitions %}
 {{ (
     "{" ~
-    (smal.name | upper) ~ "_STATE_" ~ (t.src | upper) ~ ", " ~
-    (smal.name | upper) ~ "_EVENT_" ~ (t.evt | upper) ~ ", " ~
-    "{" ~ ((t.actions + ["NULL"]) | join(', ')) ~ "}, " ~
-    (smal.name | upper) ~ "_STATE_" ~ (t.tgt | upper) ~ ", " ~
+    (machine.name | upper) ~ "_STATE_" ~ (t.src | upper) ~ ", " ~
     (
-        (smal.name | upper) ~ "_EVENT_" ~ (t.tgt_entry_evt | upper)
+        (machine.name | upper) ~ "_EVENT_" ~ (t.evt | upper)
+        if t.evt
+        else (machine.name | upper) ~ "_EVENT_NULL"
+    ) ~ ", " ~
+    (
+        name ~ "_transition_" ~ loop.index ~ "_guard"
+        if t.guard | length > 1 or (t.guard and t.guard[0].negate)
+        else (t.guard[0].name if t.guard else "NULL")
+    ) ~ ", " ~
+    "{" ~ (t.actions | map(attribute='name') | list + ["NULL"]) | join(', ') ~ "}, " ~
+    (
+        (machine.name | upper) ~ "_STATE_" ~ (t.tgt | upper)
+        if t.tgt
+        else (machine.name | upper) ~ "_STATE_NULL"
+    ) ~ ", " ~
+    (
+        (machine.name | upper) ~ "_EVENT_" ~ (t.tgt_entry_evt | upper)
         if t.tgt_entry_evt
-        else (smal.name | upper) ~ "_EVENT_NULL"
+        else (machine.name | upper) ~ "_EVENT_NULL"
     ) ~
-    "},"
+    ", " ~ loop.index ~ "},"
 ) | indent(4, true) }}
 {% endfor %}
 };

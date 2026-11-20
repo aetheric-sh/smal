@@ -1,4 +1,7 @@
 {
+    "files.associations": {
+        "*.smal": "yaml"
+    },
     "material-icon-theme.folders.associations": {
         "smal": "App",
         "codegen": "Template",

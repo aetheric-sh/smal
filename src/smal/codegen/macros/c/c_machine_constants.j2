@@ -1,5 +1,5 @@
-{% macro c_machine_constants(smal) %}
-{% for constant_name, constant_value in smal.constants.items() %}
-#define {{ constant_name | upper }} {{ constant_value }}
+{% macro c_machine_constants(machine) %}
+{% for constant in machine.constants %}
+#define {{ constant.name | upper }} {{ '"' ~ constant.value ~ '"' if constant.value is string else constant.value | c_integer_literal }}
 {% endfor %}
 {% endmacro %}

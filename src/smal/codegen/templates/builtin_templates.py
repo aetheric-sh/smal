@@ -6,10 +6,42 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, TypeAlias
 
-from smal.schemas.debug import construct_c_codegen_context
-from smal.schemas.state_machine import SMALFile
+from smal.codegen.expressions import bind_guard, bind_setter
+from smal.codegen.naming import get_naming_layer
+from smal.schemas.debug import DebugCodegenContext
+from smal.schemas.machine import Machine
 
-SMALTemplateContextComputeFn: TypeAlias = Callable[[SMALFile], Any]
+SMALTemplateContextComputeFn: TypeAlias = Callable[[Machine], Any]
+
+
+def _c_guard_expressions(machine: Machine) -> dict[str, str]:
+    layer = get_naming_layer("c")
+    expressions = {}
+    for guard in machine.guards:
+        bound = bind_guard(machine, guard)
+        if bound is None:
+            continue
+        try:
+            expressions[guard.name] = layer.emit_guard_expression(bound)
+        except ValueError as exc:
+            raise ValueError(f"Machine '{machine.name}', guard '{guard.name}', expression {guard.expr!r}: {exc}") from exc
+    return expressions
+
+
+def _c_header_filename(machine: Machine) -> str:
+    filename = machine.metadata.get("c_header_filename", "c_machine_hdr.h")
+    if not isinstance(filename, str) or not filename.strip() or any(char in filename for char in ('"', "\n", "\r", "\0")):
+        raise ValueError(f"Machine '{machine.name}': metadata.c_header_filename must be a nonempty C include path without quotes or line breaks.")
+    return filename
+
+
+def _c_setter_actions(machine: Machine) -> dict[str, list[str]]:
+    layer = get_naming_layer("c")
+    return {
+        action.name: [layer.emit_setter_assignment(bind_setter(machine, action, name, value)) for name, value in action.sets.items()]
+        for action in machine.actions
+        if action.sets
+    }
 
 
 @dataclass(frozen=True)
@@ -42,7 +74,7 @@ class TemplateRegistry:
                     lang="c",
                     description="C header file for the state machine debug boilerplate code",
                     output_extension=".h",
-                    computed_extra_context={"smal_dbg_ctx": construct_c_codegen_context},
+                    computed_extra_context={"dbg_ctx": DebugCodegenContext.build},
                 ),
                 "c_dbg_boilerplate_src": SMALTemplate(
                     name="c_dbg_boilerplate_src",
@@ -50,7 +82,7 @@ class TemplateRegistry:
                     lang="c",
                     description="C source file for the state machine debug boilerplate code",
                     output_extension=".c",
-                    computed_extra_context={"smal_dbg_ctx": construct_c_codegen_context},
+                    computed_extra_context={"dbg_ctx": DebugCodegenContext.build},
                 ),
                 "c_machine_hdr": SMALTemplate(
                     name="c_machine_hdr",
@@ -60,6 +92,18 @@ class TemplateRegistry:
                     output_extension=".h",
                     computed_extra_context={
                         "header_guard": lambda smal: f"{smal.name.strip().rstrip('_H')}_H".upper(),
+                    },
+                ),
+                "c_machine_src": SMALTemplate(
+                    name="c_machine_src",
+                    filename="c_machine_src.j2",
+                    lang="c",
+                    description="C source file for declarative state machine guards and setter actions",
+                    output_extension=".c",
+                    computed_extra_context={
+                        "guard_expressions": _c_guard_expressions,
+                        "setter_actions": _c_setter_actions,
+                        "header_filename": _c_header_filename,
                     },
                 ),
             }

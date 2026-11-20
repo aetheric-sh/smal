@@ -16,7 +16,7 @@ from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.cmd_sets.validate import JinjaTemplateValidator
 from smal.repl.completers import machine_completer, template_completer
 from smal.repl.helpers import echo_table, get_persistence
-from smal.schemas.state_machine import SMALFile
+from smal.schemas.machine import Machine
 
 if TYPE_CHECKING:
     import argparse
@@ -120,7 +120,7 @@ class CodeCmdSet(SMALCmdSet):
                 if cached_path is None:
                     parent_app.print_error(f"Specified machine is not cached and no path is known: {parsed_args.machine}")
                     return
-                cached_machine = SMALFile.from_file(cached_path)
+                cached_machine = Machine.from_file(cached_path)
             machine = cached_machine
         if parent_app.origin_command is not None:
             machine.metadata["origin_cmd"] = parent_app.origin_command
@@ -221,11 +221,11 @@ class CodeCmdSet(SMALCmdSet):
         )
 
 
-def generate_code_cmd_builtin(machine: SMALFile, template_name: str, out_dir: Path, out_filename: str | None, force: bool) -> Path:
+def generate_code_cmd_builtin(machine: Machine, template_name: str, out_dir: Path, out_filename: str | None, force: bool) -> Path:
     """Generate code using a builtin SMAL jinja template.
 
     Args:
-        machine (SMALFile): The SMAL machine object.
+        machine (Machine): The SMAL machine object.
         template_name (str): The name of the builtin SMAL template to use for code generation.
         out_dir (Path): The directory where the generated code will be written.
         out_filename (str | None): The optional filename for the generated code. If not provided, a default name based on the template will be used.
@@ -250,11 +250,11 @@ def generate_code_cmd_builtin(machine: SMALFile, template_name: str, out_dir: Pa
     return out_filepath
 
 
-def generate_code_cmd_custom(machine: SMALFile, custom_template_path: Path, out_dir: Path, out_filename: str | None, force: bool) -> Path:
+def generate_code_cmd_custom(machine: Machine, custom_template_path: Path, out_dir: Path, out_filename: str | None, force: bool) -> Path:
     """Generate code using a custom jinja template.
 
     Args:
-        machine (SMALFile): The SMAL machine object.
+        machine (Machine): The SMAL machine object.
         custom_template_path (Path): The path to the custom, SMAL-compliant Jinja2 template file to use for code generation.
         out_dir (Path): The directory where the generated code will be written.
         out_filename (str | None): The optional filename for the generated code. If not provided, a default name based on the template will be used.

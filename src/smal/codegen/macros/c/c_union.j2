@@ -1,8 +1,9 @@
-{% macro c_union(c_union_data) %}
+{% macro c_union(union_spec) %}
 typedef union
 {
-{% for field_name, field_type_and_desc in c_union_data.fields.items() %}
-    {{ field_type_and_desc[0] }} {{field_name}}; // {{ field_type_and_desc[1] }}
+{% for tag_value, struct_name in union_spec.variants %}
+    {{ struct_name | c_type_name }} {{ tag_value }}; // Payload for {{ tag_value }} entries
 {% endfor %}
-} {{ c_union_data.struct_name.rstrip("_t") | lower }}_t;
+    uint32_t raw_words[2]; // For raw access to the payload as two 32-bit words, if needed
+} {{ union_spec.name | c_type_name }};
 {% endmacro %}

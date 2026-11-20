@@ -1,0 +1,31 @@
+{% from "macros/c/c_autogen_banner_state_machine.j2" import c_autogen_banner_state_machine %}
+{{ c_autogen_banner_state_machine(machine) }}
+#include "{{ header_filename }}"
+{% if setter_actions %}
+#include <float.h>
+
+/* Override this hook to report a range error before returning from the action. */
+#ifndef SMAL_SETTER_RANGE_ERROR
+#include <stdlib.h>
+#define SMAL_SETTER_RANGE_ERROR() abort()
+#endif
+{% endif %}
+{% for guard_name, expression in guard_expressions.items() %}
+
+int {{ guard_name }}({{ machine.name | lower }}_state_machine_t *state_machine, void *user_ctx)
+{
+    (void)state_machine;
+    (void)user_ctx;
+    return {{ expression }};
+}
+{% endfor %}
+{% for action_name, assignments in setter_actions.items() %}
+
+void {{ action_name }}({{ machine.name | lower }}_state_machine_t *state_machine, void *user_ctx)
+{
+    (void)user_ctx;
+{% for assignment in assignments %}
+{{ assignment | indent(4, true) }}
+{% endfor %}
+}
+{% endfor %}

@@ -1,20 +1,26 @@
-{% macro c_machine_state_table_entry(smal, max_actions) %}
+{% macro c_machine_state_table_entry(machine, max_actions) %}
 /* All actions take the state machine itself as an argument and return nothing. */
-typedef void (*{{ smal.name | lower }}_action_t)({{ smal.name | lower }}_state_machine_t *state_machine);
+typedef void (*{{ machine.name | lower }}_action_t)({{ machine.name | lower }}_state_machine_t *state_machine, void *user_ctx);
+/* Returns 1 if the guard conditions pass. */
+typedef int (*{{ machine.name | lower }}_guard_t)({{ machine.name | lower }}_state_machine_t *state_machine, void *user_ctx);
 
-/* A state table entry for the {{ smal.name | capitalize }} state machine. */
+/* A state table entry for the {{ machine.name | capitalize }} state machine. */
 #define MAX_ACTIONS_PER_EVENT {{ max_actions }} // Arbitrary number to cap static allocation of actions in state table. Adjust as needed.
 typedef struct
 {
     /* The initial state for this table entry. */
-    {{ smal.name | lower }}_state_t src;
+    {{ machine.name | lower }}_state_t src;
     /* The event which triggers this table entry. */
-    {{ smal.name | lower }}_event_t evt;
+    {{ machine.name | lower }}_event_t evt;
+    /* The guard predicate for this entry, if any. */
+    {{ machine.name | lower }}_guard_t guard;
     /* The action(s) taken by this table entry (in order of definition) in response to `event`. */
-    {{ smal.name | lower }}_action_t actions[MAX_ACTIONS_PER_EVENT + 1];
+    {{ machine.name | lower }}_action_t actions[MAX_ACTIONS_PER_EVENT + 1];
     /* The state which the table entry places the state machine in after executing it's action(s). */
-    {{ smal.name | lower }}_state_t tgt;
+    {{ machine.name | lower }}_state_t tgt;
     /* The event to handle upon entering tgt, if any. */
-    {{ smal.name | lower }}_event_t tgt_entry_evt;
-} {{ smal.name | lower }}_state_table_entry_t;
+    {{ machine.name | lower }}_event_t tgt_entry_evt;
+    /* One-based row identifier for debug packets. */
+    uint32_t transition_id;
+} {{ machine.name | lower }}_state_table_entry_t;
 {% endmacro %}

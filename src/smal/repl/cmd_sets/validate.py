@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from smal.codegen.code_generator import SMALCodeGenerator
 from smal.repl.cmd_sets.smal_cmd_set import SMALCmdSet
 from smal.repl.helpers import get_persistence
-from smal.schemas.state_machine import SMALFile
+from smal.schemas.machine import Machine
 from smal.utilities import constants as SMALConstants
 from smal.utilities.rules import ALL_RULES
 
@@ -62,7 +62,7 @@ class ValidateCmdSet(SMALCmdSet):
                     for rule_name in rules_to_reenable:
                         persistence.enable_rule(rule_name, False, write_to_file=False)
                     persistence.save()
-                SMALFile.model_validate(model_data)
+                Machine.model_validate(model_data)
                 parent_app.print_success(f"'{parsed_args.file}' is a valid SMAL file!", prefix="✅")
                 if rules_to_reenable:
                     parent_app.console.print(f"Re-enabling {len(rules_to_reenable)} rules after validation...")
@@ -233,7 +233,7 @@ class JinjaTemplateValidator:
         self.template_name = self.template.name
         self.template_source, _, _ = self.env.loader.get_source(self.env, self.template.name)
         self.template_lines = self.template_source.splitlines()
-        self.allowed_paths = generate_allowed_variable_paths_from_model(SMALFile)
+        self.allowed_paths = generate_allowed_variable_paths_from_model(Machine)
         self.ast = self.env.parse(self.template_source)
 
     def validate(self) -> SMALValidationResult:
@@ -372,7 +372,7 @@ class JinjaTemplateValidator:
         def is_allowed_symbol(symbol: str) -> bool:
             if symbol in self.allowed_paths:
                 return True
-            if symbol.startswith("smal.metadata"):
+            if symbol.startswith("machine.metadata"):
                 return True  # Allow arbitrary metadata from the SMAL file
             prefix_dot = symbol + "."
             prefix_arr = symbol + "[]"
@@ -479,12 +479,12 @@ def extract_paths_from_model_schema(
     return paths
 
 
-def generate_allowed_variable_paths_from_model(model: type[BaseModel], root: str = "smal") -> set[str]:
+def generate_allowed_variable_paths_from_model(model: type[BaseModel], root: str = "machine") -> set[str]:
     """Generate a set of allowed variable paths for a given Pydantic model by analyzing its JSON schema.
 
     Args:
         model (type[BaseModel]): The Pydantic model class.
-        root (str): The root variable name to prefix all paths with. Defaults to "smal".
+        root (str): The root variable name to prefix all paths with. Defaults to "machine".
 
     Returns:
         set[str]: A set of allowed variable paths.
