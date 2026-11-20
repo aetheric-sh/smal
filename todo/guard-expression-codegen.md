@@ -1,6 +1,6 @@
 # Guard expression code generation
 
-Generate C callback bodies for all seven declarative Horcrux guards through the existing code generation language layer.
+Generate C callback bodies for declarative guards through the existing code generation language layer.
 
 ## 1. Parse and bind expressions
 
@@ -21,7 +21,7 @@ Generate C callback bodies for all seven declarative Horcrux guards through the 
 - [x] Emit one definition per guard with an `expr`, using the existing `(state_machine, user_ctx)` callback signature. Keep declarations in the generated header and supply hardware-dependent guards such as `SelfNoisePresent` in handwritten C.
 - [x] Reuse the existing transition table composition for compound and negated guard references.
 
-## 4. Verify the Horcrux output
+## 4. Verify the output
 
 - [ ] Generate the header and source through the normal command, then compile and link with stubs for handwritten guards and actions.
 - [ ] Compare all seven generated guard callbacks with the Python evaluator. Cover both enums' `none` members, values immediately below and at the attempt threshold, and a transition that composes or negates a guard.

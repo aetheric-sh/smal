@@ -2,7 +2,7 @@
 
 ## 1. Add one-shot command execution
 
-- [ ] Keep cmd2 as the shared command implementation. Add a launcher that starts the REPL for `smal` and `smal repl`, and dispatches invocations such as `smal validate horcrux.smal` through the existing command pipeline.
+- [ ] Keep cmd2 as the shared command implementation. Add a launcher that starts the REPL for `smal` and `smal repl`, and dispatches invocations such as `smal validate foo.smal` through the existing command pipeline.
 - [ ] Provide launcher help and preserve cmd2's command-specific help. Pass shell arguments through without losing spaces, quotes, or literal special characters.
 - [ ] Return a nonzero process status for parse errors and command failures, including handlers that report failure through `print_error()`. Keep the REPL banner, prompt, and startup messages out of one-shot output.
 - [ ] Verify equivalent results for `validate` and `diagram` in both modes. Cover help, invalid commands, missing files, and paths containing spaces.
