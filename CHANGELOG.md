@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.6.6 (2026-11-20)
+
+### Bug Fixes
+
+- Add support for guard statements, expression evaluation, mermaid diagrams. Bugfixes
+  ([#53](https://github.com/aetheric-sh/smal/pull/53),
+  [`1f78e77`](https://github.com/aetheric-sh/smal/commit/1f78e77acc7b3b5c67dd309f7a0bf74984280bd7))
+
+
 ## v0.6.5 (2026-11-02)
 
 ### Bug Fixes
