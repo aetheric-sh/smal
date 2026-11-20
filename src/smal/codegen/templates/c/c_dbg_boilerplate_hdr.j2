@@ -270,12 +270,10 @@ static inline uint16_t smal_dbg_ring_drop_oldest(smal_dbg_ring_t *ring, uint16_t
  * @param tgt_state The target state of the transition.
  * @param status The status associated with the transition.
  * @param transition_id The selected state table row's transition_id, or 0 if unavailable.
- * @param guards_evaluated Bit mask of evaluated guards in row order.
- * @param guard_results Bit mask of raw true returns in row order, before negation.
  * @return smal_dbg_entry_t A SMAL debug entry of type state transition with the specified values and the current timestamp.
  */
 static inline smal_dbg_entry_t smal_dbg_create_transition(uint16_t src_state, uint16_t evt, uint16_t tgt_state,
-        int16_t status, uint32_t transition_id, uint32_t guards_evaluated, uint32_t guard_results)
+        int16_t status, uint32_t transition_id)
 {
     smal_dbg_entry_t entry = {0};
 
@@ -286,8 +284,6 @@ static inline smal_dbg_entry_t smal_dbg_create_transition(uint16_t src_state, ui
     entry.payload.transition.evt = evt;
     entry.payload.transition.status = status;
     entry.payload.transition.transition_id = transition_id;
-    entry.payload.transition.guards_evaluated = guards_evaluated;
-    entry.payload.transition.guard_results = guard_results;
 
     return entry;
 }
@@ -381,15 +377,13 @@ static inline smal_dbg_entry_t smal_dbg_create_error(int32_t error_code, uint32_
  * @param tgt_state The target state of the transition.
  * @param status The status associated with the transition.
  * @param transition_id The selected state table row's transition_id, or 0 if unavailable.
- * @param guards_evaluated Bit mask of evaluated guards in row order.
- * @param guard_results Bit mask of raw true returns in row order, before negation.
  * @return true if the entry was successfully created and pushed into the ring buffer.
  * @return false if the ring buffer is NULL, has no entries, has zero capacity, or if the push operation failed for any reason.
  */
 static inline bool smal_dbg_log_transition(smal_dbg_ring_t *ring, uint16_t src_state, uint16_t evt, uint16_t tgt_state,
-        int16_t status, uint32_t transition_id, uint32_t guards_evaluated, uint32_t guard_results)
+        int16_t status, uint32_t transition_id)
 {
-    smal_dbg_entry_t entry = smal_dbg_create_transition(src_state, evt, tgt_state, status, transition_id, guards_evaluated, guard_results);
+    smal_dbg_entry_t entry = smal_dbg_create_transition(src_state, evt, tgt_state, status, transition_id);
     return smal_dbg_ring_push(ring, &entry);
 }
 

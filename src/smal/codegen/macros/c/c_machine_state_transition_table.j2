@@ -1,24 +1,11 @@
 {% macro c_machine_state_transition_table(machine) %}
 {% set name = machine.name | lower %}
 {% for t in machine.transitions %}
-{% if t.guard %}
-static int {{ name }}_transition_{{ loop.index }}_guard({{ name }}_state_machine_t *state_machine, void *user_ctx,
-        uint32_t *guards_evaluated, uint32_t *guard_results)
+{% if t.guard | length > 1 or (t.guard and t.guard[0].negate) %}
+static int {{ name }}_transition_{{ loop.index }}_guard({{ name }}_state_machine_t *state_machine, void *user_ctx)
 {
-    *guards_evaluated = 0;
-    *guard_results = 0;
-{% for guard in t.guard %}
-    const bool result_{{ loop.index0 }} = {{ guard.name }}(state_machine, user_ctx) != 0;
-{% if loop.index0 < 32 %}
-    *guards_evaluated |= UINT32_C(1) << {{ loop.index0 }};
-    *guard_results |= (uint32_t)result_{{ loop.index0 }} << {{ loop.index0 }};
-{% endif %}
-    if ({{ "" if guard.negate else "!" }}result_{{ loop.index0 }})
-    {
-        return 0;
-    }
-{% endfor %}
-    return 1;
+    return {% for guard in t.guard %}{{ "!" if guard.negate else "" }}{{ guard.name }}(state_machine, user_ctx){{ " && " if not loop.last else ";" }}{% endfor %}
+
 }
 
 {% endif %}
@@ -36,8 +23,8 @@ static const {{ machine.name | lower }}_state_table_entry_t {{ machine.name | lo
     ) ~ ", " ~
     (
         name ~ "_transition_" ~ loop.index ~ "_guard"
-        if t.guard
-        else "NULL"
+        if t.guard | length > 1 or (t.guard and t.guard[0].negate)
+        else (t.guard[0].name if t.guard else "NULL")
     ) ~ ", " ~
     "{" ~ (t.actions | map(attribute='name') | list + ["NULL"]) | join(', ') ~ "}, " ~
     (

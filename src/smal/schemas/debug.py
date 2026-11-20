@@ -79,8 +79,6 @@ class SMALDebugTransitionPayload(BaseModel):
     evt: UInt16 = Field(description="Event ID or index that triggered the transition.")
     status: Int16 = Field(description="Status of the transition (success, failure, error code, etc.).")
     transition_id: UInt32 = Field(default=0, description="One-based transition table row, or zero if unavailable.")
-    guards_evaluated: UInt32 = Field(default=0, description="Bit mask of evaluated guards in transition order.")
-    guard_results: UInt32 = Field(default=0, description="Bit mask of raw true guard results before negation.")
 
     def display(self, sm: Machine) -> str:
         """Return a human-readable representation of this payload.
@@ -99,13 +97,7 @@ class SMALDebugTransitionPayload(BaseModel):
         conditions = ""
         if 0 < self.transition_id <= len(sm.transitions):
             transition = sm.transitions[self.transition_id - 1]
-            guards = []
-            for index, guard in enumerate(transition.guard):
-                bit = 1 << index
-                result = "unknown"
-                if self.guards_evaluated & bit:
-                    result = "true" if self.guard_results & bit else "false"
-                guards.append(f"{'!' if guard.negate else ''}{guard.name}({result})")
+            guards = [f"{'!' if guard.negate else ''}{guard.name}(true)" for guard in transition.guard]
             if transition.is_else:
                 guards.append("else(true)")
             if guards:
