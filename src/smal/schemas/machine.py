@@ -177,8 +177,9 @@ class Machine(BaseModel):
 
         """
         enum_name = f"{self.name}_error".lower()
+        offset = int(include_null and not flags)
         return EnumSpec.build_from_data(
-            {error.name: error.value if error.value is not None else idx for idx, error in enumerate(self.errors)},
+            {error.name: (error.value if error.value is not None else idx) + offset for idx, error in enumerate(self.errors)},
             name=enum_name,
             storage=storage,
             flags=flags,
@@ -209,8 +210,9 @@ class Machine(BaseModel):
 
         """
         enum_name = f"{self.name}_event".lower()
+        offset = int(include_null and not flags)
         return EnumSpec.build_from_data(
-            {event.name: event.value if event.value is not None else idx for idx, event in enumerate(self.events)},
+            {event.name: (event.value if event.value is not None else idx) + offset for idx, event in enumerate(self.events)},
             name=enum_name,
             storage=storage,
             flags=flags,
@@ -243,9 +245,12 @@ class Machine(BaseModel):
             EnumSpec: The enum spec for states.
 
         """
-        state_data = {s.name: s.value for s in self.states}
-        if any(sid is None for sid in state_data.values()):
-            raise ValueError("All states must have a value.")
+        offset = int(include_null and not flags)
+        state_data = {}
+        for state in self.states:
+            if state.value is None:
+                raise ValueError("All states must have a value.")
+            state_data[state.name] = state.value + offset
         state_enum_name = f"{self.name}_state".lower()
         return EnumSpec.build_from_data(
             state_data,

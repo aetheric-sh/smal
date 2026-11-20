@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING, Annotated, Any, Final, Literal
 
 from pydantic import BaseModel, Field
 
-from smal.utilities.types import Bool, IdentifiableObject, Int16, Int32, RefTo, SMALPrimitive, UInt16, UInt32, WireType
+from smal.utilities.types import Bool, Int16, Int32, RefTo, SMALPrimitive, UInt16, UInt32, WireType
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable
 
     from smal.schemas.machine import Machine
 
@@ -62,33 +62,12 @@ class SMALDebugEntryType(IntFlag):
         return ", ".join(types) if types else "NONE"
 
 
-def _name_for(items: Sequence[IdentifiableObject], item_id: int) -> str | None:
-    """Get the name of the item whose id (or, if it has none, its index) is `item_id`.
-
-    Args:
-        items (Sequence[IdentifiableObject]): Objects with `name` and `value` attributes, e.g. `Machine.states`.
-        item_id (int): The value to look up.
-
-    Returns:
-        str | None: The item's name, or None if no item has that value.
-
-    """
-    return next((item.name for idx, item in enumerate(items) if (idx if item.value is None else item.value) == item_id), None)
-
-
-def _label(items: Sequence[IdentifiableObject], kind: str, item_id: int) -> str:
-    """Get `name(id)` for an item, or `kind#id(id)` if it can't be resolved.
-
-    Args:
-        items (Sequence[IdentifiableObject]): Objects with `name` and `value` attributes, e.g. `Machine.states`.
-        kind (str): What the items are (e.g. "state"), used in the fallback name.
-        item_id (int): The id to look up.
-
-    Returns:
-        str: The label.
-
-    """
-    return f"{_name_for(items, item_id) or f'{kind}#{item_id}'}({item_id})"
+def _label(spec: EnumSpec, kind: str, item_id: int) -> str:
+    """Format an identifier using the enum values emitted for firmware."""
+    if spec.include_null and item_id == 0:
+        return "null(0)"
+    name = next((member for member, value in spec.members if value == item_id), None)
+    return f"{name or f'{kind}#{item_id}'}({item_id})"
 
 
 class SMALDebugTransitionPayload(BaseModel):
@@ -110,10 +89,10 @@ class SMALDebugTransitionPayload(BaseModel):
             str: Human-readable representation of the payload.
 
         """
-        status = "OK(0)" if self.status == 0 else _label(sm.errors, "error", self.status)
-        src_state = _label(sm.states, "state", self.src_state)
-        evt = _label(sm.events, "event", self.evt)
-        tgt_state = _label(sm.states, "state", self.tgt_state)
+        status = "OK(0)" if self.status == 0 else _label(sm.errors_enum_spec(include_null=True), "error", self.status)
+        src_state = _label(sm.states_enum_spec(include_null=True), "state", self.src_state)
+        evt = _label(sm.events_enum_spec(include_null=True), "event", self.evt)
+        tgt_state = _label(sm.states_enum_spec(include_null=True), "state", self.tgt_state)
         return f"{src_state} --[{evt}]--> {tgt_state} · {status}"
 
 
@@ -135,7 +114,7 @@ class SMALDebugMessagePayload(BaseModel):
             str: Human-readable representation of the payload.
 
         """
-        return f"{_label(sm.events, 'msg', self.identifier)} · data_len={self.data_len} · value={self.value:#010x}"
+        return f"{_label(sm.events_enum_spec(include_null=True), 'msg', self.identifier)} · data_len={self.data_len} · value={self.value:#010x}"
 
 
 class SMALDebugDataPayload(BaseModel):
@@ -175,7 +154,7 @@ class SMALDebugErrorPayload(BaseModel):
             str: Human-readable representation of the payload.
 
         """
-        return f"{_label(sm.errors, 'error', self.error_code)} · detail={self.detail:#010x}"
+        return f"{_label(sm.errors_enum_spec(include_null=True), 'error', self.error_code)} · detail={self.detail:#010x}"
 
 
 # Rendered in each target language as a tagged union (see TaggedUnionSpec)

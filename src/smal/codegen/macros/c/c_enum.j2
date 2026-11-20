@@ -2,15 +2,12 @@
 typedef enum
 {
 {% if enum_spec.include_null %}
-    {% set next_value = (enum_spec.members | last)[1] + 1 if enum_spec.members else 0 %}
-    /* Preserve the null value from its position after the declared members and optional count. */
-    {{ enum_spec.name | c_enum_null }} = {{ next_value + (1 if enum_spec.include_count else 0) }},
+    {{ enum_spec.name | c_enum_null }} = 0,
 {% endif %}
 {% for member_name, member_value in enum_spec.members %}
     {{ member_name | c_enum_member(enum_spec.prefix) }} = {{ member_value }},
 {% endfor %}
 {% if enum_spec.include_count %}
-    /* Count of all non-null members. */
     {{ enum_spec.name | c_enum_count }}{{ " = 0" if not enum_spec.members else "" }},
 {% endif %}
 } {{ enum_spec.name | c_type_name }};

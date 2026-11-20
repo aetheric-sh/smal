@@ -50,15 +50,20 @@ class Enumeration(BaseModel):
 
     @property
     def resolved_values(self) -> dict[str, int]:
-        """Get each member name mapped to its numeric value, with omitted values auto-numbered as in C.
+        """Resolve omitted values in declaration order, reserving zero for null in regular enums.
 
         Returns:
             dict[str, int]: The member name to resolved numeric value, in definition order.
 
         """
         resolved: dict[str, int] = {}
-        next_value = 0
+        reserve_zero = self.include_null and not self.flags
+        next_value = int(reserve_zero)
         for member in self.values:
+            if reserve_zero and member.value == 0:
+                raise ValueError(f"Enum '{self.name}' member '{member.name}' uses 0, which is reserved for null.")
+            if reserve_zero and next_value == 0:
+                next_value = 1
             value = next_value if member.value is None else member.value
             resolved[member.name] = value
             next_value = value + 1
