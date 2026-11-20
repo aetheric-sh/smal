@@ -1,11 +1,10 @@
-"""Module defining the Enumeration model for representing enumerations in a state machine."""
+"""Enumerations for a state machine's associated data."""
 
 from __future__ import annotations  # Until Python 3.14
 
-from functools import cached_property
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
 
 from smal.schemas.debug import EnumSpec
 from smal.utilities.types import Identifier, SMALPrimitive
@@ -19,6 +18,7 @@ class EnumMember(BaseModel):
     name: Identifier = Field(description="Enum member name.")
     value: StrictInt | None = Field(
         default=None,
+        validation_alias=AliasChoices("value", "id"),
         description="Explicit numeric value. If omitted, it is the previous member's value plus 1, and the first member defaults to 0 (as in C).",
     )
     description: StrictStr | None = Field(default=None, description="Description of the enum member.")
@@ -44,8 +44,9 @@ class Enumeration(BaseModel):
         default=SMALPrimitive.UINT8,
         description="Fixed-width integer type used to store this enum in generated code. Every member's value must fit in it.",
     )
-    include_null: bool = Field(default=False, description="Whether to include a null member (always at the end of enum, before count).")
-    include_count: bool = Field(default=False, description="Whether to include a count member (always last).")
+    flags: bool = Field(default=False, description="Whether this enum is a bitmask (flags) enum. If true, members should be powers of two.")
+    include_null: bool = Field(default=False, description="Whether to generate a null member.")
+    include_count: bool = Field(default=False, description="Whether to generate a count member.")
 
     @property
     def resolved_values(self) -> dict[str, int]:
@@ -61,32 +62,15 @@ class Enumeration(BaseModel):
             value = next_value if member.value is None else member.value
             resolved[member.name] = value
             next_value = value + 1
-        # NOTE: Null and count are automatically added to self.values by a model validator upon construction, no need to add them here
         return resolved
-
-    @cached_property
-    def spec(self) -> EnumSpec:
-        return EnumSpec.build_from_data(
-            data=self.resolved_values,
-            name=self.name,
-            prefix=self.name,
-            include_count=True,
-            include_null=False,
-        )
-
-    @model_validator(mode="after")
-    def _check_null_and_count(self) -> Enumeration:
-        if self.include_null:
-            null_value = EnumMember(name="null", value=len(self.resolved_values), description="Null member")
-            self.values.append(null_value)
-        if self.include_count:
-            count_value = EnumMember(name="count", value=len(self.resolved_values), description="Count member")
-            self.values.append(count_value)
-        return self
 
     @model_validator(mode="after")
     def _enforce_unique_members(self) -> Enumeration:
         names = [m.name for m in self.values]
+        if self.include_null:
+            names.append("null")
+        if self.include_count:
+            names.append("count")
         duplicate_names = sorted({n for n in names if names.count(n) > 1})
         if duplicate_names:
             raise ValueError(f"Enum '{self.name}' has duplicate member names: {duplicate_names}.")
@@ -106,3 +90,34 @@ class Enumeration(BaseModel):
             except ValueError as exc:
                 raise ValueError(f"Enum '{self.name}' member '{member_name}' does not fit its storage_type: {exc}") from exc
         return self
+
+    @model_validator(mode="after")
+    def _enforce_flags(self) -> Enumeration:
+        if self.flags:
+            for member_name, value in self.resolved_values.items():
+                if value != 0 and (value & (value - 1)) != 0:
+                    raise ValueError(
+                        f"Enum '{self.name}' member '{member_name}' has value {value},"
+                        " which is not a power of two. All members of a flags enum must be powers of two."
+                    )
+        return self
+
+    def specification(self, prefix: str | None = None) -> EnumSpec:
+        """Get the enumeration specification for this enumeration.
+
+        Args:
+            prefix (str | None): Optional prefix to prepend to each member name in the spec. Defaults to the enum's name.
+
+        Returns:
+            EnumSpec: The enumeration specification.
+
+        """
+        return EnumSpec.build_from_data(
+            self.resolved_values,
+            name=self.name,
+            storage=self.storage_type,
+            flags=self.flags,
+            prefix=prefix or "",
+            include_count=self.include_count,
+            include_null=self.include_null,
+        )

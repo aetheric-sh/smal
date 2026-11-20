@@ -1,4 +1,4 @@
-"""Module defining the State model and related classes for representing states in a state machine, including their types, properties, and validation rules."""
+"""State machine states, state types and substates."""
 
 from __future__ import annotations  # Until Python 3.14
 
@@ -7,7 +7,7 @@ from enum import StrEnum
 from functools import cached_property
 from typing import Any, ClassVar, Self
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, PrivateAttr, StrictInt, StrictStr, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, JsonValue, PrivateAttr, StrictInt, StrictStr, model_validator
 
 from smal.utilities.types import Identifier  # noqa: TC001 - Pydantic requires this at runtime
 
@@ -79,10 +79,15 @@ class StateType(StrEnum):
 
 
 class State(BaseModel):
+    """A discrete state within a state machine.
+
+    States can be behavioral (simple or composite) or pseudostates (initial, terminal, entry, exit, error, decision, join, fork, junction, final). Composite states can contain substates.
+    """
+
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
     name: Identifier = Field(description="State name.")
-    id: StrictInt | None = Field(default=None, description="Numeric identifier for the state.")
+    value: StrictInt | None = Field(default=None, validation_alias=AliasChoices("value", "id"), description="Numeric identifier for the state.")
     type: StateType = Field(default=StateType.SIMPLE)
     substates: list[State] = Field(default_factory=list)
     description: StrictStr | None = Field(default=None)
@@ -91,10 +96,31 @@ class State(BaseModel):
 
     @property
     def is_composite(self) -> bool:
+        """Get whether this state is a composite state.
+
+        A state is a composite state if its type is StateType.COMPOSITE and it has at least one substate.
+
+        Returns:
+            bool: True if this state is a composite state, False otherwise.
+
+        """
         return self.type == StateType.COMPOSITE and self.substates
 
     @property
     def initial_substate(self) -> State:
+        """Get the initial substate of this state.
+
+        If this state is not a composite state, this method will raise an exception.
+
+        Raises:
+            ValueError: If this state is not a composite state or does not have at least one substate.
+            ValueError: If the state has no initial substate defined.
+            ValueError: If the state has multiple initial substates defined.
+
+        Returns:
+            State: The initial substate of this state.
+
+        """
         if not self.is_composite:
             raise ValueError("State '{self.name}' is not composite and does not have substates.")
         initial_substates = [ss for ss in self.substates if ss.type == StateType.INITIAL]
@@ -108,13 +134,31 @@ class State(BaseModel):
 
     @property
     def parent_name(self) -> str | None:
+        """Get the name of this state's parent state, if applicable.
+
+        Returns:
+            str | None: The name of the parent state if this state is a substate, or None if it is a top-level state.
+
+        """
         return self._parent_name
 
     @property
     def is_substate(self) -> bool:
+        """Get whether or not this state is a substate to a parent state.
+
+        Returns:
+            bool: True if this state is a substate, False otherwise.
+
+        """
         return self.parent_name is not None
 
     def set_parent(self, parent: State) -> None:
+        """Set the parent state of this state.
+
+        Args:
+            parent (State): The parent state to assign to this state.
+
+        """
         self._parent_name = parent.name
 
     @model_validator(mode="before")
@@ -205,15 +249,15 @@ class State(BaseModel):
 
         """
         if self.substates:
-            substate_ids = [ss.id for ss in self.substates]
+            substate_ids = [ss.value for ss in self.substates]
             if any(sid is None for sid in substate_ids):
                 logging.debug(
                     "State '%s': Some substates are missing IDs. Assigning fresh monotonic IDs based on definition order.",
                     self.name,
                 )
                 for idx, ss in enumerate(self.substates):
-                    ss.id = idx
-                    logging.debug("State '%s': Auto-assigned ID %s to substate '%s'.", self.name, ss.id, ss.name)
+                    ss.value = idx
+                    logging.debug("State '%s': Auto-assigned value %s to substate '%s'.", self.name, ss.value, ss.name)
                 return self
             sorted_ids = sorted(substate_ids)
             expected = list(range(len(substate_ids)))

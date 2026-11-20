@@ -7,10 +7,10 @@ import logging
 import shutil
 from contextvars import ContextVar
 from pathlib import Path
-from typing import ClassVar, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 from platformdirs import user_data_dir
-from pydantic import BaseModel, Field, JsonValue
+from pydantic import BaseModel, Field, JsonValue, field_validator
 
 from smal.schemas.machine import Machine  # noqa: TC001 - Pydantic requires this at runtime for type validation
 from smal.schemas.smal_script import SMALScript  # noqa: TC001 - Pydantic requires this at runtime for type validation
@@ -78,6 +78,35 @@ class SMALPersistence(BaseModel):
         default_factory=dict,
         description="A dictionary for storing user-specific persistence data.",
     )
+
+    @field_validator("machines", mode="before")
+    @classmethod
+    def _strip_legacy_enum_sentinels(cls, machines: Any) -> Any:
+        """Remove generated members serialized by older versions of the cache."""
+        if not isinstance(machines, dict):
+            return machines
+        migrated = machines.copy()
+        for name, machine in machines.items():
+            if not isinstance(machine, dict) or not isinstance(machine.get("enums"), list):
+                continue
+            enums = []
+            for enum in machine["enums"]:
+                if isinstance(enum, dict) and isinstance(enum.get("values"), list):
+                    values = enum["values"]
+                    end = len(values)
+                    # The old validator appended null first, then count.
+                    for sentinel in ("count", "null"):
+                        if end > 1 and enum.get(f"include_{sentinel}") is True and values[end - 1] == {
+                            "name": sentinel,
+                            "value": end - 1,
+                            "description": f"{sentinel.capitalize()} member",
+                        }:
+                            end -= 1
+                    if end != len(values):
+                        enum = {**enum, "values": values[:end]}
+                enums.append(enum)
+            migrated[name] = {**machine, "enums": enums}
+        return migrated
 
     @staticmethod
     def clean(del_dir: bool = False, exclude: set[str] | None = None) -> None:

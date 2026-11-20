@@ -93,7 +93,7 @@ class CLanguageNamingLayer:
 
     @staticmethod
     def enum_null(logical_name: str) -> str:
-        """Get the name of the member that represents a null value (defined last, including after the count member if present).
+        """Get the name of the null member, which is emitted first when present.
 
         Args:
             logical_name (str): The enum's logical name.

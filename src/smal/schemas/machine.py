@@ -5,7 +5,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import cached_property
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Self
+from typing import Annotated, Any, ClassVar, Self, TypeVar
 
 import yaml
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, JsonValue, PrivateAttr, StrictInt, model_validator
@@ -14,7 +14,7 @@ from smal.schemas.action import Action  # noqa: TC001 - Pydantic requires this i
 from smal.schemas.constant import Constant
 from smal.schemas.context import ContextVar  # noqa: TC001 - Pydantic requires this import at runtime
 from smal.schemas.debug import EnumSpec
-from smal.schemas.enumeration import Enumeration
+from smal.schemas.enumeration import Enumeration, EnumMember
 from smal.schemas.error import Error  # noqa: TC001 - Pydantic requires this import at runtime
 from smal.schemas.event import Event  # noqa: TC001 - Pydantic requires this import at runtime
 from smal.schemas.guard import GuardDef, GuardRef  # noqa: TC001 - Pydantic requires this import at runtime
@@ -27,6 +27,7 @@ from smal.utilities.rules import ALL_RULES
 from smal.utilities.types import Identifier, SemVer, SMALPrimitive
 
 CONTEXT_PRIMITIVES: frozenset[SMALPrimitive] = frozenset(p for p in SMALPrimitive if p.is_integer or p.is_float or p == SMALPrimitive.BOOL)
+_EnumeratedObject = TypeVar("_EnumeratedObject", bound=State | EnumMember)
 """The SMAL primitives a context variable may use as its type. Enums are also allowed, by their bare name."""
 
 
@@ -145,9 +146,95 @@ class Machine(BaseModel):
         """
         return max(len(t.actions) for t in self.transitions)
 
-    @cached_property
-    def states_spec(self) -> EnumSpec:
+    def enum_specs(self, prefixes: dict[str, str] | None = None) -> list[EnumSpec]:
+        """Get the enumeration specification for this state machine's enumerations.
+
+        Returns:
+            list[EnumSpec]: All enum specs for this state machine's enumerations.
+
+        """
+        return [e.specification(prefix=prefixes.get(e.name) if prefixes else None) for e in self.enums]
+
+    def errors_enum_spec(
+        self,
+        prefix: str | None = None,
+        storage: SMALPrimitive = SMALPrimitive.UINT32,
+        flags: bool = False,
+        include_null: bool = False,
+        include_count: bool = False,
+    ) -> EnumSpec:
+        """Get the enumeration specification for this machine's errors.
+
+        Args:
+            prefix (str | None): Optional prefix to prepend to the enum member names. If None, defaults to '<machine_name>_error'.
+            storage (SMALPrimitive): The storage type for the enum. Defaults to UINT32.
+            flags (bool): Whether the enum should be treated as a flags enum. Defaults to False.
+            include_null (bool): Whether to include a 'null' member in the enum. Defaults to False.
+            include_count (bool): Whether to include a 'count' member in the enum. Defaults to False.
+
+        Returns:
+            EnumSpec: The enum spec for errors.
+
+        """
+        enum_name = f"{self.name}_error".lower()
+        enumeration = Enumeration(
+            enum_name,
+            values=self.errors or [],
+            storage_type=storage,
+            flags=flags,
+            include_null=include_null,
+            include_count=include_count,
+        )
+        return enumeration.specification(prefix=prefix or enum_name)
+
+    def events_enum_spec(
+        self,
+        prefix: str | None = None,
+        storage: SMALPrimitive = SMALPrimitive.UINT32,
+        flags: bool = False,
+        include_null: bool = False,
+        include_count: bool = False,
+    ) -> EnumSpec:
+        """Get the enumeration specification for this machine's events.
+
+        Args:
+            prefix (str | None): Optional prefix to prepend to the enum member names. If None, defaults to '<machine_name>_event'.
+            storage (SMALPrimitive): The storage type for the enum. Defaults to UINT32.
+            flags (bool): Whether the enum should be treated as a flags enum. Defaults to False.
+            include_null (bool): Whether to include a 'null' member in the enum. Defaults to False.
+            include_count (bool): Whether to include a 'count' member in the enum. Defaults to False.
+
+        Returns:
+            EnumSpec: The enum spec for events.
+
+        """
+        enum_name = f"{self.name}_event".lower()
+        enumeration = Enumeration(
+            enum_name,
+            values=self.events or [],
+            storage_type=storage,
+            flags=flags,
+            include_null=include_null,
+            include_count=include_count,
+        )
+        return enumeration.specification(prefix=prefix or enum_name)
+
+    def states_enum_spec(
+        self,
+        prefix: str | None = None,
+        storage: SMALPrimitive = SMALPrimitive.UINT32,
+        flags: bool = False,
+        include_null: bool = False,
+        include_count: bool = False,
+    ) -> EnumSpec:
         """Get the enumeration specification for this machine's states.
+
+        Args:
+            prefix (str | None): Optional prefix to prepend to the enum member names. If None, defaults to '<machine_name>_state'.
+            storage (SMALPrimitive): The storage type for the enum. Defaults to UINT32.
+            flags (bool): Whether the enum should be treated as a flags enum. Defaults to False.
+            include_null (bool): Whether to include a 'null' member in the enum. Defaults to False.
+            include_count (bool): Whether to include a 'count' member in the enum. Defaults to False.
 
         Raises:
             ValueError: If any state has no ID.
@@ -156,49 +243,19 @@ class Machine(BaseModel):
             EnumSpec: The enum spec for states.
 
         """
-        state_data: dict[str, StrictInt] = {s.name: s.id for s in self.states}
+        state_data = {s.name: s.value for s in self.states}
         if any(sid is None for sid in state_data.values()):
-            raise ValueError("All states must have an ID.")
-        logical_name = f"{self.name}_state".lower()
-        return EnumSpec.build_from_data(state_data, logical_name, prefix=logical_name)
-
-    @cached_property
-    def enum_specs(self) -> list[EnumSpec]:
-        return [e.spec for e in self.enums]
-
-    @cached_property
-    def errors_spec(self) -> EnumSpec:
-        """Get the enumeration specification for this machine's errors.
-
-        Raises:
-            ValueError: If any error has no ID.
-
-        Returns:
-            EnumSpec: The enum spec for errors.
-
-        """
-        error_data: dict[str, StrictInt] = {e.name: e.id for e in self.errors}
-        if any(eid is None for eid in error_data.values()):
-            raise ValueError("All errors must have an ID.")
-        logical_name = f"{self.name}_error".lower()
-        return EnumSpec.build_from_data(error_data, logical_name, prefix=logical_name)
-
-    @cached_property
-    def events_spec(self) -> EnumSpec:
-        """Get the enumeration specification for this machine's events.
-
-        Raises:
-            ValueError: If any event has no ID.
-
-        Returns:
-            EnumSpec: The enum spec for events.
-
-        """
-        event_data: dict[str, StrictInt] = {e.name: e.id for e in self.events}
-        if any(eid is None for eid in event_data.values()):
-            raise ValueError("All events must have an ID.")
-        logical_name = f"{self.name}_event".lower()
-        return EnumSpec.build_from_data(event_data, logical_name, prefix=logical_name)
+            raise ValueError("All states must have a value.")
+        state_enum_name = f"{self.name}_state".lower()
+        return EnumSpec.build_from_data(
+            state_data,
+            name=state_enum_name,
+            storage=storage,
+            flags=flags,
+            prefix=prefix or state_enum_name,
+            include_null=include_null,
+            include_count=include_count,
+        )
 
     @model_validator(mode="before")
     @classmethod
@@ -249,27 +306,32 @@ class Machine(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def enforce_monotonic_ids(self) -> Self:
-        """Enforce that all objects that have an ID (States, Events, Errors, etc.) are defined as monotonically increasing IDs across the set of those objects.
+    def enforce_monotonic_enumerations(self) -> Self:
+        """Enforce that all enumerated objects (States, Events, Errors, Enums, etc.) are defined with monotonically increasing values.
 
         Returns:
-            Self: The validated StateMachine instance with monotonic IDs enforced.
+            Self: The validated StateMachine instance with monotonic enumeration values enforced.
 
         """
 
-        def enforce_monotonicity_helper(objects: list[State] | list[Error] | list[Event]) -> None:
+        def enforce_monotonicity_helper(objects: list[_EnumeratedObject]) -> None:
             obj_type = type(objects[0]).__name__ if objects else "Object"
-            ids = [o.id for o in objects]
-            if any(i is None for i in ids):
-                logging.debug("StateMachine '%s': Some %ss are missing IDs. Assigning fresh monotonic IDs based on order of definition.", self.name, obj_type)
+            values = [o.value for o in objects]
+            if any(v is None for v in values):
+                logging.debug(
+                    "StateMachine '%s': Some %ss are missing values. Assigning fresh monotonic values based on order of definition.", self.name, obj_type
+                )
                 for idx, obj in enumerate(objects):
-                    obj.id = idx
-                    logging.debug("StateMachine '%s': Assigned ID %d to %s '%s'.", self.name, idx, obj_type, obj.name)
+                    objects[idx] = obj.model_copy(update={"value": idx})
+                    logging.debug("StateMachine '%s': Assigned value %d to %s '%s'.", self.name, idx, obj_type, obj.name)
                 return
-            sorted_ids = sorted(ids)
-            expected_ids = list(range(len(objects)))
-            if sorted_ids != expected_ids:
-                raise ValueError(f"StateMachine '{self.name}': Object IDs must be monotonically increasing starting from 0. Found IDs: {ids}")
+            sorted_values = sorted(values)
+            expected_values = list(range(len(objects)))
+            if sorted_values != expected_values:
+                raise ValueError(
+                    f"StateMachine '{self.name}': Object values must be monotonically increasing starting from 0. Found values: {values}."
+                    f" Expected: {expected_values}."
+                )
             return
 
         # Enforce monotonic IDs for states, events and errors
@@ -723,19 +785,19 @@ class Machine(BaseModel):
 
             def walk(state: State) -> None:
                 ordered.append(state)
-                for sub in sorted(state.substates, key=lambda s: s.id or 0):
+                for sub in sorted(state.substates, key=lambda s: s.value or 0):
                     walk(sub)
 
             # Walk all top-level states in sorted order
-            for state in sorted(self.states, key=lambda s: s.id or 0):
+            for state in sorted(self.states, key=lambda s: s.value or 0):
                 walk(state)
             return ordered
 
         # Deepcopy so we don't alter the originals
         states = deepcopy(helper())
-        # Ensure all states are now monotonically increasing id
+        # Ensure all flat states are now monotonically increasing value
         for i, state in enumerate(states):
-            state.id = i
+            state.value = i
         # Done
         return states
 

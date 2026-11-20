@@ -39,7 +39,7 @@ class IdentifiableObject(Protocol):
     """Protocol for objects with name and id."""
 
     name: Identifier
-    id: StrictInt | None
+    value: StrictInt | None
 
 
 class SMALPrimitive(StrEnum):

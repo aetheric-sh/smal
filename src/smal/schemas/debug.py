@@ -66,21 +66,21 @@ def _name_for(items: Sequence[IdentifiableObject], item_id: int) -> str | None:
     """Get the name of the item whose id (or, if it has none, its index) is `item_id`.
 
     Args:
-        items (Sequence[IdentifiableObject]): Objects with `name` and `id` attributes, e.g. `Machine.states`.
-        item_id (int): The id to look up.
+        items (Sequence[IdentifiableObject]): Objects with `name` and `value` attributes, e.g. `Machine.states`.
+        item_id (int): The value to look up.
 
     Returns:
-        str | None: The item's name, or None if no item has that id.
+        str | None: The item's name, or None if no item has that value.
 
     """
-    return next((item.name for idx, item in enumerate(items) if (idx if item.id is None else item.id) == item_id), None)
+    return next((item.name for idx, item in enumerate(items) if (idx if item.value is None else item.value) == item_id), None)
 
 
 def _label(items: Sequence[IdentifiableObject], kind: str, item_id: int) -> str:
     """Get `name(id)` for an item, or `kind#id(id)` if it can't be resolved.
 
     Args:
-        items (Sequence[IdentifiableObject]): Objects with `name` and `id` attributes, e.g. `Machine.states`.
+        items (Sequence[IdentifiableObject]): Objects with `name` and `value` attributes, e.g. `Machine.states`.
         kind (str): What the items are (e.g. "state"), used in the fallback name.
         item_id (int): The id to look up.
 
@@ -441,10 +441,6 @@ class EnumSpec:
     prefix: str = ""  # Namespaces the members in the target language, in lower snake case, e.g. "dbg"
     include_count: bool = True
     include_null: bool = True
-
-    # TODO: build (py) - Simply pass py enum through
-    # TODO: build (Enumeration) - Derive include_count/include_null from Enumeration vars
-    # TODO: build (dict[str, int]) - Simply pass data through
 
     @classmethod
     def build(
