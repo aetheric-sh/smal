@@ -1,3 +1,5 @@
+"""Schema for a state machine defined in a SMAL (yaml) file."""
+
 from __future__ import annotations
 
 import logging
@@ -8,7 +10,7 @@ from pathlib import Path
 from typing import Annotated, Any, ClassVar, Self, TypeVar
 
 import yaml
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, JsonValue, PrivateAttr, StrictInt, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, JsonValue, PrivateAttr, model_validator
 
 from smal.schemas.action import Action  # noqa: TC001 - Pydantic requires this import at runtime
 from smal.schemas.constant import Constant
@@ -915,10 +917,14 @@ class Machine(BaseModel):
 
         def check_assignment(action: str, var: str, value: Any) -> None:
             resolved = context_types[var]
+
+            def raise_invalid_enum_value() -> None:
+                raise ValueError(f"{value!r} is not a member of enum '{resolved.name}'.")
+
             try:
                 if isinstance(resolved, Enumeration):
                     if value not in resolved.resolved_values:
-                        raise ValueError(f"{value!r} is not a member of enum '{resolved.name}'.")
+                        raise_invalid_enum_value()
                 else:
                     resolved.check_value(value)
             except ValueError as exc:

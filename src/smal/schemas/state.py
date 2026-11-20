@@ -81,7 +81,9 @@ class StateType(StrEnum):
 class State(BaseModel):
     """A discrete state within a state machine.
 
-    States can be behavioral (simple or composite) or pseudostates (initial, terminal, entry, exit, error, decision, join, fork, junction, final). Composite states can contain substates.
+    States can be behavioral (simple or composite) or pseudostates (initial, terminal, entry, exit, error, decision, join, fork, junction, final).
+
+    Composite states can contain substates.
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")

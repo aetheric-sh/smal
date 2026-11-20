@@ -96,11 +96,16 @@ class SMALPersistence(BaseModel):
                     end = len(values)
                     # The old validator appended null first, then count.
                     for sentinel in ("count", "null"):
-                        if end > 1 and enum.get(f"include_{sentinel}") is True and values[end - 1] == {
-                            "name": sentinel,
-                            "value": end - 1,
-                            "description": f"{sentinel.capitalize()} member",
-                        }:
+                        if (
+                            end > 1
+                            and enum.get(f"include_{sentinel}") is True
+                            and values[end - 1]
+                            == {
+                                "name": sentinel,
+                                "value": end - 1,
+                                "description": f"{sentinel.capitalize()} member",
+                            }
+                        ):
                             end -= 1
                     if end != len(values):
                         enum = {**enum, "values": values[:end]}

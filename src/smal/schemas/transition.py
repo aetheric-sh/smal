@@ -12,6 +12,8 @@ from smal.utilities.types import Identifier  # noqa: TC001 - Pydantic requires t
 
 
 class Transition(BaseModel):
+    """Schema representing a transition in a state machine."""
+
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
     src: Identifier = Field(description="The source state.")
